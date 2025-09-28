@@ -32,6 +32,14 @@ app.get("/api/players", async (req, res) => {
 const fixturesRouter = require("./db/fixtures");
 app.use("/api/fixtures", fixturesRouter);
 
+// mount users router
+const usersRouter = require("./db/users");
+app.use("/api/users", usersRouter);
+
+// mount userPredictions router
+const userPredictionsRouter = require("./db/userPredictions");
+app.use("/api/userPredictions", userPredictionsRouter);
+
 const PORT = process.env.PORT || 3000;
 
 const server = app.listen(PORT, () => {

@@ -1,9 +1,20 @@
-const express = require("express");
-const cors = require("cors");
-const path = require("path");
-// If .env is in repo root (one level up from backend), load it explicitly:
-require("dotenv").config({ path: path.resolve(__dirname, "../.env") });
-const { db } = require("./firestore");
+import express from "express";
+import cors from "cors";
+console.log("FIRST");
+import path from "path";
+import { fileURLToPath } from "url";
+import dotenv from "dotenv";
+
+// Load .env from repo root
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+console.log("__filename=", __filename);
+console.log("__dirname=", __dirname);
+
+dotenv.config({ path: path.resolve(__dirname, "./.env") });
+console.log("DB ID in inde.js= ", process.env.DATABASE_ID);
+
+import { db } from "./firestore.js";
 
 const app = express();
 
@@ -29,15 +40,15 @@ app.get("/api/players", async (req, res) => {
 });
 
 // mount fixtures router
-const fixturesRouter = require("./db/fixtures");
+import fixturesRouter from "./db/fixtures.js";
 app.use("/api/fixtures", fixturesRouter);
 
 // mount users router
-const usersRouter = require("./db/users");
+import usersRouter from "./db/users.js";
 app.use("/api/users", usersRouter);
 
 // mount userPredictions router
-const userPredictionsRouter = require("./db/userPredictions");
+import userPredictionsRouter from "./db/userPredictions.js";
 app.use("/api/userPredictions", userPredictionsRouter);
 
 const PORT = process.env.PORT || 3000;
@@ -58,4 +69,4 @@ function shutdown() {
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
 
-module.exports = app;
+export default app;

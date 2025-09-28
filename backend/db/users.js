@@ -1,9 +1,7 @@
-const express = require("express");
-const axios = require("axios");
+import express from "express";
+import axios from "axios";
+import { db, admin } from "../firestore.js";
 const router = express.Router();
-const { db } = require("../firestore");
-const { getAuth, createUserWithEmailAndPassword } = require("firebase/auth");
-const auth = getAuth();
 
 // GET /api/users - list users
 router.get("/", async (req, res) => {
@@ -19,17 +17,31 @@ router.get("/", async (req, res) => {
   }
 });
 
-// POST /api/users - create a new user
+// POST /api/users - create a new user (server-side using admin)
 router.post("/", async (req, res) => {
   if (!db) return res.status(500).json({ error: "Firestore not initialized" });
+  if (!admin)
+    return res.status(500).json({ error: "Firebase admin not initialized" });
   try {
-    const resp = await createUserWithEmailAndPassword(
-      auth,
-      req.body.email,
-      req.body.password
-    );
-    const user = resp.user;
-    res.status(201).json({ id: user.uid, email: user.email });
+    const { email, password, displayName } = req.body;
+    if (!email || !password)
+      return res.status(400).json({ error: "email and password are required" });
+    const userRecord = await admin
+      .auth()
+      .createUser({ email, password, displayName });
+    // write minimal user doc
+    await db
+      .collection("users")
+      .doc(userRecord.uid)
+      .set(
+        {
+          uid: userRecord.uid,
+          email: userRecord.email,
+          displayName: userRecord.displayName || null,
+        },
+        { merge: true }
+      );
+    res.status(201).json({ id: userRecord.uid, email: userRecord.email });
   } catch (err) {
     console.error("Error creating user:", err);
     res
@@ -155,4 +167,4 @@ router.get("/:id/predictions", async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

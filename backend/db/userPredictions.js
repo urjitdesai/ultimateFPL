@@ -1,7 +1,7 @@
-const express = require("express");
-const axios = require("axios");
+import express from "express";
+import axios from "axios";
+import { db } from "../firestore.js";
 const router = express.Router();
-const { db } = require("../firestore");
 
 // GET /api/userPrdictions - list userPrdictions (limit 100)
 // router.get("/", async (req, res) => {
@@ -62,4 +62,4 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

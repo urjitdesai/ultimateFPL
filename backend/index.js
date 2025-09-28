@@ -1,18 +1,15 @@
+import dotenv from "dotenv";
 import express from "express";
 import cors from "cors";
 console.log("FIRST");
 import path from "path";
 import { fileURLToPath } from "url";
-import dotenv from "dotenv";
 
 // Load .env from repo root
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-console.log("__filename=", __filename);
-console.log("__dirname=", __dirname);
-
 dotenv.config({ path: path.resolve(__dirname, "./.env") });
-console.log("DB ID in inde.js= ", process.env.DATABASE_ID);
+console.log("DB ID in index.js= ", process.env.FIREBASE_DATABASE_ID);
 
 import { db } from "./firestore.js";
 

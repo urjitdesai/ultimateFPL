@@ -103,9 +103,14 @@ router.post("/populate", async (req, res) => {
 // GET /api/fixtures/:id - get fixture by gameweek id
 router.get("/:id", async (req, res) => {
   if (!db) return res.status(500).json({ error: "Firestore not initialized" });
+  console.log("req.params.id=", req.params.id);
+
   try {
-    const snap = await db.collection("fixtures").doc(req.params.id).get();
-    if (!snap.exists) {
+    const snap = await db
+      .collection("fixtures")
+      .where("event", "==", parseInt(req.params.id))
+      .get();
+    if (snap.empty) {
       return res.status(404).json({ error: "Fixture not found" });
     }
     const fixtures = snap.docs.map((d) => ({ id: d.id, ...d.data() }));

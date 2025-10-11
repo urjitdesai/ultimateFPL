@@ -12,6 +12,6 @@ const router = express.Router();
 router.post("/login", loginUser);
 router.delete("/", deleteAllUsers);
 router.post("/populate", populateUsers);
-router.post("/", createUser);
+router.post("/signup", createUser);
 
 export default router;

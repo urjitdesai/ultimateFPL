@@ -1,168 +1,206 @@
-import express from "express";
-import axios from "axios";
-import { db, admin } from "../../firestore.js";
-const router = express.Router();
+// import express from "express";
+// import axios from "axios";
+// import { db, admin } from "../../firestore.js";
+// import jwt from "jsonwebtoken";
+// const router = express.Router();
 
-// GET /api/users - list users
-router.get("/", async (req, res) => {
-  if (!db) return res.status(500).json({ error: "Firestore not initialized" });
-  try {
-    const snap = await db.collection("users").get();
-    const users = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    console.log("total users=", users.length);
-    res.json({ users });
-  } catch (err) {
-    console.error("Error listing users:", err);
-    res.status(500).json({ error: "Failed to list users" });
-  }
-});
+// // GET /api/users - list users
+// router.get("/", async (req, res) => {
+//   if (!db) return res.status(500).json({ error: "Firestore not initialized" });
+//   try {
+//     const snap = await db.collection("users").get();
+//     const users = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+//     console.log("total users=", users.length);
+//     res.json({ users });
+//   } catch (err) {
+//     console.error("Error listing users:", err);
+//     res.status(500).json({ error: "Failed to list users" });
+//   }
+// });
 
-// POST /api/users - create a new user (server-side using admin)
-router.post("/", async (req, res) => {
-  if (!db) return res.status(500).json({ error: "Firestore not initialized" });
-  if (!admin)
-    return res.status(500).json({ error: "Firebase admin not initialized" });
-  try {
-    const { email, password, displayName } = req.body;
-    if (!email || !password)
-      return res.status(400).json({ error: "email and password are required" });
-    const userRecord = await admin
-      .auth()
-      .createUser({ email, password, displayName });
-    // write minimal user doc
-    await db
-      .collection("users")
-      .doc(userRecord.uid)
-      .set(
-        {
-          user_id: userRecord.uid,
-          email: userRecord.email,
-          display_name: userRecord.displayName || null,
-        },
-        { merge: true }
-      );
-    res.status(201).json({ id: userRecord.uid, email: userRecord.email });
-  } catch (err) {
-    console.error("Error creating user:", err);
-    res.status(500).json({
-      error: "Failed to create user",
-      details: err.message || String(err),
-    });
-  }
-});
+// // POST /api/users - create a new user (server-side using admin)
+// router.post("/", async (req, res) => {
+//   if (!db) return res.status(500).json({ error: "Firestore not initialized" });
+//   if (!admin)
+//     return res.status(500).json({ error: "Firebase admin not initialized" });
+//   try {
+//     const { email, password, displayName } = req.body;
+//     if (!email || !password)
+//       return res.status(400).json({ error: "email and password are required" });
+//     const userRecord = await admin
+//       .auth()
+//       .createUser({ email, password, displayName });
+//     // write minimal user doc
+//     await db
+//       .collection("users")
+//       .doc(userRecord.uid)
+//       .set(
+//         {
+//           user_id: userRecord.uid,
+//           email: userRecord.email,
+//           display_name: userRecord.displayName || null,
+//         },
+//         { merge: true }
+//       );
+//     res.status(201).json({ id: userRecord.uid, email: userRecord.email });
+//   } catch (err) {
+//     console.error("Error creating user:", err);
+//     res.status(500).json({
+//       error: "Failed to create user",
+//       details: err.message || String(err),
+//     });
+//   }
+// });
 
-// DELETE /api/users - Delete all users from db
-router.delete("/", async (req, res) => {
-  if (!db) return res.status(500).json({ error: "Firestore not initialized" });
-  try {
-    const colRef = db.collection("users");
-    const snap = await colRef.get();
-    if (snap.empty) return res.json({ deleted: 0 });
+// // DELETE /api/users - Delete all users from db
+// router.delete("/", async (req, res) => {
+//   if (!db) return res.status(500).json({ error: "Firestore not initialized" });
+//   try {
+//     const colRef = db.collection("users");
+//     const snap = await colRef.get();
+//     if (snap.empty) return res.json({ deleted: 0 });
 
-    const docs = snap.docs;
-    const chunkSize = 400; // keep below 500 write limit
-    let deleted = 0;
+//     const docs = snap.docs;
+//     const chunkSize = 400; // keep below 500 write limit
+//     let deleted = 0;
 
-    for (let i = 0; i < docs.length; i += chunkSize) {
-      const batch = db.batch();
-      const chunk = docs.slice(i, i + chunkSize);
-      chunk.forEach((d) => batch.delete(d.ref));
-      await batch.commit();
-      deleted += chunk.length;
-    }
+//     for (let i = 0; i < docs.length; i += chunkSize) {
+//       const batch = db.batch();
+//       const chunk = docs.slice(i, i + chunkSize);
+//       chunk.forEach((d) => batch.delete(d.ref));
+//       await batch.commit();
+//       deleted += chunk.length;
+//     }
 
-    res.json({ deleted });
-  } catch (err) {
-    console.error("Error deleting users:", err);
-    res.status(500).json({
-      error: "Failed to delete users",
-      details: err.message || String(err),
-    });
-  }
-});
+//     res.json({ deleted });
+//   } catch (err) {
+//     console.error("Error deleting users:", err);
+//     res.status(500).json({
+//       error: "Failed to delete users",
+//       details: err.message || String(err),
+//     });
+//   }
+// });
 
-// POST /api/users/populate - fetch from remote BACKEND_API and write to Firestore
-router.post("/populate", async (req, res) => {
-  if (!db) return res.status(500).json({ error: "Firestore not initialized" });
+// // POST /api/users/populate - fetch from remote BACKEND_API and write to Firestore
+// router.post("/populate", async (req, res) => {
+//   if (!db) return res.status(500).json({ error: "Firestore not initialized" });
 
-  const backendApi = process.env.BACKEND_API;
-  if (!backendApi) {
-    return res
-      .status(500)
-      .json({ error: "BACKEND_API environment variable not defined" });
-  }
+//   const backendApi = process.env.BACKEND_API;
+//   if (!backendApi) {
+//     return res
+//       .status(500)
+//       .json({ error: "BACKEND_API environment variable not defined" });
+//   }
 
-  const url = `${backendApi.replace(/\/$/, "")}/users`;
+//   const url = `${backendApi.replace(/\/$/, "")}/users`;
 
-  try {
-    const resp = await axios.get(url, { timeout: 15000 });
-    const users = Array.isArray(resp.data)
-      ? resp.data
-      : resp.data.users || resp.data;
+//   try {
+//     const resp = await axios.get(url, { timeout: 15000 });
+//     const users = Array.isArray(resp.data)
+//       ? resp.data
+//       : resp.data.users || resp.data;
 
-    if (!Array.isArray(users)) {
-      return res
-        .status(500)
-        .json({ error: "Unexpected users response format" });
-    }
+//     if (!Array.isArray(users)) {
+//       return res
+//         .status(500)
+//         .json({ error: "Unexpected users response format" });
+//     }
 
-    // Firestore batch limit is 500; chunk into batches of 400 to be safe
-    const chunkSize = 400;
-    let totalWritten = 0;
+//     // Firestore batch limit is 500; chunk into batches of 400 to be safe
+//     const chunkSize = 400;
+//     let totalWritten = 0;
 
-    for (let i = 0; i < users.length; i += chunkSize) {
-      const chunk = users.slice(i, i + chunkSize);
-      const batch = db.batch();
-      chunk.forEach((u) => {
-        const docId =
-          u && (u.id || u.user_id || u.uid)
-            ? String(u.id || u.user_id || u.uid)
-            : undefined;
-        const docRef = docId
-          ? db.collection("users").doc(docId)
-          : db.collection("users").doc();
-        batch.set(docRef, u, { merge: true });
-      });
-      await batch.commit();
-      totalWritten += chunk.length;
-    }
+//     for (let i = 0; i < users.length; i += chunkSize) {
+//       const chunk = users.slice(i, i + chunkSize);
+//       const batch = db.batch();
+//       chunk.forEach((u) => {
+//         const docId =
+//           u && (u.id || u.user_id || u.uid)
+//             ? String(u.id || u.user_id || u.uid)
+//             : undefined;
+//         const docRef = docId
+//           ? db.collection("users").doc(docId)
+//           : db.collection("users").doc();
+//         batch.set(docRef, u, { merge: true });
+//       });
+//       await batch.commit();
+//       totalWritten += chunk.length;
+//     }
 
-    res.json({ inserted: totalWritten });
-  } catch (err) {
-    console.error("Error populating users:", err);
-    res.status(500).json({
-      error: "Failed to fetch or write users",
-      details: err.message || String(err),
-    });
-  }
-});
+//     res.json({ inserted: totalWritten });
+//   } catch (err) {
+//     console.error("Error populating users:", err);
+//     res.status(500).json({
+//       error: "Failed to fetch or write users",
+//       details: err.message || String(err),
+//     });
+//   }
+// });
 
-// GET /api/users/:id/predictions - get all userPredictions for a given user id
-router.get("/:id/predictions", async (req, res) => {
-  if (!db) return res.status(500).json({ error: "Firestore not initialized" });
-  const userId = req.params.id;
+// // GET /api/users/:id/predictions - get all userPredictions for a given user id
+// router.get("/:id/predictions", async (req, res) => {
+//   if (!db) return res.status(500).json({ error: "Firestore not initialized" });
+//   const userId = req.params.id;
 
-  try {
-    const docSnap = await db
-      .collection("userPredictions")
-      .where("userId", "==", userId)
-      .get();
-    if (docSnap.exists) {
-      const predictions = docSnap.map((doc) => ({
-        id: docSnap.id,
-        ...docSnap.data(),
-      }));
-      res.status(200).json({ data: predictions });
-    } else {
-      res.status(200).json({ data: [] });
-    }
-  } catch (err) {
-    console.error(`Error fetching user predictions for user ${userId}= ${err}`);
-    res.status(500).json({
-      error: "Failed to fetch user predictions",
-      details: err.message || String(err),
-    });
-  }
-});
+//   try {
+//     const docSnap = await db
+//       .collection("userPredictions")
+//       .where("userId", "==", userId)
+//       .get();
+//     if (docSnap.exists) {
+//       const predictions = docSnap.map((doc) => ({
+//         id: docSnap.id,
+//         ...docSnap.data(),
+//       }));
+//       res.status(200).json({ data: predictions });
+//     } else {
+//       res.status(200).json({ data: [] });
+//     }
+//   } catch (err) {
+//     console.error(`Error fetching user predictions for user ${userId}= ${err}`);
+//     res.status(500).json({
+//       error: "Failed to fetch user predictions",
+//       details: err.message || String(err),
+//     });
+//   }
+// });
 
-export default router;
+// // POST /api/users/login - authenticate user
+// router.post("/login", async (req, res) => {
+//   if (!db) return res.status(500).json({ error: "Firestore not initialized" });
+//   try {
+//     const { email, password } = req.body;
+//     if (!email || !password)
+//       return res.status(400).json({ error: "email and password are required" });
+
+//     // Fetch user from Firestore
+//     const userSnap = await db
+//       .collection("users")
+//       .where("email", "==", email)
+//       .limit(1)
+//       .get();
+
+//     if (userSnap.empty)
+//       return res.status(401).json({ error: "Invalid email or password" });
+
+//     const user = userSnap.docs[0].data();
+
+//     // Verify password (assuming password is stored securely, e.g., hashed)
+//     if (user.password !== password)
+//       // Replace with proper hash comparison
+//       return res.status(401).json({ error: "Invalid email or password" });
+
+//     // Generate JWT token
+//     const token = jwt.sign({ userId: user.user_id }, "your_jwt_secret", {
+//       expiresIn: "1h",
+//     });
+
+//     res.status(200).json({ token });
+//   } catch (err) {
+//     console.error("Error logging in user:", err);
+//     res.status(500).json({ error: "Failed to log in user" });
+//   }
+// });
+
+// export default router;

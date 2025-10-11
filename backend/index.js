@@ -11,7 +11,7 @@ console.log("DB_ID in index.js=", process.env.FIREBASE_DATABASE_ID);
 
 const { db } = await import("./firestore.js");
 import fixturesRouter from "./db/fixtures/index.js";
-import usersRouter from "./db/users/users.js";
+import usersRouter from "./db/users/index.js";
 import userPredictionsRouter from "./db/userPredictions/index.js";
 const app = express();
 

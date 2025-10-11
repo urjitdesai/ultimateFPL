@@ -1,18 +1,18 @@
-import dotenv from "dotenv";
-import express from "express";
-import cors from "cors";
-console.log("FIRST");
-import path from "path";
 import { fileURLToPath } from "url";
-
-// Load .env from repo root
+import path from "path";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+import dotenv from "dotenv";
 dotenv.config({ path: path.resolve(__dirname, "./.env") });
-console.log("DB ID in index.js= ", process.env.FIREBASE_DATABASE_ID);
+import express from "express";
+import cors from "cors";
 
-import { db } from "./firestore.js";
+console.log("DB_ID in index.js=", process.env.FIREBASE_DATABASE_ID);
 
+const { db } = await import("./firestore.js");
+import fixturesRouter from "./db/fixtures/index.js";
+import usersRouter from "./db/users/users.js";
+import userPredictionsRouter from "./db/userPredictions/index.js";
 const app = express();
 
 app.use(cors());
@@ -36,17 +36,10 @@ app.get("/api/players", async (req, res) => {
   }
 });
 
-// mount fixtures router
-import fixturesRouter from "./db/fixtures.js";
+// mount routes
 app.use("/api/fixtures", fixturesRouter);
-
-// mount users router
-import usersRouter from "./db/users.js";
 app.use("/api/users", usersRouter);
-
-// mount userPredictions router
-import userPredictionsRouter from "./db/userPredictions.js";
-app.use("/api/userPredictions", userPredictionsRouter);
+app.use("/api/user-predictions", userPredictionsRouter);
 
 const PORT = process.env.PORT || 3000;
 

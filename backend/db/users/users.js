@@ -1,6 +1,6 @@
 import express from "express";
 import axios from "axios";
-import { db, admin } from "../firestore.js";
+import { db, admin } from "../../firestore.js";
 const router = express.Router();
 
 // GET /api/users - list users
@@ -35,21 +35,19 @@ router.post("/", async (req, res) => {
       .doc(userRecord.uid)
       .set(
         {
-          uid: userRecord.uid,
+          user_id: userRecord.uid,
           email: userRecord.email,
-          displayName: userRecord.displayName || null,
+          display_name: userRecord.displayName || null,
         },
         { merge: true }
       );
     res.status(201).json({ id: userRecord.uid, email: userRecord.email });
   } catch (err) {
     console.error("Error creating user:", err);
-    res
-      .status(500)
-      .json({
-        error: "Failed to create user",
-        details: err.message || String(err),
-      });
+    res.status(500).json({
+      error: "Failed to create user",
+      details: err.message || String(err),
+    });
   }
 });
 

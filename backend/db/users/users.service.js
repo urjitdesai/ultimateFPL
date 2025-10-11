@@ -2,11 +2,13 @@ import jwt from "jsonwebtoken";
 import { db } from "../../firestore.js";
 import axios from "axios";
 import admin from "firebase-admin";
+import bcrypt from "bcrypt";
 
 export const authenticateUser = async (email, password) => {
   if (!db) throw new Error("Firestore not initialized");
-
   // Fetch user from Firestore
+  console.log("email=", email);
+  console.log("password=", password);
   const userSnap = await db
     .collection("users")
     .where("email", "==", email)
@@ -16,6 +18,7 @@ export const authenticateUser = async (email, password) => {
   if (userSnap.empty) throw new Error("Invalid email or password");
 
   const user = userSnap.docs[0].data();
+  console.log("user= ", user);
 
   // Verify password (assuming password is stored securely, e.g., hashed)
   if (user.password !== password)
@@ -97,21 +100,20 @@ export const createUserInDb = async (email, password, displayName) => {
   if (!db) throw new Error("Firestore not initialized");
   if (!admin) throw new Error("Firebase admin not initialized");
 
-  const userRecord = await admin
-    .auth()
-    .createUser({ email, password, displayName });
-
-  await db
+  const passwordHash = await bcrypt.hash(password, 10);
+  const doesUserExist = await db
     .collection("users")
-    .doc(userRecord.uid)
-    .set(
-      {
-        user_id: userRecord.uid,
-        email: userRecord.email,
-        display_name: userRecord.displayName || null,
-      },
-      { merge: true }
-    );
+    .where("email", "==", email)
+    .limit(1)
+    .get();
+  if (doesUserExist && !doesUserExist.empty) {
+    throw new Error("User with this email already exists");
+  }
+  const docRef = await db.collection("users").add({
+    email: email,
+    display_name: displayName || null,
+    password: passwordHash,
+  });
 
-  return { id: userRecord.uid, email: userRecord.email };
+  return { id: docRef.id, email: email };
 };

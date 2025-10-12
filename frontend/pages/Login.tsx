@@ -34,7 +34,7 @@ const Login = () => {
   const handleLogin = async () => {
     try {
       const response = await axios.post(
-        `${process.env.EXPO_PUBLIC_BACKEND_URL}/users/login`,
+        `${process.env.EXPO_PUBLIC_BACKEND_URL}/api/users/login`,
         {
           email,
           password,

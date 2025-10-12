@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,8 @@ import {
   ScrollView,
   StatusBar,
   TouchableOpacity,
+  ActivityIndicator,
+  Image,
 } from "react-native";
 import {
   SafeAreaView,
@@ -13,63 +15,138 @@ import {
   SafeAreaInsetsContext,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
-interface Fixture {
-  id: string;
-  homeTeam: string;
-  awayTeam: string;
-  date: string;
-  time: string;
-  gameweek: number;
-  status: "upcoming" | "live" | "finished";
-  homeScore?: number;
-  awayScore?: number;
-}
+import axios from "axios";
+import type {
+  FixtureData,
+  BackendFixture,
+  FixturesResponse,
+} from "../types/fixtures";
+import { useTeams } from "../hooks/useTeams";
 
 const Fixtures = () => {
   const [selectedGameweek, setSelectedGameweek] = useState(1);
+  const [fixtures, setFixtures] = useState<FixtureData[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const fixtures: Fixture[] = [
-    {
-      id: "1",
-      homeTeam: "Arsenal",
-      awayTeam: "Liverpool",
-      date: "2025-10-15",
-      time: "15:00",
-      gameweek: 1,
-      status: "upcoming",
-    },
-    {
-      id: "2",
-      homeTeam: "Manchester City",
-      awayTeam: "Chelsea",
-      date: "2025-10-15",
-      time: "17:30",
-      gameweek: 1,
-      status: "upcoming",
-    },
-    {
-      id: "3",
-      homeTeam: "Manchester United",
-      awayTeam: "Tottenham",
-      date: "2025-10-14",
-      time: "14:00",
-      gameweek: 1,
-      status: "finished",
-      homeScore: 2,
-      awayScore: 1,
-    },
-    {
-      id: "4",
-      homeTeam: "Brighton",
-      awayTeam: "Newcastle",
-      date: "2025-10-13",
-      time: "16:00",
-      gameweek: 1,
-      status: "finished",
-      homeScore: 0,
-      awayScore: 3,
-    },
-  ];
+  // Use teams hook for team data and logos
+  const { teams, getTeamById, getTeamLogo, loading: teamsLoading } = useTeams();
+
+  // Fetch fixtures for a specific gameweek
+  const fetchFixtures = async (gameweek: number) => {
+    setLoading(true);
+    setError(null);
+
+    console.log(`Fetching fixtures for gameweek ${gameweek}...`);
+
+    try {
+      const response = await axios.get(
+        `${process.env.EXPO_PUBLIC_BACKEND_URL}/api/fixtures/${gameweek}`
+      );
+
+      console.log("Fixtures API response:", response.data);
+
+      // Transform the data to match our interface
+      const transformedFixtures: FixtureData[] = response.data.fixtures.map(
+        (fixture: BackendFixture): FixtureData => {
+          const kickoffTime = fixture.kickoff_time || fixture.date;
+          const fixtureDate = kickoffTime ? new Date(kickoffTime) : new Date();
+
+          // Get team names from our teams data or fallback to API data
+          const homeTeam = fixture.team_h ? getTeamById(fixture.team_h) : null;
+          const awayTeam = fixture.team_a ? getTeamById(fixture.team_a) : null;
+
+          return {
+            id: fixture.id || fixture._id || String(Math.random()),
+            homeTeam: homeTeam?.displayName || "Home Team",
+            awayTeam: awayTeam?.displayName || "Away Team",
+            homeTeamId: fixture.team_h,
+            awayTeamId: fixture.team_a,
+            date: fixtureDate.toISOString(),
+            time: fixtureDate.toLocaleTimeString("en-GB", {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+            gameweek: fixture.event || fixture.gameweek || gameweek,
+            status: fixture.finished
+              ? "finished"
+              : fixture.started
+              ? "live"
+              : "upcoming",
+            homeScore: fixture.team_h_score,
+            awayScore: fixture.team_a_score,
+          };
+        }
+      );
+
+      // Sort fixtures by time in ascending order, then by home team ID if dates are same
+      const sortedFixtures = transformedFixtures.sort((a, b) => {
+        const dateA = new Date(a.date);
+        const dateB = new Date(b.date);
+        const timeDiff = dateA.getTime() - dateB.getTime();
+
+        // If dates are the same, sort by home team ID
+        if (timeDiff === 0) {
+          const homeTeamIdA = a.homeTeamId || 0;
+          const homeTeamIdB = b.homeTeamId || 0;
+          return Number(homeTeamIdA) - Number(homeTeamIdB);
+        }
+
+        return timeDiff;
+      });
+
+      setFixtures(sortedFixtures);
+      console.log(
+        `Successfully loaded ${sortedFixtures.length} fixtures for gameweek ${gameweek}`
+      );
+    } catch (err) {
+      console.error("Error fetching fixtures:", err);
+
+      // More detailed error handling
+      if (axios.isAxiosError(err)) {
+        if (err.response) {
+          setError(
+            `Server error: ${err.response.status} - ${err.response.statusText}`
+          );
+        } else if (err.request) {
+          setError(
+            "Network error: Please check your connection and backend server"
+          );
+        } else {
+          setError(`Request error: ${err.message}`);
+        }
+      } else {
+        setError("Failed to load fixtures");
+      }
+
+      setFixtures([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load fixtures when component mounts or gameweek changes
+  // Wait for teams data to load first
+  useEffect(() => {
+    if (!teamsLoading && Object.keys(teams).length > 0) {
+      fetchFixtures(selectedGameweek);
+    }
+  }, [selectedGameweek, teamsLoading, teams]);
+
+  // Refetch fixtures when teams data becomes available
+  useEffect(() => {
+    if (
+      !teamsLoading &&
+      Object.keys(teams).length > 0 &&
+      fixtures.length === 0
+    ) {
+      fetchFixtures(selectedGameweek);
+    }
+  }, [teamsLoading, teams]);
+
+  const handleGameweekChange = (gameweek: number) => {
+    setSelectedGameweek(gameweek);
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -106,7 +183,7 @@ const Fixtures = () => {
     });
   };
 
-  const renderFixtureCard = (fixture: Fixture) => (
+  const renderFixtureCard = (fixture: FixtureData) => (
     <View key={fixture.id} style={styles.fixtureCard}>
       <View style={styles.fixtureHeader}>
         <Text style={styles.dateText}>{formatDate(fixture.date)}</Text>
@@ -122,7 +199,16 @@ const Fixtures = () => {
 
       <View style={styles.matchInfo}>
         <View style={styles.teamContainer}>
-          <Text style={styles.teamName}>{fixture.homeTeam}</Text>
+          <View style={styles.teamInfoContainer}>
+            {fixture.homeTeamId && getTeamLogo(fixture.homeTeamId) && (
+              <Image
+                source={getTeamLogo(fixture.homeTeamId)}
+                style={styles.teamLogo}
+                resizeMode="contain"
+              />
+            )}
+            <Text style={styles.teamName}>{fixture.homeTeam}</Text>
+          </View>
           {fixture.status === "finished" && (
             <Text style={styles.scoreText}>{fixture.homeScore}</Text>
           )}
@@ -132,7 +218,7 @@ const Fixtures = () => {
           {fixture.status === "finished" ? (
             <Text style={styles.vsText}>-</Text>
           ) : (
-            <View>
+            <View style={styles.vsContentContainer}>
               <Text style={styles.vsText}>vs</Text>
               <Text style={styles.timeText}>{fixture.time}</Text>
             </View>
@@ -140,7 +226,16 @@ const Fixtures = () => {
         </View>
 
         <View style={styles.teamContainer}>
-          <Text style={styles.teamName}>{fixture.awayTeam}</Text>
+          <View style={styles.teamInfoContainer}>
+            {fixture.awayTeamId && getTeamLogo(fixture.awayTeamId) && (
+              <Image
+                source={getTeamLogo(fixture.awayTeamId)}
+                style={styles.teamLogo}
+                resizeMode="contain"
+              />
+            )}
+            <Text style={styles.teamName}>{fixture.awayTeam}</Text>
+          </View>
           {fixture.status === "finished" && (
             <Text style={styles.scoreText}>{fixture.awayScore}</Text>
           )}
@@ -171,7 +266,7 @@ const Fixtures = () => {
                 styles.gameweekButton,
                 selectedGameweek === gw && styles.selectedGameweekButton,
               ]}
-              onPress={() => setSelectedGameweek(gw)}
+              onPress={() => handleGameweekChange(gw)}
             >
               <Text
                 style={[
@@ -188,9 +283,41 @@ const Fixtures = () => {
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.sectionTitle}>Gameweek {selectedGameweek}</Text>
-        {fixtures
-          .filter((fixture) => fixture.gameweek === selectedGameweek)
-          .map(renderFixtureCard)}
+
+        {(loading || teamsLoading) && (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#007bff" />
+            <Text style={styles.loadingText}>
+              {teamsLoading ? "Loading teams..." : "Loading fixtures..."}
+            </Text>
+          </View>
+        )}
+
+        {error && (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity
+              style={styles.retryButton}
+              onPress={() => fetchFixtures(selectedGameweek)}
+            >
+              <Text style={styles.retryButtonText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {!loading && !teamsLoading && !error && fixtures.length === 0 && (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>
+              No fixtures available for this gameweek
+            </Text>
+          </View>
+        )}
+
+        {!loading &&
+          !teamsLoading &&
+          !error &&
+          fixtures.length > 0 &&
+          fixtures.map(renderFixtureCard)}
       </ScrollView>
     </SafeAreaView>
   );
@@ -327,6 +454,65 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#6c757d",
     marginTop: 4,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 40,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: "#6c757d",
+    marginTop: 12,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 40,
+  },
+  errorText: {
+    fontSize: 16,
+    color: "#dc3545",
+    textAlign: "center",
+    marginBottom: 16,
+  },
+  retryButton: {
+    backgroundColor: "#007bff",
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 40,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: "#6c757d",
+    textAlign: "center",
+  },
+  teamInfoContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    flex: 1,
+  },
+  teamLogo: {
+    width: 24,
+    height: 24,
+    marginRight: 8,
+  },
+  vsContentContainer: {
+    alignItems: "center",
   },
 });
 

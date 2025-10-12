@@ -4,6 +4,28 @@ import axios from "axios";
 import admin from "firebase-admin";
 import bcrypt from "bcrypt";
 
+export const createUserInDb = async (email, password, displayName) => {
+  if (!db) throw new Error("Firestore not initialized");
+  if (!admin) throw new Error("Firebase admin not initialized");
+
+  const passwordHash = await bcrypt.hash(password, 10);
+  const doesUserExist = await db
+    .collection("users")
+    .where("email", "==", email)
+    .limit(1)
+    .get();
+  if (doesUserExist && !doesUserExist.empty) {
+    throw new Error("User with this email already exists");
+  }
+  const docRef = await db.collection("users").add({
+    email: email,
+    display_name: displayName || null,
+    password: passwordHash,
+  });
+
+  return { id: docRef.id, email: email };
+};
+
 export const authenticateUser = async (email, password) => {
   if (!db) throw new Error("Firestore not initialized");
   // Fetch user from Firestore
@@ -21,9 +43,8 @@ export const authenticateUser = async (email, password) => {
   console.log("user= ", user);
 
   // Verify password (assuming password is stored securely, e.g., hashed)
-  if (user.password !== password)
-    // Replace with proper hash comparison
-    throw new Error("Invalid email or password");
+  const isPasswordValid = await bcrypt.compare(password, user.password);
+  if (!isPasswordValid) throw new Error("Invalid email or password");
 
   // Generate JWT token
   return jwt.sign({ userId: user.user_id }, "your_jwt_secret", {
@@ -94,26 +115,4 @@ export const fetchAndPopulateUsers = async () => {
   }
 
   return totalWritten;
-};
-
-export const createUserInDb = async (email, password, displayName) => {
-  if (!db) throw new Error("Firestore not initialized");
-  if (!admin) throw new Error("Firebase admin not initialized");
-
-  const passwordHash = await bcrypt.hash(password, 10);
-  const doesUserExist = await db
-    .collection("users")
-    .where("email", "==", email)
-    .limit(1)
-    .get();
-  if (doesUserExist && !doesUserExist.empty) {
-    throw new Error("User with this email already exists");
-  }
-  const docRef = await db.collection("users").add({
-    email: email,
-    display_name: displayName || null,
-    password: passwordHash,
-  });
-
-  return { id: docRef.id, email: email };
 };

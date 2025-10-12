@@ -8,12 +8,25 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import type { StackNavigationProp } from "@react-navigation/stack";
+import axios from "axios";
+
+type RootStackParamList = {
+  login: undefined;
+  signup: undefined;
+  main: undefined;
+};
+
+type SignupScreenNavigationProp = StackNavigationProp<
+  RootStackParamList,
+  "signup"
+>;
 
 const Signup = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const navigation = useNavigation();
+  const navigation = useNavigation<SignupScreenNavigationProp>();
 
   const handleSignup = async () => {
     if (password !== confirmPassword) {
@@ -22,20 +35,18 @@ const Signup = () => {
     }
 
     try {
-      const response = await fetch("http://localhost:5000/api/users", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
-      });
+      const response = await axios.post(
+        `${process.env.EXPO_PUBLIC_BACKEND_URL}/users/signup`,
+        {
+          email,
+          password,
+        }
+      );
 
-      if (!response.ok) {
-        throw new Error("Signup failed");
-      }
+      console.log("Signup successful:", response.data);
 
-      const data = await response.json();
-      console.log("Signup successful:", data);
+      // Navigate to main app after successful signup
+      navigation.navigate("main");
     } catch (error) {
       console.error("Error signing up:", error);
     }

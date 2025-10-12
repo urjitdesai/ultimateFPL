@@ -8,12 +8,24 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import type { StackNavigationProp } from "@react-navigation/stack";
 import axios from "axios";
+
+type RootStackParamList = {
+  login: undefined;
+  signup: undefined;
+  main: undefined;
+};
+
+type LoginScreenNavigationProp = StackNavigationProp<
+  RootStackParamList,
+  "login"
+>;
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const navigation = useNavigation();
+  const navigation = useNavigation<LoginScreenNavigationProp>();
 
   useEffect(() => {
     console.log("backend url= ", process.env.EXPO_PUBLIC_BACKEND_URL);
@@ -22,7 +34,7 @@ const Login = () => {
   const handleLogin = async () => {
     try {
       const response = await axios.post(
-        `${process.env.EXPO_PUBLIC_BACKEND_URL}/api/users/login`,
+        `${process.env.EXPO_PUBLIC_BACKEND_URL}/users/login`,
         {
           email,
           password,
@@ -30,6 +42,9 @@ const Login = () => {
       );
 
       console.log("Login successful:", response.data);
+
+      // Navigate to main app after successful login
+      navigation.navigate("main");
     } catch (error) {
       console.error("Error logging in:", error);
     }

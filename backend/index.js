@@ -13,6 +13,7 @@ const { db } = await import("./firestore.js");
 import fixturesRouter from "./db/fixtures/index.js";
 import usersRouter from "./db/users/index.js";
 import userPredictionsRouter from "./db/userPredictions/index.js";
+import constantsRouter from "./db/constants/index.js";
 const app = express();
 
 app.use(cors());
@@ -40,6 +41,7 @@ app.get("/api/players", async (req, res) => {
 app.use("/api/fixtures", fixturesRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/user-predictions", userPredictionsRouter);
+app.use("/api/constants", constantsRouter);
 
 const PORT = process.env.PORT || 3000;
 

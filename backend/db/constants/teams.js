@@ -20,3 +20,5 @@ const teams = {
   19: { name: "Burnley", displayName: "Burnley" },
   20: { name: "Wolverhampton", displayName: "Wolves" },
 };
+
+export default teams;

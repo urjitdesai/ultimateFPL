@@ -14,6 +14,8 @@ import fixturesRouter from "./db/fixtures/index.js";
 import usersRouter from "./db/users/index.js";
 import userPredictionsRouter from "./db/userPredictions/index.js";
 import constantsRouter from "./db/constants/index.js";
+import scoreRouter from "./db/score/index.js";
+import leaguesRouter from "./db/leagues/index.js";
 const app = express();
 
 app.use(cors());
@@ -42,6 +44,8 @@ app.use("/api/fixtures", fixturesRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/user-predictions", userPredictionsRouter);
 app.use("/api/constants", constantsRouter);
+app.use("/api/score", scoreRouter);
+app.use("/api/leagues", leaguesRouter);
 
 const PORT = process.env.PORT || 3000;
 

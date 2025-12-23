@@ -55,9 +55,23 @@ const getFixtureById = async (req, res) => {
   }
 };
 
+// GET /api/fixtures/gameweek/current
+const getCurrentGameweek = async (req, res) => {
+  console.log("in getCurrentGameweek controller");
+  if (!db) return res.status(500).json({ error: "Firestore not initialized" });
+  try {
+    const result = await fixtureService.getCurrentGameweek();
+    res.json({ currentGameweek: result });
+  } catch (err) {
+    console.error("Error getting current gameweek:", err);
+    res.status(500).json({ error: "Failed to get current gameweek" });
+  }
+};
+
 export default {
   listFixtures,
   deleteAllFixtures,
   populateFixtures,
   getFixtureById,
+  getCurrentGameweek,
 };

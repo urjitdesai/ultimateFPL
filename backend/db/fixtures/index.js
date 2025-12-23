@@ -14,4 +14,6 @@ router.post("/populate", fixturesController.populateFixtures);
 // GET /api/fixtures/:id - get fixture by gameweek ID
 router.get("/:id", fixturesController.getFixtureById);
 
+router.get("/gameweek/current", fixturesController.getCurrentGameweek);
+
 export default router;

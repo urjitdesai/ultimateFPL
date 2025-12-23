@@ -105,7 +105,7 @@ const calculateScores = async ({ event, userId }) => {
       fixture.team_h_score !== pred.team_h_score
     ) {
       pred.score = score; // attach score to this prediction
-      pred.totalScore = Object.values(score).reduce((a, b) => a + b, 0);
+      pred.total_score = Object.values(score).reduce((a, b) => a + b, 0);
       return; // no points if scoreline is wrong
     }
     // correct scoreline - assign base points

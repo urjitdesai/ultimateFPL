@@ -25,6 +25,7 @@ import { useTeams } from "../hooks/useTeams";
 
 const Fixtures = () => {
   const [selectedGameweek, setSelectedGameweek] = useState(1);
+  const [currentGameweek, setCurrentGameweek] = useState<number | null>(null);
   const [fixtures, setFixtures] = useState<FixtureData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -125,24 +126,54 @@ const Fixtures = () => {
     }
   };
 
-  // Load fixtures when component mounts or gameweek changes
-  // Wait for teams data to load first
-  useEffect(() => {
-    if (!teamsLoading && Object.keys(teams).length > 0) {
-      fetchFixtures(selectedGameweek);
+  // Get current gameweek from API
+  const getCurrentGameweek = async () => {
+    try {
+      const response = await axios.get(
+        `${process.env.EXPO_PUBLIC_BACKEND_URL}/api/fixtures/gameweek/current`
+      );
+      const gameweek = response.data.currentGameweek;
+      setCurrentGameweek(gameweek);
+      return gameweek;
+    } catch (err) {
+      console.error("Error fetching current gameweek:", err);
+      // Fallback to gameweek 1 if API fails
+      setCurrentGameweek(1);
+      return 1;
     }
-  }, [selectedGameweek, teamsLoading, teams]);
+  };
 
-  // Refetch fixtures when teams data becomes available
+  // Initialize with current gameweek and fetch fixtures
+  const initializeWithCurrentGameweek = async () => {
+    if (!teamsLoading && Object.keys(teams).length > 0) {
+      const gameweek = await getCurrentGameweek();
+      setSelectedGameweek(gameweek);
+      fetchFixtures(gameweek);
+    }
+  };
+
+  // Initialize with current gameweek when component mounts and teams are loaded
   useEffect(() => {
     if (
       !teamsLoading &&
       Object.keys(teams).length > 0 &&
-      fixtures.length === 0
+      currentGameweek === null
+    ) {
+      initializeWithCurrentGameweek();
+    }
+  }, [teamsLoading, teams, currentGameweek]);
+
+  // Fetch fixtures when selected gameweek changes (after initialization)
+  useEffect(() => {
+    if (
+      !teamsLoading &&
+      Object.keys(teams).length > 0 &&
+      currentGameweek !== null &&
+      selectedGameweek !== currentGameweek
     ) {
       fetchFixtures(selectedGameweek);
     }
-  }, [teamsLoading, teams]);
+  }, [selectedGameweek, teamsLoading, teams, currentGameweek]);
 
   const handleGameweekChange = (gameweek: number) => {
     setSelectedGameweek(gameweek);
@@ -265,6 +296,7 @@ const Fixtures = () => {
               style={[
                 styles.gameweekButton,
                 selectedGameweek === gw && styles.selectedGameweekButton,
+                currentGameweek === gw && styles.currentGameweekButton,
               ]}
               onPress={() => handleGameweekChange(gw)}
             >
@@ -272,9 +304,13 @@ const Fixtures = () => {
                 style={[
                   styles.gameweekButtonText,
                   selectedGameweek === gw && styles.selectedGameweekButtonText,
+                  currentGameweek === gw && styles.currentGameweekButtonText,
                 ]}
               >
                 GW {gw}
+                {currentGameweek === gw && (
+                  <Text style={styles.currentIndicator}> •</Text>
+                )}
               </Text>
             </TouchableOpacity>
           ))}
@@ -282,7 +318,12 @@ const Fixtures = () => {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.sectionTitle}>Gameweek {selectedGameweek}</Text>
+        <Text style={styles.sectionTitle}>
+          Gameweek {selectedGameweek}
+          {currentGameweek === selectedGameweek && (
+            <Text style={styles.currentIndicator}> (Current)</Text>
+          )}
+        </Text>
 
         {(loading || teamsLoading) && (
           <View style={styles.loadingContainer}>
@@ -374,6 +415,19 @@ const styles = StyleSheet.create({
   },
   selectedGameweekButtonText: {
     color: "#fff",
+  },
+  currentGameweekButton: {
+    borderColor: "#28a745",
+    borderWidth: 2,
+  },
+  currentGameweekButtonText: {
+    color: "#28a745",
+    fontWeight: "600",
+  },
+  currentIndicator: {
+    color: "#28a745",
+    fontSize: 16,
+    fontWeight: "bold",
   },
   content: {
     flex: 1,

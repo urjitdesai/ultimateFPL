@@ -38,13 +38,13 @@ const Home = () => {
 
   const { getTeamById, getTeamLogo, loading: teamsLoading } = useTeams();
 
-  // Fetch fixtures for current gameweek
-  const fetchCurrentGameweekFixtures = async () => {
+  // Fetch fixtures for a specific gameweek
+  const fetchFixturesForGameweek = async (gameweek: number) => {
     setLoading(true);
     setError(null);
     try {
       const response = await axios.get(
-        `${process.env.EXPO_PUBLIC_BACKEND_URL}/api/fixtures/${currentGameweek}`
+        `${process.env.EXPO_PUBLIC_BACKEND_URL}/api/fixtures/${gameweek}`
       );
 
       const transformedFixtures: FixtureData[] = response.data.fixtures.map(
@@ -66,7 +66,7 @@ const Home = () => {
               hour: "2-digit",
               minute: "2-digit",
             }),
-            gameweek: fixture.event || fixture.gameweek || currentGameweek,
+            gameweek: fixture.event || fixture.gameweek || gameweek,
             status: fixture.finished
               ? "finished"
               : fixture.started
@@ -167,10 +167,39 @@ const Home = () => {
     }
   };
 
-  // Load fixtures when component mounts or teams data is ready
+  const getCurrentGameweek = async () => {
+    try {
+      const response = await axios.get(
+        `${process.env.EXPO_PUBLIC_BACKEND_URL}/api/fixtures/gameweek/current`
+      );
+      const newGameweek = response.data.currentGameweek;
+      setCurrentGameweek(newGameweek);
+      return newGameweek;
+    } catch (err) {
+      console.error("Error fetching current gameweek:", err);
+      return null;
+    }
+  };
+
+  // Fetch current gameweek and immediately fetch fixtures for it
+  const fetchCurrentGameweekAndFixtures = async () => {
+    const gameweek = await getCurrentGameweek();
+    if (gameweek && !teamsLoading && getTeamById(1)) {
+      fetchFixturesForGameweek(gameweek);
+    }
+  };
+
+  // Load current gameweek and fixtures when component mounts and teams are loaded
   useEffect(() => {
-    if (!teamsLoading && Object.keys(getTeamById(1) || {}).length > 0) {
-      fetchCurrentGameweekFixtures();
+    if (!teamsLoading && getTeamById(1)) {
+      fetchCurrentGameweekAndFixtures();
+    }
+  }, [teamsLoading]);
+
+  // Fetch fixtures when current gameweek changes and teams are loaded
+  useEffect(() => {
+    if (currentGameweek && !teamsLoading && getTeamById(1)) {
+      fetchFixturesForGameweek(currentGameweek);
     }
   }, [currentGameweek, teamsLoading]);
 
@@ -275,7 +304,7 @@ const Home = () => {
             <Text style={styles.errorText}>{error}</Text>
             <TouchableOpacity
               style={styles.retryButton}
-              onPress={fetchCurrentGameweekFixtures}
+              onPress={fetchCurrentGameweekAndFixtures}
             >
               <Text style={styles.retryButtonText}>Retry</Text>
             </TouchableOpacity>

@@ -2,8 +2,6 @@ import leaguesService from "../leagues/leagues.service.js";
 import { db } from "../../firestore.js";
 
 const createLeague = async (req, res) => {
-  if (!db) return res.status(500).json({ error: "Firestore not initialized" });
-
   const { name, description, creatorUserId, is_private } = req.body;
 
   try {
@@ -21,7 +19,6 @@ const createLeague = async (req, res) => {
 };
 
 const getLeagueById = async (req, res) => {
-  if (!db) return res.status(500).json({ error: "Firestore not initialized" });
   const leagueId = req.params.id;
   try {
     const league = await leaguesService.getLeagueById(leagueId);
@@ -34,7 +31,6 @@ const getLeagueById = async (req, res) => {
 };
 
 const getUserLeagues = async (req, res) => {
-  if (!db) return res.status(500).json({ error: "Firestore not initialized" });
   const userId = req.body.userId;
   try {
     const leagues = await leaguesService.getUserLeagues(userId);
@@ -46,7 +42,6 @@ const getUserLeagues = async (req, res) => {
 };
 
 const joinLeague = async (req, res) => {
-  if (!db) return res.status(500).json({ error: "Firestore not initialized" });
   const { userId, league_code } = req.body;
 
   if (!userId || !league_code) {

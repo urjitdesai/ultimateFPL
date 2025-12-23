@@ -5,7 +5,6 @@ import admin from "firebase-admin";
 import bcrypt from "bcrypt";
 
 export const createUserInDb = async (email, password, displayName) => {
-  if (!db) throw new Error("Firestore not initialized");
   if (!admin) throw new Error("Firebase admin not initialized");
 
   const passwordHash = await bcrypt.hash(password, 10);
@@ -27,7 +26,6 @@ export const createUserInDb = async (email, password, displayName) => {
 };
 
 export const authenticateUser = async (email, password) => {
-  if (!db) throw new Error("Firestore not initialized");
   // Fetch user from Firestore
   console.log("email=", email);
   console.log("password=", password);
@@ -53,8 +51,6 @@ export const authenticateUser = async (email, password) => {
 };
 
 export const deleteUsersFromDb = async () => {
-  if (!db) throw new Error("Firestore not initialized");
-
   const colRef = db.collection("users");
   const snap = await colRef.get();
   if (snap.empty) return 0;
@@ -75,8 +71,6 @@ export const deleteUsersFromDb = async () => {
 };
 
 export const fetchAndPopulateUsers = async () => {
-  if (!db) throw new Error("Firestore not initialized");
-
   const backendApi = process.env.BACKEND_API;
   if (!backendApi) {
     throw new Error("BACKEND_API environment variable not defined");

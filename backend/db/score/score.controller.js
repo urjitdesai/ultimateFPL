@@ -4,7 +4,6 @@ import { db } from "../../firestore.js";
 // GET /api/score/user/:userId/gameweek/:gameweek
 const getUserGameweekScore = async (req, res) => {
   console.log("in getUserGameweekScore controller");
-  if (!db) return res.status(500).json({ error: "Firestore not initialized" });
 
   const { userId, gameweek } = req.params;
 
@@ -31,7 +30,6 @@ const getUserGameweekScore = async (req, res) => {
 // GET /api/score/user/:userId/total
 const getUserTotalScore = async (req, res) => {
   console.log("in getUserTotalScore controller");
-  if (!db) return res.status(500).json({ error: "Firestore not initialized" });
 
   const { userId } = req.params;
 

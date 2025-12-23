@@ -10,6 +10,7 @@ import cors from "cors";
 console.log("DB_ID in index.js=", process.env.FIREBASE_DATABASE_ID);
 
 const { db } = await import("./firestore.js");
+import { checkDatabaseConnection } from "./middleware/dbConnection.js";
 import fixturesRouter from "./db/fixtures/index.js";
 import usersRouter from "./db/users/index.js";
 import userPredictionsRouter from "./db/userPredictions/index.js";
@@ -21,14 +22,25 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Global database connection check middleware for all API routes
+app.use("/api", checkDatabaseConnection);
+
 // simple health route
 app.get("/", (req, res) => {
   res.json({ status: "Backend in running", uptime: process.uptime() });
 });
 
+// Database health check endpoint
+app.get("/health/database", (req, res) => {
+  res.json({
+    status: "Database connection healthy",
+    timestamp: new Date().toISOString(),
+    database: "Firestore",
+  });
+});
+
 // Sample route that reads from a `players` collection (expects documents)
 app.get("/api/players", async (req, res) => {
-  if (!db) return res.status(500).json({ error: "Firestore not initialized" });
   try {
     const snap = await db.collection("players").limit(50).get();
     const players = snap.docs.map((d) => ({ id: d.id, ...d.data() }));

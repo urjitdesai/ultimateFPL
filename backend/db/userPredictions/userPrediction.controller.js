@@ -2,7 +2,6 @@ import userPredService from "./userPredictions.service.js";
 import { db } from "../../firestore.js";
 
 const deleteAll = async (req, res) => {
-  if (!db) return res.status(500).json({ error: "Firestore not initialized" });
   try {
     const result = await userPredService.deleteAllUserPredictions();
     res.json(result);
@@ -13,7 +12,6 @@ const deleteAll = async (req, res) => {
 };
 
 const getUserPredictionsById = async (req, res) => {
-  if (!db) return res.status(500).json({ error: "Firestore not initialized" });
   try {
     const { user_id, event } = req.body;
     console.log("userId=", user_id, "\tevent=", event);
@@ -30,7 +28,6 @@ const getUserPredictionsById = async (req, res) => {
 };
 
 const populate = async (req, res) => {
-  if (!db) return res.status(500).json({ error: "Firestore not initialized" });
   try {
     const { event, user_id: userId } = req.body;
     const result = await userPredService.populatePredictions({ event, userId });
@@ -42,7 +39,6 @@ const populate = async (req, res) => {
 };
 
 const calculate = async (req, res) => {
-  if (!db) return res.status(500).json({ error: "Firestore not initialized" });
   try {
     const { event, user_id: userId } = req.body;
     const result = await userPredService.calculateScores({ event, userId });

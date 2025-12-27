@@ -3,6 +3,7 @@ import { db } from "../../firestore.js";
 import axios from "axios";
 import admin from "firebase-admin";
 import bcrypt from "bcrypt";
+import leaguesService from "../leagues/leagues.service.js";
 
 export const createUserInDb = async (email, password, displayName) => {
   if (!admin) throw new Error("Firebase admin not initialized");
@@ -21,6 +22,8 @@ export const createUserInDb = async (email, password, displayName) => {
     display_name: displayName || null,
     password: passwordHash,
   });
+
+  await leaguesService.joinLeague(docRef.id, "OVERALL"); // auto-join overall league
 
   return { id: docRef.id, email: email };
 };
@@ -117,4 +120,28 @@ export const getAllUsersFromDb = async () => {
     id: doc.id,
     ...doc.data(),
   }));
+};
+
+export const deleteUserWithEmail = async (email) => {
+  const userQuery = await db
+    .collection("users")
+    .where("email", "==", email)
+    .limit(1)
+    .get();
+  if (userQuery.empty) {
+    throw new Error("User with this email does not exist");
+  }
+  const userDoc = userQuery.docs[0];
+  await userDoc.ref.delete();
+  return true;
+};
+
+// Export as a single service object
+export const userService = {
+  createUserInDb,
+  authenticateUser,
+  deleteUsersFromDb,
+  fetchAndPopulateUsers,
+  getAllUsersFromDb,
+  deleteUserWithEmail,
 };

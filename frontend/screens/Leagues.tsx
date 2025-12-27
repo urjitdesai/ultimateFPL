@@ -29,27 +29,27 @@ const Leagues = () => {
   }, []);
 
   const joinedLeagues: League[] = [
-    {
-      id: "1",
-      name: "Premier League Legends",
-      type: "public",
-      members: 1250,
-      rank: 42,
-    },
-    {
-      id: "2",
-      name: "Friends & Family",
-      type: "private",
-      members: 12,
-      rank: 3,
-    },
-    {
-      id: "3",
-      name: "Office Champions",
-      type: "private",
-      members: 28,
-      rank: 8,
-    },
+    // {
+    //   id: "1",
+    //   name: "Premier League Legends",
+    //   type: "public",
+    //   members: 1250,
+    //   rank: 42,
+    // },
+    // {
+    //   id: "2",
+    //   name: "Friends & Family",
+    //   type: "private",
+    //   members: 12,
+    //   rank: 3,
+    // },
+    // {
+    //   id: "3",
+    //   name: "Office Champions",
+    //   type: "private",
+    //   members: 28,
+    //   rank: 8,
+    // },
   ];
 
   const availableLeagues: League[] = [

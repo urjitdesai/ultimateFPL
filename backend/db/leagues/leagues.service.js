@@ -109,12 +109,16 @@ const joinLeague = async (userId, league_code) => {
   // Create entry inside users_leagues collection
   const userLeaguesRef = db
     .collection("users_leagues")
-    .doc(`${leagueData.id}_${userId}`);
+    .doc(`${leagueDoc.id}_${userId}`);
+  console.log("userLeaguesRef= ", userLeaguesRef);
+
+  const joiningGameweek = await fixtureService.getCurrentGameweek();
+  console.log("joiningGameweek= ", joiningGameweek);
   await userLeaguesRef.set({
     userId,
-    league_id: leagueData.id,
+    league_id: leagueDoc.id,
     joined_at: new Date(),
-    joining_gameweek: fixtureService.getCurrentGameweek(),
+    joining_gameweek: joiningGameweek,
   });
 
   // Check if user is already a member

@@ -7,11 +7,48 @@ export const loginUser = async (req, res) => {
       return res.status(400).json({ error: "email and password are required" });
     }
 
-    const token = await userService.authenticateUser(email, password);
-    res.json({ token });
+    const result = await userService.authenticateUser(email, password);
+
+    // Set JWT token as HTTP-only cookie
+    res.cookie("token", result.token, {
+      httpOnly: true, // Prevents XSS attacks
+      secure: process.env.NODE_ENV === "production", // Only send over HTTPS in production
+      sameSite: "strict", // CSRF protection
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
+    });
+
+    res.json({
+      success: true,
+      message: "Login successful",
+      user: result.user,
+      // Don't send token in response body when using cookies
+      token: result.token, // Still include for compatibility
+    });
   } catch (err) {
     console.error("Error logging in user:", err);
+    if (err.message === "Invalid email or password") {
+      return res.status(401).json({ error: err.message });
+    }
     res.status(500).json({ error: "Failed to log in user" });
+  }
+};
+
+export const logoutUser = async (req, res) => {
+  try {
+    // Clear the JWT cookie
+    res.clearCookie("token", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+    });
+
+    res.json({
+      success: true,
+      message: "Logout successful",
+    });
+  } catch (err) {
+    console.error("Error logging out user:", err);
+    res.status(500).json({ error: "Failed to log out user" });
   }
 };
 
@@ -42,10 +79,32 @@ export const createUser = async (req, res) => {
       return res.status(400).json({ error: "email and password are required" });
     }
 
-    const user = await userService.createUserInDb(email, password, displayName);
-    res.status(201).json(user);
+    const result = await userService.createUserInDb(
+      email,
+      password,
+      displayName
+    );
+
+    // Set JWT token as HTTP-only cookie
+    res.cookie("token", result.token, {
+      httpOnly: true, // Prevents XSS attacks
+      secure: process.env.NODE_ENV === "production", // Only send over HTTPS in production
+      sameSite: "strict", // CSRF protection
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "User created successfully",
+      user: result.user,
+      // Don't send token in response body when using cookies
+      token: result.token, // Still include for compatibility
+    });
   } catch (err) {
     console.error("Error creating user:", err);
+    if (err.message === "User with this email already exists") {
+      return res.status(409).json({ error: err.message });
+    }
     res.status(500).json({
       error: "Failed to create user",
       details: err.message || String(err),
@@ -86,6 +145,7 @@ export const deleteUserWithEmail = async (req, res) => {
 // Export as a single controller object
 export const userController = {
   loginUser,
+  logoutUser,
   deleteAllUsers,
   populateUsers,
   createUser,

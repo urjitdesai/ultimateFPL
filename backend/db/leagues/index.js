@@ -1,17 +1,16 @@
 import express from "express";
 import { leaguesController } from "./leagues.controller.js";
+import { authenticateToken, requireUserId } from "../../middleware/auth.js";
+
 const router = express.Router();
 
-// GET /api/score/user/:userId/gameweek/:gameweek - get score for a specific user and gameweek
-router.post("/create", leaguesController.createLeague);
+// Protected routes that require authentication
+router.post("/create", authenticateToken, leaguesController.createLeague);
+router.post("/user-leagues", requireUserId, leaguesController.getUserLeagues);
+router.post("/join", requireUserId, leaguesController.joinLeague);
 
-// GET /api/score/user/:userId/total - get total score for a user across all gameweeks
-router.post("/user-leagues", leaguesController.getUserLeagues);
-
-router.post("/join", leaguesController.joinLeague);
-
+// Public routes
 router.get("/:id", leaguesController.getLeagueById);
-
 router.get("/", leaguesController.getAllLeagues);
 
 export default router;

@@ -6,6 +6,7 @@ import dotenv from "dotenv";
 dotenv.config({ path: path.resolve(__dirname, "./.env") });
 import express from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 
 console.log("DB_ID in index.js=", process.env.FIREBASE_DATABASE_ID);
 
@@ -19,8 +20,14 @@ import scoreRouter from "./db/score/index.js";
 import leaguesRouter from "./db/leagues/index.js";
 const app = express();
 
-app.use(cors());
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL || "http://localhost:8081", // Your React Native frontend URL
+    credentials: true, // Allow cookies to be sent
+  })
+);
 app.use(express.json());
+app.use(cookieParser());
 
 // Global database connection check middleware for all API routes
 app.use("/api", checkDatabaseConnection);

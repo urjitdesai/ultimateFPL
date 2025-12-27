@@ -5,7 +5,7 @@ import admin from "firebase-admin";
 import bcrypt from "bcrypt";
 import { leaguesService } from "../leagues/leagues.service.js";
 
-export const createUserInDb = async (email, password, displayName) => {
+const createUserInDb = async (email, password, displayName) => {
   if (!admin) throw new Error("Firebase admin not initialized");
 
   const passwordHash = await bcrypt.hash(password, 10);
@@ -17,43 +17,87 @@ export const createUserInDb = async (email, password, displayName) => {
   if (doesUserExist && !doesUserExist.empty) {
     throw new Error("User with this email already exists");
   }
+
+  // Create user with hashed password
   const docRef = await db.collection("users").add({
     email: email,
     display_name: displayName || null,
     password: passwordHash,
+    created_at: new Date(),
   });
 
   await leaguesService.joinLeague(docRef.id, "OVERALL"); // auto-join overall league
 
-  return { id: docRef.id, email: email };
+  // Create user object for JWT
+  const userData = {
+    id: docRef.id,
+    email: email,
+    display_name: displayName || null,
+  };
+
+  // Generate JWT token
+  const token = jwt.sign(
+    {
+      userId: docRef.id,
+      email: email,
+      display_name: displayName || null,
+    },
+    process.env.JWT_SECRET || "your_jwt_secret_change_this",
+    { expiresIn: "7d" }
+  );
+
+  return {
+    user: userData,
+    token: token,
+  };
 };
 
-export const authenticateUser = async (email, password) => {
+const authenticateUser = async (email, password) => {
   // Fetch user from Firestore
-  console.log("email=", email);
-  console.log("password=", password);
   const userSnap = await db
     .collection("users")
     .where("email", "==", email)
     .limit(1)
     .get();
 
+  console.log("userSnap=", userSnap);
+
   if (userSnap.empty) throw new Error("Invalid email or password");
 
-  const user = userSnap.docs[0].data();
-  console.log("user= ", user);
+  const userData = userSnap.docs[0].data();
+  const userId = userSnap.docs[0].id;
 
-  // Verify password (assuming password is stored securely, e.g., hashed)
-  const isPasswordValid = await bcrypt.compare(password, user.password);
-  if (!isPasswordValid) throw new Error("Invalid email or password");
+  // Verify password using bcrypt
+  const isPasswordValid = await bcrypt.compare(password, userData.password);
+  if (!isPasswordValid) {
+    throw new Error("Invalid password");
+  }
+
+  // Create user object for JWT (exclude password)
+  const user = {
+    id: userId,
+    email: userData.email,
+    display_name: userData.display_name,
+  };
 
   // Generate JWT token
-  return jwt.sign({ userId: user.user_id }, "your_jwt_secret", {
-    expiresIn: "1h",
-  });
+  const token = jwt.sign(
+    {
+      userId: userId,
+      email: userData.email,
+      display_name: userData.display_name,
+    },
+    process.env.JWT_SECRET || "your_jwt_secret_change_this",
+    { expiresIn: "7d" }
+  );
+
+  return {
+    user: user,
+    token: token,
+  };
 };
 
-export const deleteUsersFromDb = async () => {
+const deleteUsersFromDb = async () => {
   const colRef = db.collection("users");
   const snap = await colRef.get();
   if (snap.empty) return 0;
@@ -73,7 +117,7 @@ export const deleteUsersFromDb = async () => {
   return deleted;
 };
 
-export const fetchAndPopulateUsers = async () => {
+const fetchAndPopulateUsers = async () => {
   const backendApi = process.env.BACKEND_API;
   if (!backendApi) {
     throw new Error("BACKEND_API environment variable not defined");
@@ -114,7 +158,7 @@ export const fetchAndPopulateUsers = async () => {
   return totalWritten;
 };
 
-export const getAllUsersFromDb = async () => {
+const getAllUsersFromDb = async () => {
   const usersSnapshot = await db.collection("users").get();
   return usersSnapshot.docs.map((doc) => ({
     id: doc.id,
@@ -122,7 +166,7 @@ export const getAllUsersFromDb = async () => {
   }));
 };
 
-export const deleteUserWithEmail = async (email) => {
+const deleteUserWithEmail = async (email) => {
   const userQuery = await db
     .collection("users")
     .where("email", "==", email)

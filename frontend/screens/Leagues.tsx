@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -23,6 +23,10 @@ interface League {
 
 const Leagues = () => {
   const [activeTab, setActiveTab] = useState<"joined" | "available">("joined");
+
+  useEffect(() => {
+    return () => {};
+  }, []);
 
   const joinedLeagues: League[] = [
     {

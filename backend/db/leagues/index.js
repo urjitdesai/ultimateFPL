@@ -12,4 +12,6 @@ router.post("/join", leaguesController.joinLeague);
 
 router.get("/:id", leaguesController.getLeagueById);
 
+router.get("/", leaguesController.getAllLeagues);
+
 export default router;

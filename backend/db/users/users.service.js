@@ -110,3 +110,11 @@ export const fetchAndPopulateUsers = async () => {
 
   return totalWritten;
 };
+
+export const getAllUsersFromDb = async () => {
+  const usersSnapshot = await db.collection("users").get();
+  return usersSnapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+  }));
+};

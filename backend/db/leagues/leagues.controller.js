@@ -74,9 +74,20 @@ const joinLeague = async (req, res) => {
   }
 };
 
+const getAllLeagues = async (req, res) => {
+  try {
+    const result = await leaguesService.getAllLeagues();
+    return res.status(200).json(result);
+  } catch (error) {
+    console.error("Error fetching all leagues:", error);
+    return res.status(500).json({ error: "Failed to fetch all leagues" });
+  }
+};
+
 export default {
   createLeague,
   getLeagueById,
   getUserLeagues,
   joinLeague,
+  getAllLeagues,
 };

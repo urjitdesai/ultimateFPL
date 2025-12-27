@@ -3,6 +3,7 @@ import {
   deleteUsersFromDb,
   fetchAndPopulateUsers,
   createUserInDb,
+  getAllUsersFromDb,
 } from "./users.service.js";
 
 export const loginUser = async (req, res) => {
@@ -51,11 +52,20 @@ export const createUser = async (req, res) => {
     res.status(201).json(user);
   } catch (err) {
     console.error("Error creating user:", err);
-    res
-      .status(500)
-      .json({
-        error: "Failed to create user",
-        details: err.message || String(err),
-      });
+    res.status(500).json({
+      error: "Failed to create user",
+      details: err.message || String(err),
+    });
+  }
+};
+
+export const getAllUsers = async (req, res) => {
+  try {
+    const users = await getAllUsersFromDb();
+    console.log("users=", JSON.stringify(users, null, 2));
+    return res.status(200).json(users);
+  } catch (error) {
+    console.error("Error fetching all users:", error);
+    return res.status(500).json({ error: "Failed to fetch all users" });
   }
 };

@@ -143,10 +143,19 @@ const joinLeague = async (userId, league_code) => {
   };
 };
 
+const getAllLeagues = async () => {
+  const leaguesSnapshot = await db.collection("leagues").get();
+  return leaguesSnapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+  }));
+};
+
 export default {
   createLeague,
   getLeagueById,
   getUserLeagues,
+  getAllLeagues,
   joinLeague,
   generateUniqueLeagueCode,
 };

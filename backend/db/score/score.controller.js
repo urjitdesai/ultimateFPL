@@ -1,6 +1,4 @@
 import scoreService from "./score.service.js";
-import { db } from "../../firestore.js";
-
 // GET /api/score/user/:userId/gameweek/:gameweek
 const getUserGameweekScore = async (req, res) => {
   console.log("in getUserGameweekScore controller");

@@ -1,4 +1,3 @@
-import { log } from "console";
 import { db } from "../../firestore.js";
 import fixtureService from "../fixtures/fixtures.service.js";
 

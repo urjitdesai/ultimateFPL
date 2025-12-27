@@ -1,5 +1,4 @@
 import fixtureService from "./fixtures.service.js";
-import { db } from "../../firestore.js";
 
 // GET /api/fixtures
 const listFixtures = async (req, res) => {

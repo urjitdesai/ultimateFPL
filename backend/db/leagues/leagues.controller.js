@@ -1,5 +1,4 @@
 import { leaguesService } from "../leagues/leagues.service.js";
-import { db } from "../../firestore.js";
 
 const createLeague = async (req, res) => {
   const { name, description, creatorUserId, is_private } = req.body;

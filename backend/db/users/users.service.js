@@ -3,7 +3,7 @@ import { db } from "../../firestore.js";
 import axios from "axios";
 import admin from "firebase-admin";
 import bcrypt from "bcrypt";
-import leaguesService from "../leagues/leagues.service.js";
+import { leaguesService } from "../leagues/leagues.service.js";
 
 export const createUserInDb = async (email, password, displayName) => {
   if (!admin) throw new Error("Firebase admin not initialized");

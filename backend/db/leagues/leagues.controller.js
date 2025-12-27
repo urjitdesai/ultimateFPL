@@ -1,4 +1,4 @@
-import leaguesService from "../leagues/leagues.service.js";
+import { leaguesService } from "../leagues/leagues.service.js";
 import { db } from "../../firestore.js";
 
 const createLeague = async (req, res) => {
@@ -84,7 +84,8 @@ const getAllLeagues = async (req, res) => {
   }
 };
 
-export default {
+// Export as a single controller object
+export const leaguesController = {
   createLeague,
   getLeagueById,
   getUserLeagues,

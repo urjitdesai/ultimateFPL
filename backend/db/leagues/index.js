@@ -1,5 +1,5 @@
 import express from "express";
-import leaguesController from "./leagues.controller.js";
+import { leaguesController } from "./leagues.controller.js";
 const router = express.Router();
 
 // GET /api/score/user/:userId/gameweek/:gameweek - get score for a specific user and gameweek

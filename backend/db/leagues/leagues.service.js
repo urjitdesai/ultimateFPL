@@ -155,7 +155,8 @@ const getAllLeagues = async () => {
   }));
 };
 
-export default {
+// Export as a single service object
+export const leaguesService = {
   createLeague,
   getLeagueById,
   getUserLeagues,

@@ -32,6 +32,7 @@ const Home = () => {
   const [predictions, setPredictions] = useState<PredictionData>({});
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [loadingPredictions, setLoadingPredictions] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const { getTeamById, getTeamLogo, loading: teamsLoading } = useTeams();
@@ -112,12 +113,50 @@ const Home = () => {
     }
   };
 
+  // Fetch user predictions for a specific gameweek
+  const fetchUserPredictions = async (gameweek: number) => {
+    if (gameweek > currentGameweek) return; // Don't fetch predictions for future gameweeks
+    setLoadingPredictions(true);
+    try {
+      const response = await predictionsAPI.getUserPredictions(gameweek);
+
+      // Transform predictions to match our state structure
+      const predictionsMap: PredictionData = {};
+
+      if (response.predictions && Array.isArray(response.predictions)) {
+        response.predictions.forEach((prediction: any) => {
+          const fixtureId = prediction.fixture_id || prediction.id;
+          if (fixtureId) {
+            predictionsMap[fixtureId] = {
+              homeScore: String(prediction.team_h_score || 0),
+              awayScore: String(prediction.team_a_score || 0),
+            };
+          }
+        });
+      }
+
+      setPredictions(predictionsMap);
+      console.log("User predictions loaded:", predictionsMap);
+    } catch (err) {
+      console.error("Error fetching user predictions:", err);
+      // If predictions don't exist or error occurs, just clear predictions
+      setPredictions({});
+    } finally {
+      setLoadingPredictions(false);
+    }
+  };
+
   // Handle prediction input change
   const handlePredictionChange = (
     fixtureId: string,
     team: "home" | "away",
     score: string
   ) => {
+    // Don't allow changes for future gameweeks
+    if (selectedGameweek > currentGameweek) {
+      return;
+    }
+
     // Allow empty string for clearing the input
     if (score === "") {
       setPredictions((prev) => ({
@@ -192,14 +231,19 @@ const Home = () => {
     if (gameweek && !teamsLoading && getTeamById(1)) {
       setSelectedGameweek(gameweek); // Set selected gameweek to current
       fetchFixturesForGameweek(gameweek);
+      fetchUserPredictions(gameweek);
     }
   };
 
   // Handle gameweek selection change
   const handleGameweekChange = (gameweek: number) => {
     setSelectedGameweek(gameweek);
+    // Clear existing predictions when switching gameweeks
+    setPredictions({});
+
     if (!teamsLoading && getTeamById(1)) {
       fetchFixturesForGameweek(gameweek);
+      fetchUserPredictions(gameweek);
     }
   };
 
@@ -249,7 +293,10 @@ const Home = () => {
             <Text style={styles.teamName}>{fixture.homeTeam}</Text>
           </View>
           <TextInput
-            style={styles.scoreInput}
+            style={[
+              styles.scoreInput,
+              selectedGameweek > currentGameweek && styles.scoreInputDisabled,
+            ]}
             value={predictions[fixture.id]?.homeScore || ""}
             onChangeText={(text) =>
               handlePredictionChange(fixture.id, "home", text)
@@ -258,7 +305,11 @@ const Home = () => {
             placeholderTextColor="#6c757d"
             keyboardType="numeric"
             maxLength={2}
-            selectTextOnFocus={true}
+            selectTextOnFocus={selectedGameweek <= currentGameweek}
+            editable={selectedGameweek <= currentGameweek}
+            pointerEvents={
+              selectedGameweek <= currentGameweek ? "auto" : "none"
+            }
           />
         </View>
 
@@ -270,7 +321,10 @@ const Home = () => {
         {/* Away Team */}
         <View style={styles.awayTeamSection}>
           <TextInput
-            style={styles.scoreInput}
+            style={[
+              styles.scoreInput,
+              selectedGameweek > currentGameweek && styles.scoreInputDisabled,
+            ]}
             value={predictions[fixture.id]?.awayScore || ""}
             onChangeText={(text) =>
               handlePredictionChange(fixture.id, "away", text)
@@ -279,7 +333,11 @@ const Home = () => {
             placeholderTextColor="#6c757d"
             keyboardType="numeric"
             maxLength={2}
-            selectTextOnFocus={true}
+            selectTextOnFocus={selectedGameweek <= currentGameweek}
+            editable={selectedGameweek <= currentGameweek}
+            pointerEvents={
+              selectedGameweek <= currentGameweek ? "auto" : "none"
+            }
           />
           <View style={styles.awayTeamInfo}>
             <Text style={styles.awayTeamName}>{fixture.awayTeam}</Text>
@@ -322,10 +380,14 @@ const Home = () => {
           onGameweekChange={handleGameweekChange}
         />
 
-        {(loading || teamsLoading) && (
+        {(loading || teamsLoading || loadingPredictions) && (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#007bff" />
-            <Text style={styles.loadingText}>Loading fixtures...</Text>
+            <Text style={styles.loadingText}>
+              {loadingPredictions
+                ? "Loading predictions..."
+                : "Loading fixtures..."}
+            </Text>
           </View>
         )}
 
@@ -341,40 +403,71 @@ const Home = () => {
           </View>
         )}
 
-        {!loading && !teamsLoading && !error && fixtures.length > 0 && (
-          <View style={styles.content}>
-            <Text style={styles.sectionTitle}>
-              Gameweek {selectedGameweek}
-              {currentGameweek === selectedGameweek && (
-                <Text style={styles.currentIndicator}> (Current)</Text>
-              )}
-            </Text>
-            {fixtures.map(renderFixtureCard)}
+        {!loading &&
+          !teamsLoading &&
+          !loadingPredictions &&
+          !error &&
+          fixtures.length > 0 && (
+            <View style={styles.content}>
+              <Text style={styles.sectionTitle}>
+                Gameweek {selectedGameweek}
+                {currentGameweek === selectedGameweek && (
+                  <Text style={styles.currentIndicator}> (Current)</Text>
+                )}
+              </Text>
 
-            <TouchableOpacity
-              style={[
-                styles.submitButton,
-                submitting && styles.submitButtonDisabled,
-              ]}
-              onPress={submitPredictions}
-              disabled={submitting}
-            >
-              {submitting ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Text style={styles.submitButtonText}>Submit Predictions</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        )}
+              {Object.keys(predictions).length > 0 &&
+                selectedGameweek <= currentGameweek && (
+                  <View style={styles.predictionStatus}>
+                    <Text style={styles.predictionStatusText}>
+                      ✓ Existing predictions loaded - you can update them below
+                    </Text>
+                  </View>
+                )}
 
-        {!loading && !teamsLoading && !error && fixtures.length === 0 && (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>
-              No fixtures available for this gameweek
-            </Text>
-          </View>
-        )}
+              {selectedGameweek > currentGameweek && (
+                <View style={styles.futureGameweekInfo}>
+                  <Text style={styles.futureGameweekInfoText}>
+                    📅 This is a future gameweek - predictions will be enabled
+                    closer to the start date
+                  </Text>
+                </View>
+              )}
+
+              {fixtures.map(renderFixtureCard)}
+
+              {selectedGameweek <= currentGameweek && (
+                <TouchableOpacity
+                  style={[
+                    styles.submitButton,
+                    submitting && styles.submitButtonDisabled,
+                  ]}
+                  onPress={submitPredictions}
+                  disabled={submitting}
+                >
+                  {submitting ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.submitButtonText}>
+                      Submit Predictions
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+
+        {!loading &&
+          !teamsLoading &&
+          !loadingPredictions &&
+          !error &&
+          fixtures.length === 0 && (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>
+                No fixtures available for this gameweek
+              </Text>
+            </View>
+          )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -581,6 +674,12 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     backgroundColor: "#f8f9fa",
   },
+  scoreInputDisabled: {
+    backgroundColor: "#e9ecef",
+    borderColor: "#ced4da",
+    color: "#6c757d",
+    opacity: 0.6,
+  },
   vsContainer: {
     alignItems: "center",
     marginHorizontal: 16,
@@ -626,6 +725,51 @@ const styles = StyleSheet.create({
     color: "#28a745",
     fontSize: 16,
     fontWeight: "bold",
+  },
+  predictionStatus: {
+    backgroundColor: "#d4edda",
+    borderWidth: 1,
+    borderColor: "#c3e6cb",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+  },
+  predictionStatusText: {
+    color: "#155724",
+    fontSize: 14,
+    fontWeight: "500",
+    textAlign: "center",
+  },
+  futureGameweekNotice: {
+    backgroundColor: "#fff3cd",
+    borderWidth: 1,
+    borderColor: "#ffeaa7",
+    borderRadius: 8,
+    padding: 16,
+    marginTop: 20,
+    alignItems: "center",
+  },
+  futureGameweekNoticeText: {
+    color: "#856404",
+    fontSize: 14,
+    fontWeight: "500",
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  futureGameweekInfo: {
+    backgroundColor: "#e7f3ff",
+    borderWidth: 1,
+    borderColor: "#b8daff",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+  },
+  futureGameweekInfoText: {
+    color: "#004085",
+    fontSize: 14,
+    fontWeight: "500",
+    textAlign: "center",
+    lineHeight: 20,
   },
 });
 

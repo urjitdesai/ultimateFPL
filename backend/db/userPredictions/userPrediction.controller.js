@@ -13,10 +13,12 @@ const deleteAll = async (req, res) => {
 
 const getUserPredictionsById = async (req, res) => {
   try {
-    const { user_id, event } = req.body;
-    console.log("userId=", user_id, "\tevent=", event);
+    const { event } = req.body;
+    const userId = req.user.id; // Get user ID from JWT token
 
-    const result = await userPredService.getUserPredictionsById(user_id, event);
+    console.log("userId=", userId, "\tevent=", event);
+
+    const result = await userPredService.getUserPredictionsById(userId, event);
     res.json(result);
   } catch (err) {
     console.error(err);

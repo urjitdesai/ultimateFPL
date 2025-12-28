@@ -6,10 +6,11 @@ import {
   Button,
   StyleSheet,
   TouchableOpacity,
+  Alert,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { StackNavigationProp } from "@react-navigation/stack";
-import axios from "axios";
+import { authAPI } from "../utils/api";
 
 type RootStackParamList = {
   login: undefined;
@@ -33,20 +34,19 @@ const Login = () => {
 
   const handleLogin = async () => {
     try {
-      const response = await axios.post(
-        `${process.env.EXPO_PUBLIC_BACKEND_URL}/api/users/login`,
-        {
-          email,
-          password,
-        }
-      );
+      const response = await authAPI.login(email, password);
 
-      console.log("Login successful:", response.data);
+      console.log("Login successful:", response);
 
-      // Navigate to main app after successful login
-      navigation.navigate("main");
+      if (response.success) {
+        // Navigate to main app after successful login
+        navigation.navigate("main");
+      } else {
+        Alert.alert("Login Failed", response.error || "Invalid credentials");
+      }
     } catch (error) {
       console.error("Error logging in:", error);
+      Alert.alert("Login Error", "Network error occurred. Please try again.");
     }
   };
 
@@ -58,6 +58,8 @@ const Login = () => {
         placeholder="Email"
         value={email}
         onChangeText={setEmail}
+        keyboardType="email-address"
+        autoCapitalize="none"
       />
       <TextInput
         style={styles.input}

@@ -22,7 +22,14 @@ const app = express();
 
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:8081", // Your React Native frontend URL
+    origin: [
+      "http://localhost:8081", // React Native/Expo dev server
+      "http://localhost:3000", // Backend server (for testing)
+      "http://localhost:19006", // Expo web port
+      "http://127.0.0.1:8081",
+      "http://127.0.0.1:3000",
+      "http://127.0.0.1:19006",
+    ],
     credentials: true, // Allow cookies to be sent
   })
 );
@@ -31,6 +38,25 @@ app.use(cookieParser());
 
 // Global database connection check middleware for all API routes
 app.use("/api", checkDatabaseConnection);
+
+// Simple test route for cookies
+app.get("/test-cookie", (req, res) => {
+  console.log("Received cookies:", req.cookies);
+
+  // Set a simple test cookie
+  res.cookie("test", "hello", {
+    httpOnly: false, // Make it visible in browser for testing
+    secure: false,
+    sameSite: "lax",
+    maxAge: 60000, // 1 minute
+    path: "/",
+  });
+
+  res.json({
+    message: "Test cookie set",
+    receivedCookies: req.cookies,
+  });
+});
 
 // simple health route
 app.get("/", (req, res) => {

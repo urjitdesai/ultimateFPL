@@ -11,13 +11,10 @@ import {
   Alert,
   ActivityIndicator,
 } from "react-native";
-import {
-  SafeAreaView,
-  SafeAreaProvider,
-  SafeAreaInsetsContext,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import axios from "axios";
+import { authAPI } from "../utils/api";
+import { useNavigation } from "@react-navigation/native";
 import { useTeams } from "../hooks/useTeams";
 import type { FixtureData, BackendFixture } from "../types/fixtures";
 
@@ -37,6 +34,20 @@ const Home = () => {
   const [error, setError] = useState<string | null>(null);
 
   const { getTeamById, getTeamLogo, loading: teamsLoading } = useTeams();
+  const navigation = useNavigation();
+
+  // Handle logout
+  const handleLogout = async () => {
+    try {
+      await authAPI.logout();
+      Alert.alert("Success", "Logged out successfully");
+      // Navigate to login screen (you might need to adjust this based on your navigation structure)
+      navigation.navigate("login" as never);
+    } catch (error) {
+      console.error("Logout error:", error);
+      Alert.alert("Error", "Failed to logout");
+    }
+  };
 
   // Fetch fixtures for a specific gameweek
   const fetchFixturesForGameweek = async (gameweek: number) => {
@@ -286,10 +297,20 @@ const Home = () => {
       <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Ultimate FPL</Text>
-          <Text style={styles.headerSubtitle}>
-            Gameweek {currentGameweek} Predictions
-          </Text>
+          <View style={styles.headerContent}>
+            <View>
+              <Text style={styles.headerTitle}>Ultimate FPL</Text>
+              <Text style={styles.headerSubtitle}>
+                Gameweek {currentGameweek} Predictions
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.logoutButton}
+              onPress={handleLogout}
+            >
+              <Text style={styles.logoutButtonText}>Logout</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {(loading || teamsLoading) && (
@@ -569,6 +590,22 @@ const styles = StyleSheet.create({
   submitButtonText: {
     color: "#fff",
     fontSize: 16,
+    fontWeight: "600",
+  },
+  headerContent: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  logoutButton: {
+    backgroundColor: "#dc3545",
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+  },
+  logoutButtonText: {
+    color: "#fff",
+    fontSize: 14,
     fontWeight: "600",
   },
 });

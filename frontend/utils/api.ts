@@ -1,17 +1,70 @@
 import axios from "axios";
 
+// Token storage utilities - works with both web localStorage and React Native AsyncStorage
+const TOKEN_KEY = "ultimatefpl_token";
+
+// Simple in-memory fallback for when storage isn't available
+let memoryToken: string | null = null;
+
+const tokenStorage = {
+  get: () => {
+    try {
+      // Try localStorage first (web)
+      if (typeof localStorage !== "undefined") {
+        return localStorage.getItem(TOKEN_KEY);
+      }
+      // Fallback to memory storage
+      return memoryToken;
+    } catch (error) {
+      console.warn("Storage not available, using memory:", error);
+      return memoryToken;
+    }
+  },
+
+  set: (token: string) => {
+    try {
+      // Try localStorage first (web)
+      if (typeof localStorage !== "undefined") {
+        localStorage.setItem(TOKEN_KEY, token);
+      }
+      // Always set in memory as backup
+      memoryToken = token;
+    } catch (error) {
+      console.warn("Storage not available, using memory:", error);
+      memoryToken = token;
+    }
+  },
+
+  remove: () => {
+    try {
+      // Try localStorage first (web)
+      if (typeof localStorage !== "undefined") {
+        localStorage.removeItem(TOKEN_KEY);
+      }
+      // Always clear memory
+      memoryToken = null;
+    } catch (error) {
+      console.warn("Storage not available, clearing memory:", error);
+      memoryToken = null;
+    }
+  },
+};
+
 // Create axios instance with default configuration
 const api = axios.create({
   baseURL: process.env.EXPO_PUBLIC_BACKEND_URL,
   timeout: 10000,
-  withCredentials: true, // Enable cookies to be sent with requests
 });
 
-// Request interceptor - cookies are automatically included by axios
+// Request interceptor to add JWT token to all requests
 api.interceptors.request.use(
   (config) => {
-    // With cookies, we don't need to manually add Authorization headers
-    // The JWT token will be automatically sent via the httpOnly cookie
+    const token = tokenStorage.get();
+    console.log("token in interceptor= ", token);
+
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
     return config;
   },
   (error) => {
@@ -26,10 +79,11 @@ api.interceptors.response.use(
   },
   (error) => {
     if (error.response?.status === 401) {
-      // Token expired or invalid
-      console.log("Authentication required - redirecting to login");
+      // Token expired or invalid, clear stored token
+      //   tokenStorage.remove();
+      //   console.log("Authenticati
+      // on required - token cleared");
       // TODO: Navigate to login screen
-      // With cookies, the server will automatically clear the cookie on logout
     }
     return Promise.reject(error);
   }
@@ -41,8 +95,11 @@ export const authAPI = {
   login: async (email: string, password: string) => {
     const response = await api.post("/api/users/login", { email, password });
 
-    // With cookies, the server automatically sets the JWT token as an httpOnly cookie
-    // No need to manually store the token
+    // Store token from response in localStorage
+    if (response.data.success && response.data.token) {
+      tokenStorage.set(response.data.token);
+    }
+
     return response.data;
   },
 
@@ -54,37 +111,45 @@ export const authAPI = {
       displayName,
     });
 
-    // With cookies, the server automatically sets the JWT token as an httpOnly cookie
-    // No need to manually store the token
+    // Store token from response in localStorage
+    if (response.data.success && response.data.token) {
+      tokenStorage.set(response.data.token);
+    }
+
     return response.data;
   },
 
   // Logout user
   logout: async () => {
-    // Call the backend logout endpoint to clear the cookie
-    const response = await api.post("/api/users/logout");
-    return response.data;
-  },
-
-  // Check if user is authenticated by making a test request
-  isAuthenticated: async () => {
     try {
-      // Make a request to a protected endpoint to check if token is valid
-      await api.post("/api/leagues/user-leagues");
-      return true;
-    } catch (error) {
-      return false;
+      // Call the backend logout endpoint
+      const response = await api.post("/api/users/logout");
+      return response.data;
+    } finally {
+      // Always clear local token, even if backend call fails
+      tokenStorage.remove();
     }
   },
 
-  // These methods are no longer needed with cookies, but keeping for compatibility
-  setToken: (token: string) => {
-    console.warn("setToken is not needed when using cookies");
+  // Check if user is authenticated
+  isAuthenticated: () => {
+    const token = tokenStorage.get();
+    return !!token;
   },
 
+  // Set token manually
+  setToken: (token: string) => {
+    tokenStorage.set(token);
+  },
+
+  // Get current token
   getToken: () => {
-    console.warn("getToken is not needed when using cookies");
-    return null;
+    return tokenStorage.get();
+  },
+
+  // Clear token
+  clearToken: () => {
+    tokenStorage.remove();
   },
 };
 

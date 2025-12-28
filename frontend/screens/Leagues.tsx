@@ -127,10 +127,6 @@ const Leagues = () => {
     </View>
   );
 
-  useEffect(() => {
-    return () => {};
-  }, []);
-
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />

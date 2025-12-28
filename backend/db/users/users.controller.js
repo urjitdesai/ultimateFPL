@@ -1,6 +1,6 @@
 import { userService } from "./users.service.js";
 
-export const loginUser = async (req, res) => {
+const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) {
@@ -12,9 +12,10 @@ export const loginUser = async (req, res) => {
     // Set JWT token as HTTP-only cookie
     res.cookie("token", result.token, {
       httpOnly: true, // Prevents XSS attacks
-      secure: process.env.NODE_ENV === "production", // Only send over HTTPS in production
-      sameSite: "strict", // CSRF protection
+      secure: false, // Allow HTTP in development
+      sameSite: "lax", // Use 'lax' for cross-origin requests in development
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
+      path: "/", // Ensure cookie is available for all paths
     });
 
     res.json({
@@ -33,13 +34,14 @@ export const loginUser = async (req, res) => {
   }
 };
 
-export const logoutUser = async (req, res) => {
+const logoutUser = async (req, res) => {
   try {
     // Clear the JWT cookie
     res.clearCookie("token", {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      secure: false,
+      sameSite: "lax",
+      path: "/",
     });
 
     res.json({
@@ -52,7 +54,7 @@ export const logoutUser = async (req, res) => {
   }
 };
 
-export const deleteAllUsers = async (req, res) => {
+const deleteAllUsers = async (req, res) => {
   try {
     const deletedCount = await userService.deleteUsersFromDb();
     res.json({ deleted: deletedCount });
@@ -62,7 +64,7 @@ export const deleteAllUsers = async (req, res) => {
   }
 };
 
-export const populateUsers = async (req, res) => {
+const populateUsers = async (req, res) => {
   try {
     const insertedCount = await userService.fetchAndPopulateUsers();
     res.json({ inserted: insertedCount });
@@ -72,7 +74,7 @@ export const populateUsers = async (req, res) => {
   }
 };
 
-export const createUser = async (req, res) => {
+const createUser = async (req, res) => {
   try {
     const { email, password, displayName } = req.body;
     if (!email || !password) {
@@ -88,9 +90,10 @@ export const createUser = async (req, res) => {
     // Set JWT token as HTTP-only cookie
     res.cookie("token", result.token, {
       httpOnly: true, // Prevents XSS attacks
-      secure: process.env.NODE_ENV === "production", // Only send over HTTPS in production
-      sameSite: "strict", // CSRF protection
+      secure: false, // Allow HTTP in development
+      sameSite: "lax", // Use 'lax' for cross-origin requests in development
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
+      path: "/", // Ensure cookie is available for all paths
     });
 
     res.status(201).json({
@@ -112,7 +115,7 @@ export const createUser = async (req, res) => {
   }
 };
 
-export const getAllUsers = async (req, res) => {
+const getAllUsers = async (req, res) => {
   try {
     const users = await userService.getAllUsersFromDb();
     console.log("users=", JSON.stringify(users, null, 2));
@@ -123,7 +126,7 @@ export const getAllUsers = async (req, res) => {
   }
 };
 
-export const deleteUserWithEmail = async (req, res) => {
+const deleteUserWithEmail = async (req, res) => {
   try {
     const { email } = req.body;
     if (!email) {

@@ -42,7 +42,7 @@ const createUserInDb = async (email, password, displayName) => {
       email: email,
       display_name: displayName || null,
     },
-    process.env.JWT_SECRET || "your_jwt_secret_change_this",
+    process.env.JWT_SECRET,
     { expiresIn: "7d" }
   );
 
@@ -60,7 +60,7 @@ const authenticateUser = async (email, password) => {
     .limit(1)
     .get();
 
-  console.log("userSnap=", userSnap);
+  // console.log("userSnap=", userSnap);
 
   if (userSnap.empty) throw new Error("Invalid email or password");
 
@@ -87,7 +87,7 @@ const authenticateUser = async (email, password) => {
       email: userData.email,
       display_name: userData.display_name,
     },
-    process.env.JWT_SECRET || "your_jwt_secret_change_this",
+    process.env.JWT_SECRET,
     { expiresIn: "7d" }
   );
 

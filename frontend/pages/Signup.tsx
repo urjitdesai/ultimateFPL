@@ -6,10 +6,11 @@ import {
   Button,
   StyleSheet,
   TouchableOpacity,
+  Alert,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { StackNavigationProp } from "@react-navigation/stack";
-import axios from "axios";
+import { authAPI } from "../utils/api";
 
 type RootStackParamList = {
   login: undefined;
@@ -26,29 +27,32 @@ const Signup = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const navigation = useNavigation<SignupScreenNavigationProp>();
 
   const handleSignup = async () => {
     if (password !== confirmPassword) {
-      console.error("Passwords do not match");
+      Alert.alert("Error", "Passwords do not match");
       return;
     }
 
     try {
-      const response = await axios.post(
-        `${process.env.EXPO_PUBLIC_BACKEND_URL}/api/users/signup`,
-        {
-          email,
-          password,
-        }
-      );
+      const response = await authAPI.signup(email, password, displayName);
 
-      console.log("Signup successful:", response.data);
+      console.log("Signup successful:", response);
 
-      // Navigate to main app after successful signup
-      navigation.navigate("main");
+      if (response.success) {
+        // Navigate to main app after successful signup
+        navigation.navigate("main");
+      } else {
+        Alert.alert(
+          "Signup Failed",
+          response.error || "Failed to create account"
+        );
+      }
     } catch (error) {
       console.error("Error signing up:", error);
+      Alert.alert("Signup Error", "Network error occurred. Please try again.");
     }
   };
 
@@ -60,6 +64,14 @@ const Signup = () => {
         placeholder="Email"
         value={email}
         onChangeText={setEmail}
+        keyboardType="email-address"
+        autoCapitalize="none"
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Display Name (optional)"
+        value={displayName}
+        onChangeText={setDisplayName}
       />
       <TextInput
         style={styles.input}

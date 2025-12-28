@@ -27,4 +27,10 @@ router.post(
   userPredController.calculate
 );
 
+router.post(
+  "/",
+  authenticateToken,
+  userPredController.createOrUpdatePredictions
+);
+
 export default router;

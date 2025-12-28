@@ -12,8 +12,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import axios from "axios";
-import { authAPI } from "../utils/api";
+import { authAPI, fixturesAPI, predictionsAPI } from "../utils/api";
 import { useNavigation } from "@react-navigation/native";
 import { useTeams } from "../hooks/useTeams";
 import GameweekSelector from "../components/GameweekSelector";
@@ -56,11 +55,9 @@ const Home = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.get(
-        `${process.env.EXPO_PUBLIC_BACKEND_URL}/api/fixtures/${gameweek}`
-      );
+      const response = await fixturesAPI.getFixturesForGameweek(gameweek);
 
-      const transformedFixtures: FixtureData[] = response.data.fixtures.map(
+      const transformedFixtures: FixtureData[] = response.fixtures.map(
         (fixture: BackendFixture): FixtureData => {
           const kickoffTime = fixture.kickoff_time || fixture.date;
           const fixtureDate = kickoffTime ? new Date(kickoffTime) : new Date();
@@ -159,19 +156,16 @@ const Home = () => {
         fixtureId,
         homeScore: parseInt(predictions[fixtureId]?.homeScore || "0"),
         awayScore: parseInt(predictions[fixtureId]?.awayScore || "0"),
-        gameweek: currentGameweek,
+        gameweek: selectedGameweek,
       }));
 
-      const response = await axios.post(
-        `${process.env.EXPO_PUBLIC_BACKEND_URL}/api/user-predictions`,
-        {
-          predictions: predictionsArray,
-          gameweek: currentGameweek,
-        }
+      const response = await predictionsAPI.submitPredictions(
+        predictionsArray,
+        selectedGameweek
       );
 
       Alert.alert("Success", "Your predictions have been submitted!");
-      console.log("Predictions submitted:", response.data);
+      console.log("Predictions submitted:", response);
     } catch (err) {
       console.error("Error submitting predictions:", err);
       Alert.alert("Error", "Failed to submit predictions. Please try again.");
@@ -182,10 +176,8 @@ const Home = () => {
 
   const getCurrentGameweek = async () => {
     try {
-      const response = await axios.get(
-        `${process.env.EXPO_PUBLIC_BACKEND_URL}/api/fixtures/gameweek/current`
-      );
-      const newGameweek = response.data.currentGameweek;
+      const response = await fixturesAPI.getCurrentGameweek();
+      const newGameweek = response.currentGameweek;
       setCurrentGameweek(newGameweek);
       return newGameweek;
     } catch (err) {

@@ -117,5 +117,48 @@ export const leaguesAPI = {
   },
 };
 
+// Fixtures API functions
+export const fixturesAPI = {
+  // Get fixtures for a specific gameweek
+  getFixturesForGameweek: async (gameweek: number) => {
+    const response = await api.get(`/api/fixtures/${gameweek}`);
+    return response.data;
+  },
+
+  // Get current gameweek
+  getCurrentGameweek: async () => {
+    const response = await api.get("/api/fixtures/gameweek/current");
+    return response.data;
+  },
+};
+
+// Predictions API functions
+export const predictionsAPI = {
+  // Submit or update user predictions for a gameweek
+  submitPredictions: async (
+    predictions: Array<{
+      fixtureId: string;
+      homeScore: number;
+      awayScore: number;
+      gameweek: number;
+    }>,
+    gameweek: number
+  ) => {
+    const response = await api.post("/api/user-predictions", {
+      predictions,
+      gameweek,
+    });
+    return response.data;
+  },
+
+  // Get user predictions for a specific gameweek
+  getUserPredictions: async (gameweek: number) => {
+    const response = await api.post("/api/user-predictions/get-predictions", {
+      event: gameweek,
+    });
+    return response.data;
+  },
+};
+
 // Export the configured axios instance for custom requests
 export default api;

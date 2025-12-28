@@ -52,9 +52,39 @@ const calculate = async (req, res) => {
   }
 };
 
+const createOrUpdatePredictions = async (req, res) => {
+  try {
+    const { predictions, gameweek } = req.body;
+    const userId = req.user.id;
+
+    if (!Array.isArray(predictions) || predictions.length === 0) {
+      return res.status(400).json({ error: "Predictions array is required" });
+    }
+
+    if (!gameweek) {
+      return res.status(400).json({ error: "Gameweek is required" });
+    }
+
+    const result = await userPredService.createOrUpdatePredictions(
+      userId,
+      gameweek,
+      predictions
+    );
+
+    res.status(201).json(result);
+  } catch (err) {
+    console.error("Error in createOrUpdatePredictions controller:", err);
+    res.status(500).json({
+      error: "Failed to create or update predictions",
+      details: err.message,
+    });
+  }
+};
+
 export default {
   deleteAll,
   getUserPredictionsById,
   populate,
   calculate,
+  createOrUpdatePredictions,
 };

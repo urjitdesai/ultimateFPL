@@ -15,7 +15,7 @@ import {
   SafeAreaInsetsContext,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
-import axios from "axios";
+import { fixturesAPI } from "../utils/api";
 import GameweekSelector from "../components/GameweekSelector";
 import type {
   FixtureData,
@@ -42,14 +42,12 @@ const Fixtures = () => {
     console.log(`Fetching fixtures for gameweek ${gameweek}...`);
 
     try {
-      const response = await axios.get(
-        `${process.env.EXPO_PUBLIC_BACKEND_URL}/api/fixtures/${gameweek}`
-      );
+      const response = await fixturesAPI.getFixturesForGameweek(gameweek);
 
-      console.log("Fixtures API response:", response.data);
+      console.log("Fixtures API response:", response);
 
       // Transform the data to match our interface
-      const transformedFixtures: FixtureData[] = response.data.fixtures.map(
+      const transformedFixtures: FixtureData[] = response.fixtures.map(
         (fixture: BackendFixture): FixtureData => {
           const kickoffTime = fixture.kickoff_time || fixture.date;
           const fixtureDate = kickoffTime ? new Date(kickoffTime) : new Date();
@@ -103,24 +101,7 @@ const Fixtures = () => {
       );
     } catch (err) {
       console.error("Error fetching fixtures:", err);
-
-      // More detailed error handling
-      if (axios.isAxiosError(err)) {
-        if (err.response) {
-          setError(
-            `Server error: ${err.response.status} - ${err.response.statusText}`
-          );
-        } else if (err.request) {
-          setError(
-            "Network error: Please check your connection and backend server"
-          );
-        } else {
-          setError(`Request error: ${err.message}`);
-        }
-      } else {
-        setError("Failed to load fixtures");
-      }
-
+      setError("Failed to load fixtures");
       setFixtures([]);
     } finally {
       setLoading(false);
@@ -130,10 +111,8 @@ const Fixtures = () => {
   // Get current gameweek from API
   const getCurrentGameweek = async () => {
     try {
-      const response = await axios.get(
-        `${process.env.EXPO_PUBLIC_BACKEND_URL}/api/fixtures/gameweek/current`
-      );
-      const gameweek = response.data.currentGameweek;
+      const response = await fixturesAPI.getCurrentGameweek();
+      const gameweek = response.currentGameweek;
       setCurrentGameweek(gameweek);
       return gameweek;
     } catch (err) {

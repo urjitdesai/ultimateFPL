@@ -170,9 +170,113 @@ const calculateScores = async ({ event, userId }) => {
   return { docId, userPredictions };
 };
 
+// Service: create or update user predictions for a gameweek
+const createOrUpdatePredictions = async (userId, gameweek, predictions) => {
+  if (!userId || !gameweek || !Array.isArray(predictions)) {
+    throw new Error(
+      "Invalid parameters: userId, gameweek, and predictions array are required"
+    );
+  }
+
+  const docId = `${userId}_${gameweek}`;
+  const docRef = db.collection("userPredictions").doc(docId);
+
+  try {
+    await db.runTransaction(async (transaction) => {
+      const doc = await transaction.get(docRef);
+
+      if (!doc.exists) {
+        // Create new document
+        transaction.set(docRef, {
+          user_id: userId,
+          event: parseInt(gameweek),
+          predictions: predictions.map((pred) => ({
+            id: pred.fixtureId || pred.id,
+            fixture_id: pred.fixtureId || pred.id,
+            team_a_score: parseInt(pred.awayScore || pred.team_a_score) || 0,
+            team_h_score: parseInt(pred.homeScore || pred.team_h_score) || 0,
+            stats: Array.isArray(pred.stats) ? pred.stats : [],
+            created_at: new Date(),
+            updated_at: new Date(),
+          })),
+          created_at: new Date(),
+          updated_at: new Date(),
+        });
+      } else {
+        // Update existing document
+        const existingData = doc.data();
+        const existingPredictions = existingData.predictions || [];
+
+        // Create a map for faster lookups
+        const existingPredMap = new Map();
+        existingPredictions.forEach((pred, index) => {
+          const predId = pred.fixture_id || pred.id;
+          existingPredMap.set(predId, index);
+        });
+
+        // Update or add predictions
+        const updatedPredictions = [...existingPredictions];
+
+        predictions.forEach((newPred) => {
+          const newPredId = newPred.fixtureId || newPred.id;
+          const existingIndex = existingPredMap.get(newPredId);
+
+          if (existingIndex !== undefined) {
+            // Update existing prediction, preserving calculated scores
+            const existing = updatedPredictions[existingIndex];
+            updatedPredictions[existingIndex] = {
+              ...existing,
+              team_a_score:
+                parseInt(newPred.awayScore || newPred.team_a_score) || 0,
+              team_h_score:
+                parseInt(newPred.homeScore || newPred.team_h_score) || 0,
+              stats: Array.isArray(newPred.stats)
+                ? newPred.stats
+                : existing.stats || [],
+              updated_at: new Date(),
+              // Preserve existing score and total_score if they exist
+            };
+          } else {
+            // Add new prediction
+            updatedPredictions.push({
+              id: newPredId,
+              fixture_id: newPredId,
+              team_a_score:
+                parseInt(newPred.awayScore || newPred.team_a_score) || 0,
+              team_h_score:
+                parseInt(newPred.homeScore || newPred.team_h_score) || 0,
+              stats: Array.isArray(newPred.stats) ? newPred.stats : [],
+              created_at: new Date(),
+              updated_at: new Date(),
+            });
+          }
+        });
+
+        transaction.update(docRef, {
+          predictions: updatedPredictions,
+          updated_at: new Date(),
+        });
+      }
+    });
+
+    return {
+      success: true,
+      docId,
+      userId,
+      gameweek: parseInt(gameweek),
+      predictionsCount: predictions.length,
+      message: `Successfully saved ${predictions.length} prediction(s) for gameweek ${gameweek}`,
+    };
+  } catch (error) {
+    console.error("Error creating/updating predictions:", error);
+    throw new Error(`Failed to save predictions: ${error.message}`);
+  }
+};
+
 export default {
   deleteAllUserPredictions,
   getUserPredictionsById,
   populatePredictions,
   calculateScores,
+  createOrUpdatePredictions,
 };

@@ -27,6 +27,7 @@ interface PredictionData {
 
 const Home = () => {
   const [currentGameweek, setCurrentGameweek] = useState(1);
+  const [selectedGameweek, setSelectedGameweek] = useState(1);
   const [fixtures, setFixtures] = useState<FixtureData[]>([]);
   const [predictions, setPredictions] = useState<PredictionData>({});
   const [loading, setLoading] = useState(false);
@@ -196,6 +197,15 @@ const Home = () => {
   const fetchCurrentGameweekAndFixtures = async () => {
     const gameweek = await getCurrentGameweek();
     if (gameweek && !teamsLoading && getTeamById(1)) {
+      setSelectedGameweek(gameweek); // Set selected gameweek to current
+      fetchFixturesForGameweek(gameweek);
+    }
+  };
+
+  // Handle gameweek selection change
+  const handleGameweekChange = (gameweek: number) => {
+    setSelectedGameweek(gameweek);
+    if (!teamsLoading && getTeamById(1)) {
       fetchFixturesForGameweek(gameweek);
     }
   };
@@ -301,7 +311,7 @@ const Home = () => {
             <View>
               <Text style={styles.headerTitle}>Ultimate FPL</Text>
               <Text style={styles.headerSubtitle}>
-                Gameweek {currentGameweek} Predictions
+                Gameweek {selectedGameweek} Predictions
               </Text>
             </View>
             <TouchableOpacity
@@ -311,6 +321,40 @@ const Home = () => {
               <Text style={styles.logoutButtonText}>Logout</Text>
             </TouchableOpacity>
           </View>
+        </View>
+
+        <View style={styles.gameweekSelector}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.gameweekScroll}
+          >
+            {Array.from({ length: 38 }, (_, i) => i + 1).map((gw) => (
+              <TouchableOpacity
+                key={gw}
+                style={[
+                  styles.gameweekButton,
+                  selectedGameweek === gw && styles.selectedGameweekButton,
+                  currentGameweek === gw && styles.currentGameweekButton,
+                ]}
+                onPress={() => handleGameweekChange(gw)}
+              >
+                <Text
+                  style={[
+                    styles.gameweekButtonText,
+                    selectedGameweek === gw &&
+                      styles.selectedGameweekButtonText,
+                    currentGameweek === gw && styles.currentGameweekButtonText,
+                  ]}
+                >
+                  GW {gw}
+                  {currentGameweek === gw && (
+                    <Text style={styles.currentIndicator}> •</Text>
+                  )}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
 
         {(loading || teamsLoading) && (
@@ -334,7 +378,12 @@ const Home = () => {
 
         {!loading && !teamsLoading && !error && fixtures.length > 0 && (
           <View style={styles.content}>
-            <Text style={styles.sectionTitle}>Make Your Predictions</Text>
+            <Text style={styles.sectionTitle}>
+              Gameweek {selectedGameweek}
+              {currentGameweek === selectedGameweek && (
+                <Text style={styles.currentIndicator}> (Current)</Text>
+              )}
+            </Text>
             {fixtures.map(renderFixtureCard)}
 
             <TouchableOpacity
@@ -607,6 +656,49 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 14,
     fontWeight: "600",
+  },
+  gameweekSelector: {
+    backgroundColor: "#fff",
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e9ecef",
+  },
+  gameweekScroll: {
+    paddingHorizontal: 20,
+  },
+  gameweekButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginRight: 8,
+    borderRadius: 20,
+    backgroundColor: "#f8f9fa",
+    borderWidth: 1,
+    borderColor: "#dee2e6",
+  },
+  selectedGameweekButton: {
+    backgroundColor: "#007bff",
+    borderColor: "#007bff",
+  },
+  gameweekButtonText: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#6c757d",
+  },
+  selectedGameweekButtonText: {
+    color: "#fff",
+  },
+  currentGameweekButton: {
+    borderColor: "#28a745",
+    borderWidth: 2,
+  },
+  currentGameweekButtonText: {
+    color: "#28a745",
+    fontWeight: "600",
+  },
+  currentIndicator: {
+    color: "#28a745",
+    fontSize: 16,
+    fontWeight: "bold",
   },
 });
 

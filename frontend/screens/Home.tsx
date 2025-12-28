@@ -16,6 +16,7 @@ import axios from "axios";
 import { authAPI } from "../utils/api";
 import { useNavigation } from "@react-navigation/native";
 import { useTeams } from "../hooks/useTeams";
+import GameweekSelector from "../components/GameweekSelector";
 import type { FixtureData, BackendFixture } from "../types/fixtures";
 
 interface PredictionData {
@@ -323,39 +324,11 @@ const Home = () => {
           </View>
         </View>
 
-        <View style={styles.gameweekSelector}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.gameweekScroll}
-          >
-            {Array.from({ length: 38 }, (_, i) => i + 1).map((gw) => (
-              <TouchableOpacity
-                key={gw}
-                style={[
-                  styles.gameweekButton,
-                  selectedGameweek === gw && styles.selectedGameweekButton,
-                  currentGameweek === gw && styles.currentGameweekButton,
-                ]}
-                onPress={() => handleGameweekChange(gw)}
-              >
-                <Text
-                  style={[
-                    styles.gameweekButtonText,
-                    selectedGameweek === gw &&
-                      styles.selectedGameweekButtonText,
-                    currentGameweek === gw && styles.currentGameweekButtonText,
-                  ]}
-                >
-                  GW {gw}
-                  {currentGameweek === gw && (
-                    <Text style={styles.currentIndicator}> •</Text>
-                  )}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
+        <GameweekSelector
+          selectedGameweek={selectedGameweek}
+          currentGameweek={currentGameweek}
+          onGameweekChange={handleGameweekChange}
+        />
 
         {(loading || teamsLoading) && (
           <View style={styles.loadingContainer}>
@@ -655,44 +628,6 @@ const styles = StyleSheet.create({
   logoutButtonText: {
     color: "#fff",
     fontSize: 14,
-    fontWeight: "600",
-  },
-  gameweekSelector: {
-    backgroundColor: "#fff",
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e9ecef",
-  },
-  gameweekScroll: {
-    paddingHorizontal: 20,
-  },
-  gameweekButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginRight: 8,
-    borderRadius: 20,
-    backgroundColor: "#f8f9fa",
-    borderWidth: 1,
-    borderColor: "#dee2e6",
-  },
-  selectedGameweekButton: {
-    backgroundColor: "#007bff",
-    borderColor: "#007bff",
-  },
-  gameweekButtonText: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#6c757d",
-  },
-  selectedGameweekButtonText: {
-    color: "#fff",
-  },
-  currentGameweekButton: {
-    borderColor: "#28a745",
-    borderWidth: 2,
-  },
-  currentGameweekButtonText: {
-    color: "#28a745",
     fontWeight: "600",
   },
   currentIndicator: {

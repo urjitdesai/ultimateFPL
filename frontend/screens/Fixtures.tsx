@@ -16,6 +16,7 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import axios from "axios";
+import GameweekSelector from "../components/GameweekSelector";
 import type {
   FixtureData,
   BackendFixture,
@@ -284,38 +285,11 @@ const Fixtures = () => {
         <Text style={styles.headerSubtitle}>Premier League matches</Text>
       </View>
 
-      <View style={styles.gameweekSelector}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.gameweekScroll}
-        >
-          {Array.from({ length: 38 }, (_, i) => i + 1).map((gw) => (
-            <TouchableOpacity
-              key={gw}
-              style={[
-                styles.gameweekButton,
-                selectedGameweek === gw && styles.selectedGameweekButton,
-                currentGameweek === gw && styles.currentGameweekButton,
-              ]}
-              onPress={() => handleGameweekChange(gw)}
-            >
-              <Text
-                style={[
-                  styles.gameweekButtonText,
-                  selectedGameweek === gw && styles.selectedGameweekButtonText,
-                  currentGameweek === gw && styles.currentGameweekButtonText,
-                ]}
-              >
-                GW {gw}
-                {currentGameweek === gw && (
-                  <Text style={styles.currentIndicator}> •</Text>
-                )}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
+      <GameweekSelector
+        selectedGameweek={selectedGameweek}
+        currentGameweek={currentGameweek || 1}
+        onGameweekChange={handleGameweekChange}
+      />
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.sectionTitle}>
@@ -385,44 +359,6 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 16,
     color: "#6c757d",
-  },
-  gameweekSelector: {
-    backgroundColor: "#fff",
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e9ecef",
-  },
-  gameweekScroll: {
-    paddingHorizontal: 20,
-  },
-  gameweekButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginRight: 8,
-    borderRadius: 20,
-    backgroundColor: "#f8f9fa",
-    borderWidth: 1,
-    borderColor: "#dee2e6",
-  },
-  selectedGameweekButton: {
-    backgroundColor: "#007bff",
-    borderColor: "#007bff",
-  },
-  gameweekButtonText: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#6c757d",
-  },
-  selectedGameweekButtonText: {
-    color: "#fff",
-  },
-  currentGameweekButton: {
-    borderColor: "#28a745",
-    borderWidth: 2,
-  },
-  currentGameweekButtonText: {
-    color: "#28a745",
-    fontWeight: "600",
   },
   currentIndicator: {
     color: "#28a745",

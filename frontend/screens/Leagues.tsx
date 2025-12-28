@@ -7,28 +7,28 @@ import {
   StatusBar,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
 } from "react-native";
-import {
-  SafeAreaView,
-  SafeAreaProvider,
-  SafeAreaInsetsContext,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import { leaguesAPI } from "../utils/api";
+import CreateLeagueModal from "../components/CreateLeagueModal";
+import JoinLeagueModal from "../components/JoinLeagueModal";
 interface League {
   id: string;
   name: string;
   type: "public" | "private";
-  members: number;
+  memberCount?: number; // New field from backend
   rank: number;
 }
 
 const Leagues = () => {
-  const [activeTab, setActiveTab] = useState<"joined" | "available">("joined");
   const [joinedLeagues, setJoinedLeagues] = useState<League[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Modal states
+  const [createModalVisible, setCreateModalVisible] = useState(false);
+  const [joinModalVisible, setJoinModalVisible] = useState(false);
 
   // Fetch user's leagues using cookie-based authentication
   const fetchUserLeagues = async () => {
@@ -47,7 +47,7 @@ const Leagues = () => {
         id: league.id,
         name: league.name,
         type: league.is_private ? "private" : "public",
-        members: league.members ? league.members.length : 0,
+        memberCount: league.memberCount || 0,
         rank: 0, // TODO: Calculate actual rank based on user's position
       }));
       setJoinedLeagues(transformedLeagues);
@@ -63,21 +63,47 @@ const Leagues = () => {
     fetchUserLeagues();
   }, []);
 
+  // Handle create league
+  const handleCreateLeague = () => {
+    setCreateModalVisible(true);
+  };
+
+  const handleCreateLeagueSuccess = () => {
+    fetchUserLeagues(); // Refresh the leagues list
+  };
+
+  const handleCloseCreateModal = () => {
+    setCreateModalVisible(false);
+  };
+
+  // Handle join league
+  const handleJoinLeague = () => {
+    setJoinModalVisible(true);
+  };
+
+  const handleJoinLeagueSuccess = () => {
+    fetchUserLeagues(); // Refresh the leagues list
+  };
+
+  const handleCloseJoinModal = () => {
+    setJoinModalVisible(false);
+  };
+
   const availableLeagues: League[] = [
-    {
-      id: "4",
-      name: "Global Elite",
-      type: "public",
-      members: 5000,
-      rank: 0,
-    },
-    {
-      id: "5",
-      name: "Weekend Warriors",
-      type: "public",
-      members: 2300,
-      rank: 0,
-    },
+    // {
+    //   id: "4",
+    //   name: "Global Elite",
+    //   type: "public",
+    //   members: 5000,
+    //   rank: 0,
+    // },
+    // {
+    //   id: "5",
+    //   name: "Weekend Warriors",
+    //   type: "public",
+    //   members: 2300,
+    //   rank: 0,
+    // },
   ];
 
   const renderLeagueCard = (league: League) => (
@@ -108,7 +134,7 @@ const Leagues = () => {
         <View style={styles.statItem}>
           <Text style={styles.statLabel}>Members</Text>
           <Text style={styles.statValue}>
-            {league.members.toLocaleString()}
+            {(league.memberCount || 0).toLocaleString()}
           </Text>
         </View>
         {league.rank > 0 && (
@@ -118,12 +144,6 @@ const Leagues = () => {
           </View>
         )}
       </View>
-
-      {activeTab === "available" && (
-        <TouchableOpacity style={styles.joinButton}>
-          <Text style={styles.joinButtonText}>Join League</Text>
-        </TouchableOpacity>
-      )}
     </View>
   );
 
@@ -132,79 +152,74 @@ const Leagues = () => {
       <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
 
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Leagues</Text>
-        <Text style={styles.headerSubtitle}>
-          Compete with friends and rivals
-        </Text>
-      </View>
-
-      <View style={styles.tabContainer}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === "joined" && styles.activeTab]}
-          onPress={() => setActiveTab("joined")}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === "joined" && styles.activeTabText,
-            ]}
-          >
-            My Leagues
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === "available" && styles.activeTab]}
-          onPress={() => setActiveTab("available")}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === "available" && styles.activeTabText,
-            ]}
-          >
-            Discover
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.headerContent}>
+          <View>
+            <Text style={styles.headerTitle}>Leagues</Text>
+            <Text style={styles.headerSubtitle}>
+              Compete with friends and rivals
+            </Text>
+          </View>
+          <View style={styles.headerButtons}>
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={handleJoinLeague}
+            >
+              <Ionicons name="search" size={24} color="#007bff" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={handleCreateLeague}
+            >
+              <Ionicons name="add" size={24} color="#007bff" />
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {activeTab === "joined" ? (
-          <>
-            {loading && (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#007bff" />
-                <Text style={styles.loadingText}>Loading your leagues...</Text>
-              </View>
-            )}
-
-            {error && (
-              <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{error}</Text>
-                <TouchableOpacity
-                  style={styles.retryButton}
-                  onPress={fetchUserLeagues}
-                >
-                  <Text style={styles.retryButtonText}>Retry</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {!loading && !error && joinedLeagues.length === 0 && (
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyTitle}>No Leagues Joined</Text>
-                <Text style={styles.emptyText}>
-                  You haven't joined any leagues yet. Tap "Discover" to find
-                  leagues to join!
-                </Text>
-              </View>
-            )}
-
-            {!loading && !error && joinedLeagues.map(renderLeagueCard)}
-          </>
-        ) : (
-          availableLeagues.map(renderLeagueCard)
+        {loading && (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#007bff" />
+            <Text style={styles.loadingText}>Loading your leagues...</Text>
+          </View>
         )}
+
+        {error && (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity
+              style={styles.retryButton}
+              onPress={fetchUserLeagues}
+            >
+              <Text style={styles.retryButtonText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {!loading && !error && joinedLeagues.length === 0 && (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyTitle}>No Leagues Joined</Text>
+            <Text style={styles.emptyText}>
+              You haven't joined any leagues yet. Use the search icon to find
+              leagues to join!
+            </Text>
+          </View>
+        )}
+
+        {!loading && !error && joinedLeagues.map(renderLeagueCard)}
       </ScrollView>
+
+      <CreateLeagueModal
+        visible={createModalVisible}
+        onClose={handleCloseCreateModal}
+        onSuccess={handleCreateLeagueSuccess}
+      />
+
+      <JoinLeagueModal
+        visible={joinModalVisible}
+        onClose={handleCloseJoinModal}
+        onSuccess={handleJoinLeagueSuccess}
+      />
     </SafeAreaView>
   );
 };
@@ -230,6 +245,29 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 16,
     color: "#6c757d",
+  },
+  headerContent: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  headerButtons: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  headerButton: {
+    backgroundColor: "#f8f9fa",
+    padding: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#007bff",
+  },
+  createButton: {
+    backgroundColor: "#f8f9fa",
+    padding: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#007bff",
   },
   tabContainer: {
     flexDirection: "row",
@@ -312,19 +350,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "600",
     color: "#212529",
-  },
-  joinButton: {
-    backgroundColor: "#28a745",
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    alignItems: "center",
-    marginTop: 16,
-  },
-  joinButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
   },
   loadingContainer: {
     flex: 1,

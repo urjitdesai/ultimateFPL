@@ -53,6 +53,19 @@ const createLeague = async ({
     leagueCode,
     createdAt: new Date(),
   });
+
+  // Automatically add creator as a member
+  const joiningGameweek = await fixtureService.getCurrentGameweek();
+  await db
+    .collection("users_leagues")
+    .doc(`${newLeagueRef.id}_${creatorUserId}`)
+    .set({
+      userId: creatorUserId,
+      league_id: newLeagueRef.id,
+      joined_at: new Date(),
+      joining_gameweek: joiningGameweek,
+    });
+
   return {
     id: newLeagueRef.id,
     name,
@@ -67,19 +80,81 @@ const getLeagueById = async (leagueId) => {
   const leagueDoc = await db.collection("leagues").doc(leagueId).get();
   if (!leagueDoc.exists) return null;
 
-  return { id: leagueDoc.id, ...leagueDoc.data() };
+  // Get member count
+  const membersSnapshot = await db
+    .collection("users_leagues")
+    .where("league_id", "==", leagueId)
+    .get();
+
+  const memberCount = membersSnapshot.size;
+
+  return {
+    id: leagueDoc.id,
+    ...leagueDoc.data(),
+    memberCount,
+  };
 };
 
 const getUserLeagues = async (userId) => {
-  const leaguesSnapshot = await db
-    .collection("leagues")
-    .where("creatorUserId", "==", userId)
-    .get();
+  try {
+    // Get all user_league relationships for this user
+    const userLeaguesSnapshot = await db
+      .collection("users_leagues")
+      .where("userId", "==", userId)
+      .get();
 
-  return leaguesSnapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-  }));
+    if (userLeaguesSnapshot.empty) {
+      return [];
+    }
+
+    // Get league IDs
+    const leagueIds = userLeaguesSnapshot.docs.map(
+      (doc) => doc.data().league_id
+    );
+
+    // Get actual league data and member counts
+    const leaguesPromises = leagueIds.map(async (leagueId) => {
+      const leagueDoc = await db.collection("leagues").doc(leagueId).get();
+      if (!leagueDoc.exists) return null;
+
+      // Get member count for this league
+      const membersSnapshot = await db
+        .collection("users_leagues")
+        .where("league_id", "==", leagueId)
+        .get();
+
+      return {
+        doc: leagueDoc,
+        memberCount: membersSnapshot.size,
+      };
+    });
+
+    const leagueResults = await Promise.all(leaguesPromises);
+
+    // Combine league data with membership info
+    const leagues = leagueResults
+      .filter((result) => result !== null)
+      .map((result) => {
+        const { doc, memberCount } = result;
+        const userLeagueDoc = userLeaguesSnapshot.docs.find(
+          (userDoc) => userDoc.data().league_id === doc.id
+        );
+
+        return {
+          id: doc.id,
+          ...doc.data(),
+          memberCount,
+          // Add membership metadata
+          joined_at: userLeagueDoc?.data().joined_at,
+          joining_gameweek: userLeagueDoc?.data().joining_gameweek,
+        };
+      });
+
+    return leagues;
+  } catch (error) {
+    console.error("Error getting user leagues:", error);
+    throw error;
+  }
 };
 
 const joinLeague = async (userId, league_code) => {
@@ -105,33 +180,25 @@ const joinLeague = async (userId, league_code) => {
 
   console.log("Found league:", leagueData.name);
 
-  // Create entry inside users_leagues collection
-  const userLeaguesRef = db
+  // Check if user is already a member by checking users_leagues collection
+  const existingMembership = await db
     .collection("users_leagues")
-    .doc(`${leagueDoc.id}_${userId}`);
-  console.log("userLeaguesRef= ", userLeaguesRef);
+    .doc(`${leagueDoc.id}_${userId}`)
+    .get();
 
+  if (existingMembership.exists) {
+    throw new Error("User is already a member of this league");
+  }
+
+  // Create entry inside users_leagues collection
   const joiningGameweek = await fixtureService.getCurrentGameweek();
   console.log("joiningGameweek= ", joiningGameweek);
-  await userLeaguesRef.set({
+
+  await db.collection("users_leagues").doc(`${leagueDoc.id}_${userId}`).set({
     userId,
     league_id: leagueDoc.id,
     joined_at: new Date(),
     joining_gameweek: joiningGameweek,
-  });
-
-  // Check if user is already a member
-  const currentMembers = leagueData.members || [];
-  if (currentMembers.includes(userId)) {
-    throw new Error("User is already a member of this league");
-  }
-
-  // Add user to members array
-  const updatedMembers = [...currentMembers, userId];
-
-  // Update the league document
-  await leagueDoc.ref.update({
-    members: updatedMembers,
   });
 
   console.log(`User ${userId} successfully joined league ${leagueData.name}`);

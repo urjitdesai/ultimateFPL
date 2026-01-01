@@ -27,6 +27,13 @@ router.post(
   userPredController.calculate
 );
 
+// POST /api/user-predictions/calculate-all-scores
+router.post(
+  "/calculate-all-scores",
+  //   authenticateToken,
+  userPredController.calculateAllUsersScores
+);
+
 router.post(
   "/",
   authenticateToken,

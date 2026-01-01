@@ -42,8 +42,8 @@ const populate = async (req, res) => {
 
 const calculate = async (req, res) => {
   try {
-    const { event, user_id: userId } = req.body;
-    const result = await userPredService.calculateScores({ event, userId });
+    const { gameweek, user_id: userId } = req.body;
+    const result = await userPredService.calculateScores({ gameweek, userId });
     res.json(result);
   } catch (err) {
     console.error(err);
@@ -51,6 +51,35 @@ const calculate = async (req, res) => {
       return res.status(404).json({ error: "User predictions not found" });
     }
     res.status(500).json({ error: "Failed to calculate scores" });
+  }
+};
+
+const calculateAllUsersScores = async (req, res) => {
+  try {
+    const { gameweek } = req.body;
+
+    if (!gameweek) {
+      return res.status(400).json({ error: "Gameweek is required" });
+    }
+
+    console.log(
+      `Starting score calculation for all users in gameweek ${gameweek}`
+    );
+
+    const result = await userPredService.calculateScoresForAllUsers(gameweek);
+
+    res.json({
+      success: true,
+      ...result,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error("Error calculating scores for all users:", err);
+    res.status(500).json({
+      error: "Failed to calculate scores for all users",
+      details: err.message,
+      gameweek: req.body.gameweek,
+    });
   }
 };
 
@@ -88,5 +117,6 @@ export default {
   getUserPredictionsById,
   populate,
   calculate,
+  calculateAllUsersScores,
   createOrUpdatePredictions,
 };

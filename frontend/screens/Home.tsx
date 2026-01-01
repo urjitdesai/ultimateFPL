@@ -346,25 +346,32 @@ const Home = () => {
             )}
             <Text style={styles.teamName}>{fixture.homeTeam}</Text>
           </View>
-          <TextInput
-            style={[
-              styles.scoreInput,
-              selectedGameweek > currentGameweek && styles.scoreInputDisabled,
-            ]}
-            value={predictions[fixture.id]?.homeScore || ""}
-            onChangeText={(text) =>
-              handlePredictionChange(fixture.id, "home", text)
-            }
-            placeholder="0"
-            placeholderTextColor="#6c757d"
-            keyboardType="numeric"
-            maxLength={2}
-            selectTextOnFocus={selectedGameweek <= currentGameweek}
-            editable={selectedGameweek <= currentGameweek}
-            pointerEvents={
-              selectedGameweek <= currentGameweek ? "auto" : "none"
-            }
-          />
+          <View style={styles.scoreInputContainer}>
+            <TextInput
+              style={[
+                styles.scoreInput,
+                selectedGameweek > currentGameweek && styles.scoreInputDisabled,
+              ]}
+              value={predictions[fixture.id]?.homeScore || ""}
+              onChangeText={(text) =>
+                handlePredictionChange(fixture.id, "home", text)
+              }
+              placeholder="0"
+              placeholderTextColor="#6c757d"
+              keyboardType="numeric"
+              maxLength={2}
+              selectTextOnFocus={selectedGameweek <= currentGameweek}
+              editable={selectedGameweek <= currentGameweek}
+              pointerEvents={
+                selectedGameweek <= currentGameweek ? "auto" : "none"
+              }
+            />
+            {selectedGameweek < currentGameweek &&
+              fixture.homeScore !== undefined &&
+              fixture.homeScore !== null && (
+                <Text style={styles.actualScoreText}>{fixture.homeScore}</Text>
+              )}
+          </View>
         </View>
 
         {/* VS */}
@@ -374,25 +381,32 @@ const Home = () => {
 
         {/* Away Team */}
         <View style={styles.awayTeamSection}>
-          <TextInput
-            style={[
-              styles.scoreInput,
-              selectedGameweek > currentGameweek && styles.scoreInputDisabled,
-            ]}
-            value={predictions[fixture.id]?.awayScore || ""}
-            onChangeText={(text) =>
-              handlePredictionChange(fixture.id, "away", text)
-            }
-            placeholder="0"
-            placeholderTextColor="#6c757d"
-            keyboardType="numeric"
-            maxLength={2}
-            selectTextOnFocus={selectedGameweek <= currentGameweek}
-            editable={selectedGameweek <= currentGameweek}
-            pointerEvents={
-              selectedGameweek <= currentGameweek ? "auto" : "none"
-            }
-          />
+          <View style={styles.scoreInputContainer}>
+            <TextInput
+              style={[
+                styles.scoreInput,
+                selectedGameweek > currentGameweek && styles.scoreInputDisabled,
+              ]}
+              value={predictions[fixture.id]?.awayScore || ""}
+              onChangeText={(text) =>
+                handlePredictionChange(fixture.id, "away", text)
+              }
+              placeholder="0"
+              placeholderTextColor="#6c757d"
+              keyboardType="numeric"
+              maxLength={2}
+              selectTextOnFocus={selectedGameweek <= currentGameweek}
+              editable={selectedGameweek <= currentGameweek}
+              pointerEvents={
+                selectedGameweek <= currentGameweek ? "auto" : "none"
+              }
+            />
+            {selectedGameweek < currentGameweek &&
+              fixture.awayScore !== undefined &&
+              fixture.awayScore !== null && (
+                <Text style={styles.actualScoreText}>{fixture.awayScore}</Text>
+              )}
+          </View>
           <View style={styles.awayTeamInfo}>
             <Text style={styles.awayTeamName}>{fixture.awayTeam}</Text>
             {fixture.awayTeamId && getTeamLogo(fixture.awayTeamId) && (
@@ -773,6 +787,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     backgroundColor: "#f8f9fa",
+  },
+  scoreInputContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  actualScoreText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#007bff",
+    marginTop: 4,
+    textAlign: "center",
   },
   scoreInputDisabled: {
     backgroundColor: "#e9ecef",

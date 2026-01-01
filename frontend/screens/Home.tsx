@@ -22,7 +22,18 @@ interface PredictionData {
   [fixtureId: string]: {
     homeScore: string;
     awayScore: string;
+    score?: {
+      goals_scored: number;
+      assists: number;
+      correct_scoreline: number;
+    };
+    total_score?: number;
   };
+}
+
+interface GameweekScoreData {
+  totalScore: number;
+  hasScores: boolean;
 }
 
 const Home = () => {
@@ -30,6 +41,10 @@ const Home = () => {
   const [selectedGameweek, setSelectedGameweek] = useState(1);
   const [fixtures, setFixtures] = useState<FixtureData[]>([]);
   const [predictions, setPredictions] = useState<PredictionData>({});
+  const [gameweekScores, setGameweekScores] = useState<GameweekScoreData>({
+    totalScore: 0,
+    hasScores: false,
+  });
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [loadingPredictions, setLoadingPredictions] = useState(false);
@@ -103,6 +118,7 @@ const Home = () => {
 
         return timeDiff;
       });
+      console.log("sortedFixtures= ", sortedFixtures);
 
       setFixtures(sortedFixtures);
     } catch (err) {
@@ -122,6 +138,7 @@ const Home = () => {
 
       // Transform predictions to match our state structure
       const predictionsMap: PredictionData = {};
+      let hasCalculatedScores = false;
 
       if (response.predictions && Array.isArray(response.predictions)) {
         response.predictions.forEach((prediction: any) => {
@@ -130,17 +147,33 @@ const Home = () => {
             predictionsMap[fixtureId] = {
               homeScore: String(prediction.team_h_score || 0),
               awayScore: String(prediction.team_a_score || 0),
+              score: prediction.score || undefined,
+              total_score: prediction.total_score,
             };
           }
         });
       }
 
+      // Update gameweek scores if this is a previous gameweek with calculated scores
+      if (gameweek < currentGameweek || hasCalculatedScores) {
+        setGameweekScores({
+          totalScore: response.total_score,
+          hasScores: true,
+        });
+      } else {
+        setGameweekScores({
+          totalScore: 0,
+          hasScores: false,
+        });
+      }
+
       setPredictions(predictionsMap);
-      console.log("User predictions loaded:", predictionsMap);
+      console.log("User predictions loaded with scores");
     } catch (err) {
       console.error("Error fetching user predictions:", err);
       // If predictions don't exist or error occurs, just clear predictions
       setPredictions({});
+      setGameweekScores({ totalScore: 0, hasScores: false });
     } finally {
       setLoadingPredictions(false);
     }
@@ -277,6 +310,27 @@ const Home = () => {
           <Text style={styles.dateText}>{formatDate(fixture.date)}</Text>
           <Text style={styles.timeText}>{fixture.time}</Text>
         </View>
+        {selectedGameweek < currentGameweek &&
+          predictions[fixture.id] &&
+          predictions[fixture.id].total_score !== undefined && (
+            <View
+              style={[
+                styles.fixtureScoreContainer,
+                predictions[fixture.id].total_score === 0 &&
+                  styles.zeroScoreContainer,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.fixtureScoreText,
+                  predictions[fixture.id].total_score === 0 &&
+                    styles.zeroScoreText,
+                ]}
+              >
+                {predictions[fixture.id].total_score} pts
+              </Text>
+            </View>
+          )}
       </View>
 
       <View style={styles.matchContainer}>
@@ -315,7 +369,7 @@ const Home = () => {
 
         {/* VS */}
         <View style={styles.vsContainer}>
-          <Text style={styles.vsText}>vs</Text>
+          <Text style={styles.vsText}>-</Text>
         </View>
 
         {/* Away Team */}
@@ -409,12 +463,20 @@ const Home = () => {
           !error &&
           fixtures.length > 0 && (
             <View style={styles.content}>
-              <Text style={styles.sectionTitle}>
-                Gameweek {selectedGameweek}
-                {currentGameweek === selectedGameweek && (
-                  <Text style={styles.currentIndicator}> (Current)</Text>
-                )}
-              </Text>
+              <View style={styles.sectionTitleContainer}>
+                <Text style={styles.sectionTitle}>
+                  Gameweek {selectedGameweek}
+                  {currentGameweek === selectedGameweek && (
+                    <Text style={styles.currentIndicator}> (Current)</Text>
+                  )}
+                </Text>
+                {selectedGameweek < currentGameweek &&
+                  gameweekScores.hasScores && (
+                    <Text style={styles.gameweekTotalScore}>
+                      Total: {gameweekScores.totalScore} pts
+                    </Text>
+                  )}
+              </View>
 
               {Object.keys(predictions).length > 0 &&
                 selectedGameweek <= currentGameweek && (
@@ -572,10 +634,26 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "600",
     color: "#212529",
+  },
+  sectionTitleContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 16,
+  },
+  gameweekTotalScore: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#28a745",
+    backgroundColor: "#e8f5e8",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#c3e6cb",
   },
   fixtureCard: {
     backgroundColor: "#fff",
@@ -593,9 +671,31 @@ const styles = StyleSheet.create({
   },
   fixtureHeader: {
     flexDirection: "row",
-    justifyContent: "flex-start",
+    justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 12,
+  },
+  fixtureScoreContainer: {
+    backgroundColor: "#e8f5e8",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#c3e6cb",
+  },
+  fixtureScoreText: {
+    fontSize: 12,
+    fontWeight: "bold",
+    color: "#155724",
+  },
+  zeroScoreContainer: {
+    backgroundColor: "#f8d7da",
+    borderColor: "#dc3545",
+    borderWidth: 2,
+  },
+  zeroScoreText: {
+    color: "#dc3545",
+    fontWeight: "bold",
   },
   dateTimeContainer: {
     flexDirection: "row",
@@ -685,7 +785,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
   },
   vsText: {
-    fontSize: 12,
+    fontSize: 16,
     fontWeight: "500",
     color: "#6c757d",
   },

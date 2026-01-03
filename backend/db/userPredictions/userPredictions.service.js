@@ -80,7 +80,12 @@ const calculatePredictionScore = (prediction, fixture) => {
   score.goals_scored = correctGoalScorers * goalsScoredPoints;
   score.assists = correctAssisters * assistsPoints;
 
-  const total_score = Object.values(score).reduce((a, b) => a + b, 0);
+  let total_score = Object.values(score).reduce((a, b) => a + b, 0);
+
+  // Apply captain bonus (double points) if this prediction is marked as captain
+  if (prediction.captain) {
+    total_score = total_score * 2;
+  }
 
   return { score, total_score };
 };
@@ -348,6 +353,7 @@ const createOrUpdatePredictions = async (userId, gameweek, predictions) => {
             fixture_id: pred.fixtureId || pred.id,
             team_a_score: parseInt(pred.awayScore || pred.team_a_score) || 0,
             team_h_score: parseInt(pred.homeScore || pred.team_h_score) || 0,
+            captain: pred.captain === true,
             stats: Array.isArray(pred.stats) ? pred.stats : [],
             created_at: new Date(),
             updated_at: new Date(),
@@ -370,6 +376,25 @@ const createOrUpdatePredictions = async (userId, gameweek, predictions) => {
         // Update or add predictions
         const updatedPredictions = [...existingPredictions];
 
+        // First, find the new captain if any
+        const newCaptainPrediction = predictions.find(
+          (pred) => pred.captain === true
+        );
+
+        console.log("New captain prediction:", newCaptainPrediction);
+        console.log(
+          "All predictions with captain status:",
+          predictions.map((p) => ({
+            id: p.fixtureId || p.id,
+            captain: p.captain,
+          }))
+        );
+
+        // Clear captain flag from all existing predictions first
+        updatedPredictions.forEach((pred) => {
+          pred.captain = false;
+        });
+
         predictions.forEach((newPred) => {
           const newPredId = newPred.fixtureId || newPred.id;
           const existingIndex = existingPredMap.get(newPredId);
@@ -383,6 +408,7 @@ const createOrUpdatePredictions = async (userId, gameweek, predictions) => {
                 parseInt(newPred.awayScore || newPred.team_a_score) || 0,
               team_h_score:
                 parseInt(newPred.homeScore || newPred.team_h_score) || 0,
+              captain: newPred.captain === true,
               stats: Array.isArray(newPred.stats)
                 ? newPred.stats
                 : existing.stats || [],
@@ -398,6 +424,7 @@ const createOrUpdatePredictions = async (userId, gameweek, predictions) => {
                 parseInt(newPred.awayScore || newPred.team_a_score) || 0,
               team_h_score:
                 parseInt(newPred.homeScore || newPred.team_h_score) || 0,
+              captain: newPred.captain === true,
               stats: Array.isArray(newPred.stats) ? newPred.stats : [],
               created_at: new Date(),
               updated_at: new Date(),

@@ -140,6 +140,7 @@ export const predictionsAPI = {
       fixtureId: string;
       homeScore: number;
       awayScore: number;
+      captain: boolean;
       gameweek: number;
     }>,
     gameweek: number

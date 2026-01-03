@@ -41,6 +41,7 @@ const Home = () => {
   const [selectedGameweek, setSelectedGameweek] = useState(1);
   const [fixtures, setFixtures] = useState<FixtureData[]>([]);
   const [predictions, setPredictions] = useState<PredictionData>({});
+  const [captainFixture, setCaptainFixture] = useState<string | null>(null);
   const [gameweekScores, setGameweekScores] = useState<GameweekScoreData>({
     totalScore: 0,
     hasScores: false,
@@ -139,6 +140,7 @@ const Home = () => {
       // Transform predictions to match our state structure
       const predictionsMap: PredictionData = {};
       let hasCalculatedScores = false;
+      let foundCaptain: string | null = null;
 
       if (response.predictions && Array.isArray(response.predictions)) {
         response.predictions.forEach((prediction: any) => {
@@ -150,9 +152,17 @@ const Home = () => {
               score: prediction.score || undefined,
               total_score: prediction.total_score,
             };
+
+            // Check if this prediction is captain
+            if (prediction.captain) {
+              foundCaptain = fixtureId;
+            }
           }
         });
       }
+
+      // Set captain fixture state
+      setCaptainFixture(foundCaptain);
 
       // Update gameweek scores if this is a previous gameweek with calculated scores
       if (gameweek < currentGameweek || hasCalculatedScores) {
@@ -173,6 +183,7 @@ const Home = () => {
       console.error("Error fetching user predictions:", err);
       // If predictions don't exist or error occurs, just clear predictions
       setPredictions({});
+      setCaptainFixture(null);
       setGameweekScores({ totalScore: 0, hasScores: false });
     } finally {
       setLoadingPredictions(false);
@@ -220,14 +231,32 @@ const Home = () => {
     // If validation fails, don't update the state (input is ignored)
   };
 
+  // Handle captain selection
+  const handleCaptainChange = (fixtureId: string) => {
+    // Don't allow changes for future gameweeks
+    if (selectedGameweek > currentGameweek) {
+      return;
+    }
+
+    // If the same fixture is selected, remove captain
+    if (captainFixture === fixtureId) {
+      setCaptainFixture(null);
+    } else {
+      // Set new captain
+      setCaptainFixture(fixtureId);
+    }
+  };
+
   // Submit predictions to backend
   const submitPredictions = async () => {
     setSubmitting(true);
     try {
-      const predictionsArray = Object.keys(predictions).map((fixtureId) => ({
-        fixtureId,
-        homeScore: parseInt(predictions[fixtureId]?.homeScore || "0"),
-        awayScore: parseInt(predictions[fixtureId]?.awayScore || "0"),
+      // Create predictions for all fixtures, not just ones with scores
+      const predictionsArray = fixtures.map((fixture) => ({
+        fixtureId: fixture.id,
+        homeScore: parseInt(predictions[fixture.id]?.homeScore || "0"),
+        awayScore: parseInt(predictions[fixture.id]?.awayScore || "0"),
+        captain: captainFixture === fixture.id, // Determine captain at submission time
         gameweek: selectedGameweek,
       }));
 
@@ -273,6 +302,7 @@ const Home = () => {
     setSelectedGameweek(gameweek);
     // Clear existing predictions when switching gameweeks
     setPredictions({});
+    setCaptainFixture(null);
 
     if (!teamsLoading && getTeamById(1)) {
       fetchFixturesForGameweek(gameweek);
@@ -305,6 +335,13 @@ const Home = () => {
 
   const renderFixtureCard = (fixture: FixtureData) => (
     <View key={fixture.id} style={styles.fixtureCard}>
+      {/* Captain Badge */}
+      {captainFixture === fixture.id && (
+        <View style={styles.captainBadge}>
+          <Text style={styles.captainBadgeText}>⭐ CAPTAIN</Text>
+        </View>
+      )}
+
       <View style={styles.fixtureHeader}>
         <View style={styles.dateTimeContainer}>
           <Text style={styles.dateText}>{formatDate(fixture.date)}</Text>
@@ -418,6 +455,41 @@ const Home = () => {
             )}
           </View>
         </View>
+
+        {/* Captain Selection - Only show when scores can be edited */}
+        {selectedGameweek <= currentGameweek && (
+          <View style={styles.captainContainer}>
+            <TouchableOpacity
+              style={[
+                styles.captainButton,
+                captainFixture === fixture.id && styles.captainButtonSelected,
+              ]}
+              onPress={() => handleCaptainChange(fixture.id)}
+            >
+              <View style={styles.captainButtonContent}>
+                <View
+                  style={[
+                    styles.captainRadio,
+                    captainFixture === fixture.id &&
+                      styles.captainRadioSelected,
+                  ]}
+                >
+                  {captainFixture === fixture.id && (
+                    <View style={styles.captainRadioInner} />
+                  )}
+                </View>
+                <Text
+                  style={[
+                    styles.captainText,
+                    captainFixture === fixture.id && styles.captainTextSelected,
+                  ]}
+                >
+                  {captainFixture === fixture.id ? "Captain ⭐" : "Captain"}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -731,6 +803,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  captainContainer: {
+    marginLeft: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   homeTeamSection: {
     flexDirection: "row",
     alignItems: "center",
@@ -895,6 +972,74 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     textAlign: "center",
     lineHeight: 20,
+  },
+  captainButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    backgroundColor: "#f8f9fa",
+    borderWidth: 1,
+    borderColor: "#dee2e6",
+  },
+  captainButtonSelected: {
+    backgroundColor: "#e7f3ff",
+    borderColor: "#007bff",
+  },
+  captainButtonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  captainRadio: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 2,
+    borderColor: "#6c757d",
+    marginRight: 6,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  captainRadioSelected: {
+    borderColor: "#007bff",
+  },
+  captainRadioInner: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#007bff",
+  },
+  captainText: {
+    fontSize: 11,
+    fontWeight: "500",
+    color: "#6c757d",
+  },
+  captainTextSelected: {
+    color: "#007bff",
+    fontWeight: "600",
+  },
+  captainBadge: {
+    position: "absolute",
+    top: -8,
+    right: 8,
+    backgroundColor: "#ffd700",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    zIndex: 1,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  captainBadgeText: {
+    fontSize: 10,
+    fontWeight: "bold",
+    color: "#856404",
   },
 });
 

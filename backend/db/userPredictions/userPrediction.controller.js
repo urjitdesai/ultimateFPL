@@ -96,6 +96,22 @@ const createOrUpdatePredictions = async (req, res) => {
       return res.status(400).json({ error: "Gameweek is required" });
     }
 
+    // Validate captain selection: only one captain allowed per gameweek
+    const captainPredictions = predictions.filter(
+      (pred) => pred.captain === true
+    );
+
+    if (captainPredictions.length > 0) {
+      console.log("Captain prediction details:", captainPredictions);
+    }
+
+    if (captainPredictions.length > 1) {
+      return res.status(400).json({
+        error: "Only one captain allowed per gameweek",
+        captainCount: captainPredictions.length,
+      });
+    }
+
     const result = await userPredService.createOrUpdatePredictions(
       userId,
       gameweek,

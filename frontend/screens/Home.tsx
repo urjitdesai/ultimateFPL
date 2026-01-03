@@ -334,163 +334,169 @@ const Home = () => {
   };
 
   const renderFixtureCard = (fixture: FixtureData) => (
-    <View key={fixture.id} style={styles.fixtureCard}>
-      {/* Captain Badge */}
-      {captainFixture === fixture.id && (
-        <View style={styles.captainBadge}>
-          <Text style={styles.captainBadgeText}>⭐ CAPTAIN</Text>
-        </View>
-      )}
-
-      <View style={styles.fixtureHeader}>
-        <View style={styles.dateTimeContainer}>
-          <Text style={styles.dateText}>{formatDate(fixture.date)}</Text>
-          <Text style={styles.timeText}>{fixture.time}</Text>
-        </View>
-        {selectedGameweek < currentGameweek &&
-          predictions[fixture.id] &&
-          predictions[fixture.id].total_score !== undefined && (
-            <View
-              style={[
-                styles.fixtureScoreContainer,
-                predictions[fixture.id].total_score === 0 &&
-                  styles.zeroScoreContainer,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.fixtureScoreText,
-                  predictions[fixture.id].total_score === 0 &&
-                    styles.zeroScoreText,
-                ]}
-              >
-                {predictions[fixture.id].total_score} pts
-              </Text>
-            </View>
-          )}
-      </View>
-
-      <View style={styles.matchContainer}>
-        {/* Home Team */}
-        <View style={styles.homeTeamSection}>
-          <View style={styles.teamInfo}>
-            {fixture.homeTeamId && getTeamLogo(fixture.homeTeamId) && (
-              <Image
-                source={getTeamLogo(fixture.homeTeamId)}
-                style={styles.teamLogo}
-                resizeMode="contain"
-              />
-            )}
-            <Text style={styles.teamName}>{fixture.homeTeam}</Text>
-          </View>
-          <View style={styles.scoreInputContainer}>
-            <TextInput
-              style={[
-                styles.scoreInput,
-                selectedGameweek > currentGameweek && styles.scoreInputDisabled,
-              ]}
-              value={predictions[fixture.id]?.homeScore || ""}
-              onChangeText={(text) =>
-                handlePredictionChange(fixture.id, "home", text)
-              }
-              placeholder="0"
-              placeholderTextColor="#6c757d"
-              keyboardType="numeric"
-              maxLength={2}
-              selectTextOnFocus={selectedGameweek <= currentGameweek}
-              editable={selectedGameweek <= currentGameweek}
-              pointerEvents={
-                selectedGameweek <= currentGameweek ? "auto" : "none"
-              }
-            />
-            {selectedGameweek < currentGameweek &&
-              fixture.homeScore !== undefined &&
-              fixture.homeScore !== null && (
-                <Text style={styles.actualScoreText}>{fixture.homeScore}</Text>
-              )}
-          </View>
-        </View>
-
-        {/* VS */}
-        <View style={styles.vsContainer}>
-          <Text style={styles.vsText}>-</Text>
-        </View>
-
-        {/* Away Team */}
-        <View style={styles.awayTeamSection}>
-          <View style={styles.scoreInputContainer}>
-            <TextInput
-              style={[
-                styles.scoreInput,
-                selectedGameweek > currentGameweek && styles.scoreInputDisabled,
-              ]}
-              value={predictions[fixture.id]?.awayScore || ""}
-              onChangeText={(text) =>
-                handlePredictionChange(fixture.id, "away", text)
-              }
-              placeholder="0"
-              placeholderTextColor="#6c757d"
-              keyboardType="numeric"
-              maxLength={2}
-              selectTextOnFocus={selectedGameweek <= currentGameweek}
-              editable={selectedGameweek <= currentGameweek}
-              pointerEvents={
-                selectedGameweek <= currentGameweek ? "auto" : "none"
-              }
-            />
-            {selectedGameweek < currentGameweek &&
-              fixture.awayScore !== undefined &&
-              fixture.awayScore !== null && (
-                <Text style={styles.actualScoreText}>{fixture.awayScore}</Text>
-              )}
-          </View>
-          <View style={styles.awayTeamInfo}>
-            <Text style={styles.awayTeamName}>{fixture.awayTeam}</Text>
-            {fixture.awayTeamId && getTeamLogo(fixture.awayTeamId) && (
-              <Image
-                source={getTeamLogo(fixture.awayTeamId)}
-                style={styles.teamLogo}
-                resizeMode="contain"
-              />
-            )}
-          </View>
-        </View>
-
-        {/* Captain Selection - Only show when scores can be edited */}
+    <View key={fixture.id}>
+      <TouchableOpacity
+        style={[
+          styles.fixtureCard,
+          captainFixture === fixture.id && styles.fixtureCardCaptain,
+        ]}
+        onPress={() =>
+          selectedGameweek <= currentGameweek && handleCaptainChange(fixture.id)
+        }
+        disabled={selectedGameweek > currentGameweek}
+        activeOpacity={selectedGameweek <= currentGameweek ? 0.7 : 1}
+      >
+        {/* Captain Toggle - Show when scores can be edited */}
         {selectedGameweek <= currentGameweek && (
-          <View style={styles.captainContainer}>
-            <TouchableOpacity
+          <View
+            style={[
+              styles.captainToggle,
+              captainFixture === fixture.id && {
+                backgroundColor: "#ffd700",
+                borderColor: "#ffd700",
+              },
+            ]}
+          >
+            <Text
               style={[
-                styles.captainButton,
-                captainFixture === fixture.id && styles.captainButtonSelected,
+                styles.captainToggleText,
+                captainFixture === fixture.id &&
+                  styles.captainToggleTextSelected,
               ]}
-              onPress={() => handleCaptainChange(fixture.id)}
             >
-              <View style={styles.captainButtonContent}>
-                <View
-                  style={[
-                    styles.captainRadio,
-                    captainFixture === fixture.id &&
-                      styles.captainRadioSelected,
-                  ]}
-                >
-                  {captainFixture === fixture.id && (
-                    <View style={styles.captainRadioInner} />
-                  )}
-                </View>
-                <Text
-                  style={[
-                    styles.captainText,
-                    captainFixture === fixture.id && styles.captainTextSelected,
-                  ]}
-                >
-                  {captainFixture === fixture.id ? "Captain ⭐" : "Captain"}
-                </Text>
-              </View>
-            </TouchableOpacity>
+              {captainFixture === fixture.id ? "⭐" : "C"}
+            </Text>
           </View>
         )}
-      </View>
+
+        {/* Captain Badge */}
+        {captainFixture === fixture.id && (
+          <View style={styles.captainBadge}>
+            <Text style={styles.captainBadgeText}>⭐ CAPTAIN</Text>
+          </View>
+        )}
+
+        <View style={styles.fixtureHeader}>
+          <View style={styles.dateTimeContainer}>
+            <Text style={styles.dateText}>{formatDate(fixture.date)}</Text>
+            <Text style={styles.timeText}>{fixture.time}</Text>
+          </View>
+          {selectedGameweek < currentGameweek &&
+            predictions[fixture.id] &&
+            predictions[fixture.id].total_score !== undefined && (
+              <View
+                style={[
+                  styles.fixtureScoreContainer,
+                  predictions[fixture.id].total_score === 0 &&
+                    styles.zeroScoreContainer,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.fixtureScoreText,
+                    predictions[fixture.id].total_score === 0 &&
+                      styles.zeroScoreText,
+                  ]}
+                >
+                  {predictions[fixture.id].total_score} pts
+                </Text>
+              </View>
+            )}
+        </View>
+
+        <View style={styles.matchContainer}>
+          {/* Home Team */}
+          <View style={styles.homeTeamSection}>
+            <View style={styles.teamInfo}>
+              {fixture.homeTeamId && getTeamLogo(fixture.homeTeamId) && (
+                <Image
+                  source={getTeamLogo(fixture.homeTeamId)}
+                  style={styles.teamLogo}
+                  resizeMode="contain"
+                />
+              )}
+              <Text style={styles.teamName}>{fixture.homeTeam}</Text>
+            </View>
+            <View style={styles.scoreInputContainer}>
+              <TextInput
+                style={[
+                  styles.scoreInput,
+                  selectedGameweek > currentGameweek &&
+                    styles.scoreInputDisabled,
+                ]}
+                value={predictions[fixture.id]?.homeScore || ""}
+                onChangeText={(text) =>
+                  handlePredictionChange(fixture.id, "home", text)
+                }
+                placeholder="0"
+                placeholderTextColor="#6c757d"
+                keyboardType="numeric"
+                maxLength={2}
+                selectTextOnFocus={selectedGameweek <= currentGameweek}
+                editable={selectedGameweek <= currentGameweek}
+                pointerEvents={
+                  selectedGameweek <= currentGameweek ? "auto" : "none"
+                }
+              />
+              {selectedGameweek < currentGameweek &&
+                fixture.homeScore !== undefined &&
+                fixture.homeScore !== null && (
+                  <Text style={styles.actualScoreText}>
+                    {fixture.homeScore}
+                  </Text>
+                )}
+            </View>
+          </View>
+
+          {/* VS */}
+          <View style={styles.vsContainer}>
+            <Text style={styles.vsText}>-</Text>
+          </View>
+
+          {/* Away Team */}
+          <View style={styles.awayTeamSection}>
+            <View style={styles.scoreInputContainer}>
+              <TextInput
+                style={[
+                  styles.scoreInput,
+                  selectedGameweek > currentGameweek &&
+                    styles.scoreInputDisabled,
+                ]}
+                value={predictions[fixture.id]?.awayScore || ""}
+                onChangeText={(text) =>
+                  handlePredictionChange(fixture.id, "away", text)
+                }
+                placeholder="0"
+                placeholderTextColor="#6c757d"
+                keyboardType="numeric"
+                maxLength={2}
+                selectTextOnFocus={selectedGameweek <= currentGameweek}
+                editable={selectedGameweek <= currentGameweek}
+                pointerEvents={
+                  selectedGameweek <= currentGameweek ? "auto" : "none"
+                }
+              />
+              {selectedGameweek < currentGameweek &&
+                fixture.awayScore !== undefined &&
+                fixture.awayScore !== null && (
+                  <Text style={styles.actualScoreText}>
+                    {fixture.awayScore}
+                  </Text>
+                )}
+            </View>
+            <View style={styles.awayTeamInfo}>
+              <Text style={styles.awayTeamName}>{fixture.awayTeam}</Text>
+              {fixture.awayTeamId && getTeamLogo(fixture.awayTeamId) && (
+                <Image
+                  source={getTeamLogo(fixture.awayTeamId)}
+                  style={styles.teamLogo}
+                  resizeMode="contain"
+                />
+              )}
+            </View>
+          </View>
+        </View>
+      </TouchableOpacity>
     </View>
   );
   return (
@@ -803,11 +809,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  captainContainer: {
-    marginLeft: 16,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   homeTeamSection: {
     flexDirection: "row",
     alignItems: "center",
@@ -973,51 +974,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 20,
   },
-  captainButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-    borderRadius: 6,
-    backgroundColor: "#f8f9fa",
-    borderWidth: 1,
-    borderColor: "#dee2e6",
-  },
-  captainButtonSelected: {
-    backgroundColor: "#e7f3ff",
-    borderColor: "#007bff",
-  },
-  captainButtonContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  captainRadio: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    borderWidth: 2,
-    borderColor: "#6c757d",
-    marginRight: 6,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  captainRadioSelected: {
-    borderColor: "#007bff",
-  },
-  captainRadioInner: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#007bff",
-  },
-  captainText: {
-    fontSize: 11,
-    fontWeight: "500",
-    color: "#6c757d",
-  },
-  captainTextSelected: {
-    color: "#007bff",
-    fontWeight: "600",
-  },
   captainBadge: {
     position: "absolute",
     top: -8,
@@ -1039,6 +995,48 @@ const styles = StyleSheet.create({
   captainBadgeText: {
     fontSize: 10,
     fontWeight: "bold",
+    color: "#856404",
+  },
+  fixtureCardCaptain: {
+    borderColor: "#ffd700",
+    borderWidth: 3,
+    shadowColor: "#ffd700",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 6,
+  },
+  captainToggle: {
+    position: "absolute",
+    top: -8,
+    left: -8,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#fff",
+    borderWidth: 2,
+    borderColor: "#dee2e6",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 2,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 4,
+  },
+  captainToggleText: {
+    fontSize: 12,
+    fontWeight: "bold",
+    color: "#6c757d",
+  },
+  captainToggleTextSelected: {
     color: "#856404",
   },
 });

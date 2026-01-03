@@ -7,14 +7,14 @@ import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 // Import screen components
 import Home from "../screens/Home";
 import Leagues from "../screens/Leagues";
-import Fixtures from "../screens/Fixtures";
+// import Fixtures from "../screens/Fixtures";
 
 const Tab = createBottomTabNavigator();
 
 type TabParamList = {
   Home: undefined;
   Leagues: undefined;
-  Fixtures: undefined;
+  // Fixtures: undefined;
 };
 
 interface TabBarIconProps {
@@ -34,9 +34,9 @@ const getTabBarIcon = (routeName: string) => {
       case "Leagues":
         iconName = focused ? "trophy" : "trophy-outline";
         break;
-      case "Fixtures":
-        iconName = focused ? "calendar" : "calendar-outline";
-        break;
+      // case "Fixtures":
+      //   iconName = focused ? "calendar" : "calendar-outline";
+      //   break;
       default:
         iconName = "home-outline";
     }
@@ -84,13 +84,13 @@ const MainApp = () => {
           tabBarLabel: "Leagues",
         }}
       />
-      <Tab.Screen
+      {/* <Tab.Screen
         name="Fixtures"
         component={Fixtures}
         options={{
           tabBarLabel: "Fixtures",
         }}
-      />
+      /> */}
     </Tab.Navigator>
   );
 };

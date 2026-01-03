@@ -335,20 +335,15 @@ const Home = () => {
 
   const renderFixtureCard = (fixture: FixtureData) => (
     <View key={fixture.id}>
-      <TouchableOpacity
+      <View
         style={[
           styles.fixtureCard,
           captainFixture === fixture.id && styles.fixtureCardCaptain,
         ]}
-        onPress={() =>
-          selectedGameweek <= currentGameweek && handleCaptainChange(fixture.id)
-        }
-        disabled={selectedGameweek > currentGameweek}
-        activeOpacity={selectedGameweek <= currentGameweek ? 0.7 : 1}
       >
         {/* Captain Toggle - Show when scores can be edited */}
         {selectedGameweek <= currentGameweek && (
-          <View
+          <TouchableOpacity
             style={[
               styles.captainToggle,
               captainFixture === fixture.id && {
@@ -356,6 +351,8 @@ const Home = () => {
                 borderColor: "#ffd700",
               },
             ]}
+            onPress={() => handleCaptainChange(fixture.id)}
+            activeOpacity={0.7}
           >
             <Text
               style={[
@@ -366,7 +363,7 @@ const Home = () => {
             >
               {captainFixture === fixture.id ? "⭐" : "C"}
             </Text>
-          </View>
+          </TouchableOpacity>
         )}
 
         {/* Captain Badge */}
@@ -496,7 +493,7 @@ const Home = () => {
             </View>
           </View>
         </View>
-      </TouchableOpacity>
+      </View>
     </View>
   );
   return (

@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -19,38 +19,23 @@ const GameweekSelector: React.FC<GameweekSelectorProps> = ({
   onGameweekChange,
 }) => {
   const scrollViewRef = useRef<ScrollView>(null);
-  const [currentScrollPosition, setCurrentScrollPosition] = useState(0);
-  const [containerWidth, setContainerWidth] = useState(300);
 
-  // Auto-scroll to selected gameweek when it changes (only if not in view)
+  // Auto-scroll to selected gameweek when it changes
   useEffect(() => {
     const scrollToSelected = () => {
       if (scrollViewRef.current) {
         // Calculate the x position for the selected gameweek
+        // Button width (64px) + margin (8px) + padding (32px total horizontal)
         const buttonWidth = 72; // Approximate width including margin
         const selectedIndex = selectedGameweek - 1;
-        const selectedButtonPosition = selectedIndex * buttonWidth;
+        const containerWidth = 300; // Approximate visible width
+        const scrollPosition =
+          selectedIndex * buttonWidth - containerWidth / 2 + buttonWidth / 2;
 
-        // Check if the selected button is currently visible
-        const leftBoundary = currentScrollPosition;
-        const rightBoundary = currentScrollPosition + containerWidth;
-        const buttonLeftEdge = selectedButtonPosition;
-        const buttonRightEdge = selectedButtonPosition + buttonWidth;
-
-        // Only scroll if the button is not fully visible
-        const isButtonVisible =
-          buttonLeftEdge >= leftBoundary && buttonRightEdge <= rightBoundary;
-
-        if (!isButtonVisible) {
-          // Calculate optimal scroll position to center the selected gameweek
-          const scrollPosition =
-            selectedButtonPosition - containerWidth / 2 + buttonWidth / 2;
-
-          scrollViewRef.current.scrollTo({
-            x: Math.max(0, scrollPosition),
-            animated: true,
-          });
-        }
+        scrollViewRef.current.scrollTo({
+          x: Math.max(0, scrollPosition),
+          animated: true,
+        });
       }
     };
 
@@ -58,7 +43,7 @@ const GameweekSelector: React.FC<GameweekSelectorProps> = ({
     const timeoutId = setTimeout(scrollToSelected, 100);
 
     return () => clearTimeout(timeoutId);
-  }, [selectedGameweek, currentScrollPosition, containerWidth]);
+  }, [selectedGameweek]);
 
   return (
     <View style={styles.gameweekSelector}>
@@ -67,13 +52,6 @@ const GameweekSelector: React.FC<GameweekSelectorProps> = ({
         horizontal
         showsHorizontalScrollIndicator={false}
         style={styles.gameweekScroll}
-        onScroll={(event) => {
-          setCurrentScrollPosition(event.nativeEvent.contentOffset.x);
-        }}
-        onLayout={(event) => {
-          setContainerWidth(event.nativeEvent.layout.width);
-        }}
-        scrollEventThrottle={16}
       >
         {Array.from({ length: 38 }, (_, i) => i + 1).map((gw) => (
           <TouchableOpacity

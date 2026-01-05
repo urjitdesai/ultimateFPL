@@ -76,7 +76,7 @@ const populateUsers = async (req, res) => {
 
 const createUser = async (req, res) => {
   try {
-    const { email, password, displayName } = req.body;
+    const { email, password, displayName, favoriteTeamId } = req.body;
     if (!email || !password) {
       return res.status(400).json({ error: "email and password are required" });
     }
@@ -84,7 +84,8 @@ const createUser = async (req, res) => {
     const result = await userService.createUserInDb(
       email,
       password,
-      displayName
+      displayName,
+      favoriteTeamId
     );
 
     // Set JWT token as HTTP-only cookie

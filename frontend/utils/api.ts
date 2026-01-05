@@ -29,11 +29,17 @@ export const authAPI = {
   },
 
   // Register user
-  signup: async (email: string, password: string, displayName?: string) => {
+  signup: async (
+    email: string,
+    password: string,
+    displayName?: string,
+    favoriteTeamId?: string
+  ) => {
     const response = await api.post("/api/users/signup", {
       email,
       password,
       displayName,
+      favoriteTeamId,
     });
 
     // Store token from response in localStorage

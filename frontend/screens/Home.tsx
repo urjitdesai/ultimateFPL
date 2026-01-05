@@ -36,6 +36,13 @@ interface GameweekScoreData {
   hasScores: boolean;
 }
 
+interface User {
+  id: string;
+  email: string;
+  display_name: string;
+  favoriteTeamId?: string;
+}
+
 const Home = () => {
   const [currentGameweek, setCurrentGameweek] = useState<number>(0);
   const [selectedGameweek, setSelectedGameweek] = useState<number>(0);
@@ -50,7 +57,7 @@ const Home = () => {
   const [submitting, setSubmitting] = useState(false);
   const [loadingPredictions, setLoadingPredictions] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [userDisplayName, setUserDisplayName] = useState<string>("");
+  const [user, setUser] = useState<User | null>(null);
 
   const { getTeamById, getTeamLogo, loading: teamsLoading } = useTeams();
   const navigation = useNavigation();
@@ -68,11 +75,11 @@ const Home = () => {
     }
   };
 
-  // Get user display name from stored data
-  const getUserDisplayName = () => {
-    const user = authAPI.getUser();
-    if (user && user.display_name) {
-      setUserDisplayName(user.display_name);
+  // Get user data from stored data
+  const getUserData = () => {
+    const userData = authAPI.getUser();
+    if (userData) {
+      setUser(userData as User);
     }
   };
 
@@ -326,9 +333,9 @@ const Home = () => {
     }
   }, [teamsLoading]);
 
-  // Get user display name when component mounts
+  // Get user data when component mounts
   useEffect(() => {
-    getUserDisplayName();
+    getUserData();
   }, []);
 
   // Fetch fixtures when current gameweek changes and teams are loaded
@@ -523,8 +530,10 @@ const Home = () => {
               </Text>
             </View>
             <View style={styles.userSection}>
-              {userDisplayName && (
-                <Text style={styles.displayName}>{userDisplayName}</Text>
+              {user && (
+                <Text style={styles.displayName}>
+                  {user.display_name || user.email || "User"}
+                </Text>
               )}
               <TouchableOpacity
                 style={styles.logoutButton}

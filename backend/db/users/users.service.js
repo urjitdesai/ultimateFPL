@@ -5,7 +5,7 @@ import admin from "firebase-admin";
 import bcrypt from "bcrypt";
 import { leaguesService } from "../leagues/leagues.service.js";
 
-const createUserInDb = async (email, password, displayName) => {
+const createUserInDb = async (email, password, displayName, favoriteTeamId) => {
   if (!admin) throw new Error("Firebase admin not initialized");
 
   const passwordHash = await bcrypt.hash(password, 10);
@@ -23,6 +23,7 @@ const createUserInDb = async (email, password, displayName) => {
     email: email,
     display_name: displayName || null,
     password: passwordHash,
+    favorite_team_id: favoriteTeamId || null,
     created_at: new Date(),
   });
 
@@ -33,6 +34,7 @@ const createUserInDb = async (email, password, displayName) => {
     id: docRef.id,
     email: email,
     display_name: displayName || null,
+    favorite_team_id: favoriteTeamId || null,
   };
 
   // Generate JWT token
@@ -41,6 +43,7 @@ const createUserInDb = async (email, password, displayName) => {
       userId: docRef.id,
       email: email,
       display_name: displayName || null,
+      favorite_team_id: favoriteTeamId || null,
     },
     process.env.JWT_SECRET,
     { expiresIn: "7d" }
@@ -78,6 +81,7 @@ const authenticateUser = async (email, password) => {
     id: userId,
     email: userData.email,
     display_name: userData.display_name,
+    favorite_team_id: userData.favorite_team_id || null,
   };
 
   // Generate JWT token
@@ -86,6 +90,7 @@ const authenticateUser = async (email, password) => {
       userId: userId,
       email: userData.email,
       display_name: userData.display_name,
+      favorite_team_id: userData.favorite_team_id || null,
     },
     process.env.JWT_SECRET,
     { expiresIn: "7d" }

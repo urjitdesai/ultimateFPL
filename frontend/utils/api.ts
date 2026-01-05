@@ -17,8 +17,12 @@ export const authAPI = {
     const response = await api.post("/api/users/login", { email, password });
 
     // Store token from response in localStorage
-    if (response.data.success && response.data.token) {
-      tokenStorage.set(response.data.token);
+    if (response.data.success) {
+      if (response.data.token) tokenStorage.set(response.data.token);
+
+      if (response.data.user) {
+        tokenStorage.setUser(response.data.user);
+      }
     }
 
     return response.data;
@@ -33,8 +37,12 @@ export const authAPI = {
     });
 
     // Store token from response in localStorage
-    if (response.data.success && response.data.token) {
-      tokenStorage.set(response.data.token);
+    if (response.data.success) {
+      if (response.data.token) tokenStorage.set(response.data.token);
+
+      if (response.data.user) {
+        tokenStorage.setUser(response.data.user);
+      }
     }
 
     return response.data;
@@ -47,8 +55,9 @@ export const authAPI = {
       const response = await api.post("/api/users/logout");
       return response.data;
     } finally {
-      // Always clear local token, even if backend call fails
+      // Always clear local token and user data, even if backend call fails
       tokenStorage.remove();
+      tokenStorage.removeUser();
     }
   },
 
@@ -71,6 +80,21 @@ export const authAPI = {
   // Clear token
   clearToken: () => {
     tokenStorage.remove();
+  },
+
+  // Get stored user data
+  getUser: () => {
+    return tokenStorage.getUser();
+  },
+
+  // Set user data
+  setUser: (user: any) => {
+    tokenStorage.setUser(user);
+  },
+
+  // Clear user data
+  clearUser: () => {
+    tokenStorage.removeUser();
   },
 };
 

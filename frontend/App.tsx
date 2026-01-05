@@ -1,20 +1,54 @@
 import { StatusBar } from "expo-status-bar";
 import { StyleSheet, Text, View } from "react-native";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import MainApp from "./components/MainApp";
 import LeagueDetails from "./screens/LeagueDetails";
+import { authAPI } from "./utils/api";
 
 const Stack = createStackNavigator();
 
 export default function App() {
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    checkAuthenticationStatus();
+  }, []);
+
+  const checkAuthenticationStatus = async () => {
+    try {
+      const token = authAPI.getToken();
+      if (token && token.trim() !== "") {
+        setIsAuthenticated(true);
+      } else {
+        setIsAuthenticated(false);
+      }
+    } catch (error) {
+      console.error("Error checking authentication status:", error);
+      authAPI.clearToken();
+      setIsAuthenticated(false);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (isLoading) {
+    // Show loading screen while checking authentication
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Loading...</Text>
+      </View>
+    );
+  }
+
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName="login"
+        initialRouteName={isAuthenticated ? "main" : "login"}
         screenOptions={{ headerShown: false }}
       >
         <Stack.Screen name="login" component={Login} />
@@ -46,5 +80,16 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     alignItems: "center",
     justifyContent: "center",
+  },
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: "#f8f9fa",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  loadingText: {
+    fontSize: 16,
+    color: "#6c757d",
+    fontWeight: "500",
   },
 });

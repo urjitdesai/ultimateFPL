@@ -35,6 +35,30 @@ export const tokenStorage = {
     }
   },
 
+  setUser: (user: any) => {
+    try {
+      localStorage.setItem("user", JSON.stringify(user));
+    } catch (error) {
+      console.warn("Storage not available, using memory:", error);
+    }
+  },
+
+  getUser: () => {
+    try {
+      const user = localStorage.getItem("user");
+      return user ? JSON.parse(user) : null;
+    } catch (error) {
+      console.warn("Storage not available, using memory:", error);
+      return null;
+    }
+  },
+
+  removeUser: () => {
+    if (localStorage.getItem("user")) {
+      localStorage.removeItem("user");
+    }
+  },
+
   remove: () => {
     try {
       // Try localStorage first (web)
@@ -76,9 +100,11 @@ export const setupAuthInterceptors = (axiosInstance: AxiosInstance) => {
     (error) => {
       if (error.response?.status === 401) {
         // Token expired or invalid, clear stored token
-        // tokenStorage.remove();
-        // console.log("Authentication required - token cleared");
-        // TODO: Navigate to login screen
+        tokenStorage.remove();
+        console.log(
+          "Authentication failed - token cleared due to 401 response"
+        );
+        // The app will handle navigation based on the cleared token state
       }
       return Promise.reject(error);
     }

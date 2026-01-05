@@ -37,8 +37,8 @@ interface GameweekScoreData {
 }
 
 const Home = () => {
-  const [currentGameweek, setCurrentGameweek] = useState(1);
-  const [selectedGameweek, setSelectedGameweek] = useState(1);
+  const [currentGameweek, setCurrentGameweek] = useState<number>(0);
+  const [selectedGameweek, setSelectedGameweek] = useState<number>(0);
   const [fixtures, setFixtures] = useState<FixtureData[]>([]);
   const [predictions, setPredictions] = useState<PredictionData>({});
   const [captainFixture, setCaptainFixture] = useState<string | null>(null);
@@ -50,6 +50,7 @@ const Home = () => {
   const [submitting, setSubmitting] = useState(false);
   const [loadingPredictions, setLoadingPredictions] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [userDisplayName, setUserDisplayName] = useState<string>("");
 
   const { getTeamById, getTeamLogo, loading: teamsLoading } = useTeams();
   const navigation = useNavigation();
@@ -64,6 +65,14 @@ const Home = () => {
     } catch (error) {
       console.error("Logout error:", error);
       Alert.alert("Error", "Failed to logout");
+    }
+  };
+
+  // Get user display name from stored data
+  const getUserDisplayName = () => {
+    const user = authAPI.getUser();
+    if (user && user.display_name) {
+      setUserDisplayName(user.display_name);
     }
   };
 
@@ -317,6 +326,11 @@ const Home = () => {
     }
   }, [teamsLoading]);
 
+  // Get user display name when component mounts
+  useEffect(() => {
+    getUserDisplayName();
+  }, []);
+
   // Fetch fixtures when current gameweek changes and teams are loaded
   useEffect(() => {
     if (currentGameweek && !teamsLoading && getTeamById(1)) {
@@ -508,12 +522,17 @@ const Home = () => {
                 Gameweek {selectedGameweek} Predictions
               </Text>
             </View>
-            <TouchableOpacity
-              style={styles.logoutButton}
-              onPress={handleLogout}
-            >
-              <Text style={styles.logoutButtonText}>Logout</Text>
-            </TouchableOpacity>
+            <View style={styles.userSection}>
+              {userDisplayName && (
+                <Text style={styles.displayName}>{userDisplayName}</Text>
+              )}
+              <TouchableOpacity
+                style={styles.logoutButton}
+                onPress={handleLogout}
+              >
+                <Text style={styles.logoutButtonText}>Logout</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 
@@ -920,6 +939,15 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 14,
     fontWeight: "600",
+  },
+  userSection: {
+    alignItems: "flex-end",
+    gap: 8,
+  },
+  displayName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
   },
   currentIndicator: {
     color: "#28a745",

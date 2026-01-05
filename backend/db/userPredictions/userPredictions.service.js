@@ -9,6 +9,7 @@ const calculatePredictionScore = (prediction, fixture) => {
     goals_scored: 0,
     assists: 0,
     correct_scoreline: 0,
+    correct_result: 0,
   };
 
   // Check if fixture exists
@@ -21,16 +22,52 @@ const calculatePredictionScore = (prediction, fixture) => {
     return { score, total_score: 0 };
   }
 
-  // Check if scoreline is correct
-  if (
-    fixture.team_a_score !== prediction.team_a_score ||
-    fixture.team_h_score !== prediction.team_h_score
-  ) {
-    return { score, total_score: 0 };
+  // Helper function to determine winner (1: home win, 0: draw, -1: away win)
+  const getMatchResult = (homeScore, awayScore) => {
+    if (homeScore > awayScore) return 1;
+    if (homeScore < awayScore) return -1;
+    return 0;
+  };
+
+  // Check for correct result (winner prediction)
+  const actualResult = getMatchResult(
+    fixture.team_h_score,
+    fixture.team_a_score
+  );
+  const predictedResult = getMatchResult(
+    prediction.team_h_score,
+    prediction.team_a_score
+  );
+
+  // Object to track what user scored points for
+  const scoreBreakdown = {
+    correct_result: false,
+    correct_home_score: false,
+    correct_away_score: false,
+    goals_scored: [],
+    assists: [],
+  };
+
+  if (actualResult === predictedResult) {
+    score.correct_result = scoringRules.correct_result || 0;
+    scoreBreakdown.correct_result = true;
   }
 
-  // Correct scoreline - assign base points
-  score.correct_scoreline = scoringRules.correct_scoreline || 0;
+  // Check for correct scoreline (individual team scores)
+  let correctScores = 0;
+  if (fixture.team_h_score === prediction.team_h_score) {
+    correctScores++;
+    scoreBreakdown.correct_home_score = true;
+  }
+  if (fixture.team_a_score === prediction.team_a_score) {
+    correctScores++;
+    scoreBreakdown.correct_away_score = true;
+  }
+
+  if (correctScores > 0) {
+    score.correct_scoreline =
+      correctScores * (scoringRules.correct_scoreline || 0);
+  }
 
   // Calculate goals scored and assists from stats
   const currentPredictionStats = Array.isArray(prediction.stats)
@@ -51,9 +88,13 @@ const calculatePredictionScore = (prediction, fixture) => {
   );
   const actualGoalScorers = actualGoalStats.map((stat) => stat.element);
 
-  const correctGoalScorers = predictedGoalScorers.filter((playerId) =>
+  const correctGoalScorerIds = predictedGoalScorers.filter((playerId) =>
     actualGoalScorers.includes(playerId)
-  ).length;
+  );
+  const correctGoalScorers = correctGoalScorerIds.length;
+
+  // Store which goal scorers user got correct
+  scoreBreakdown.goals_scored = correctGoalScorerIds;
 
   // Assists calculation
   const currentPredictionAssistStats = currentPredictionStats.filter(
@@ -68,9 +109,13 @@ const calculatePredictionScore = (prediction, fixture) => {
   );
   const actualAssisters = actualAssistStats.map((stat) => stat.element);
 
-  const correctAssisters = predictedAssisters.filter((playerId) =>
+  const correctAssisterIds = predictedAssisters.filter((playerId) =>
     actualAssisters.includes(playerId)
-  ).length;
+  );
+  const correctAssisters = correctAssisterIds.length;
+
+  // Store which assisters user got correct
+  scoreBreakdown.assists = correctAssisterIds;
 
   // Calculate points
   const goalsScoredPoints =
@@ -87,7 +132,7 @@ const calculatePredictionScore = (prediction, fixture) => {
     total_score = total_score * 2;
   }
 
-  return { score, total_score };
+  return { score, total_score, scoreBreakdown };
 };
 
 // Service: delete all user predictions
@@ -180,13 +225,16 @@ const calculateScores = async ({ gameweek, userId }) => {
     const fixture = fixtureResults.find(
       (f) => f.id === pred.id || f.id === pred.fixture_id
     );
-    const { score, total_score } = calculatePredictionScore(pred, fixture);
+    const { score, total_score, scoreBreakdown } = calculatePredictionScore(
+      pred,
+      fixture
+    );
 
     return {
       ...pred,
       score,
       total_score, // Note: keeping both total_score and totalScore for backward compatibility
-      totalScore: total_score,
+      scoreBreakdown,
     };
   });
 
@@ -250,7 +298,7 @@ const calculateScoresForAllUsers = async (gameweek) => {
         const userId = userData.user_id;
         console.log("userData=", userData);
         console.log(`Processing scores for user: ${userId}`);
-        console.log("fixtureResults= ", fixtureResults);
+        // console.log("fixtureResults= ", fixtureResults);
 
         // Calculate scores for this user using the reusable helper
         const userPredictions = userData.predictions || [];
@@ -258,15 +306,14 @@ const calculateScoresForAllUsers = async (gameweek) => {
           const fixture = fixtureResults.find(
             (f) => f.id === parseInt(pred.fixture_id)
           );
-          const { score, total_score } = calculatePredictionScore(
-            pred,
-            fixture
-          );
+          const { score, total_score, scoreBreakdown } =
+            calculatePredictionScore(pred, fixture);
 
           return {
             ...pred,
             score,
             total_score,
+            scoreBreakdown,
           };
         });
 

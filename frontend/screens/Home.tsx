@@ -26,8 +26,16 @@ interface PredictionData {
       goals_scored: number;
       assists: number;
       correct_scoreline: number;
+      correct_result: number;
     };
     total_score?: number;
+    scoreBreakdown?: {
+      correct_result: boolean;
+      correct_home_score: boolean;
+      correct_away_score: boolean;
+      goals_scored: string[];
+      assists: string[];
+    };
   };
 }
 
@@ -40,7 +48,7 @@ interface User {
   id: string;
   email: string;
   display_name: string;
-  favoriteTeamId?: string;
+  favorite_team_id?: string;
 }
 
 const Home = () => {
@@ -249,16 +257,13 @@ const Home = () => {
 
   // Handle captain selection
   const handleCaptainChange = (fixtureId: string) => {
-    // Don't allow changes for future gameweeks
     if (selectedGameweek > currentGameweek) {
       return;
     }
 
-    // If the same fixture is selected, remove captain
     if (captainFixture === fixtureId) {
       setCaptainFixture(null);
     } else {
-      // Set new captain
       setCaptainFixture(fixtureId);
     }
   };
@@ -323,6 +328,9 @@ const Home = () => {
     if (!teamsLoading && getTeamById(1)) {
       fetchFixturesForGameweek(gameweek);
       fetchUserPredictions(gameweek);
+      // if (captainFixture == null) {
+      //   setCaptainFixture(user?.favorite_team_id || null);
+      // }
     }
   };
 

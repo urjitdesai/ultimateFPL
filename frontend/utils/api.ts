@@ -115,6 +115,44 @@ export const leaguesAPI = {
     const response = await api.get(`/api/leagues/${leagueId}`);
     return response.data;
   },
+
+  // League scores functions
+  getLeagueTable: async (leagueId: string, gameweek?: number) => {
+    const url = `/api/leagues/${leagueId}/table`;
+    const params = gameweek ? { gameweek } : {};
+    const response = await api.get(url, { params });
+    return response.data;
+  },
+
+  getGameweekRankings: async (leagueId: string, gameweek: number) => {
+    const response = await api.get(
+      `/api/leagues/${leagueId}/gameweek/${gameweek}`
+    );
+    return response.data;
+  },
+
+  getUserLeagueHistory: async (
+    leagueId: string,
+    userId: string,
+    limit?: number
+  ) => {
+    const url = `/api/leagues/${leagueId}/history/${userId}`;
+    const params = limit ? { limit } : {};
+    const response = await api.get(url, { params });
+    return response.data;
+  },
+
+  calculateLeagueScores: async (leagueId: string, gameweek: number) => {
+    const response = await api.post(`/api/leagues/${leagueId}/calculate`, {
+      gameweek,
+    });
+    return response.data;
+  },
+
+  calculateAllLeagueScores: async (gameweek: number) => {
+    const response = await api.post("/api/leagues/calculate-all", { gameweek });
+    return response.data;
+  },
 };
 
 // Fixtures API functions

@@ -15,7 +15,7 @@ admin.initializeApp({
 const databaseId = process.env.FIREBASE_DATABASE_ID ;
 const db = getFirestore(admin.app(), databaseId);
 console.log('Firestore initialized with databaseId:', databaseId);
-console.log('db=', db);
+// console.log('db=', db);
 
 
 export { db, admin };

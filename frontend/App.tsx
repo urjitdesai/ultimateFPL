@@ -6,6 +6,7 @@ import { createStackNavigator } from "@react-navigation/stack";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import MainApp from "./components/MainApp";
+import LeagueDetails from "./screens/LeagueDetails";
 
 const Stack = createStackNavigator();
 
@@ -19,6 +20,21 @@ export default function App() {
         <Stack.Screen name="login" component={Login} />
         <Stack.Screen name="signup" component={Signup} />
         <Stack.Screen name="main" component={MainApp} />
+        <Stack.Screen
+          name="LeagueDetails"
+          component={LeagueDetails}
+          options={{
+            headerShown: true,
+            title: "League Details",
+            headerStyle: {
+              backgroundColor: "#007bff",
+            },
+            headerTintColor: "#fff",
+            headerTitleStyle: {
+              fontWeight: "bold",
+            },
+          }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

@@ -453,11 +453,45 @@ const createOrUpdatePredictions = async (userId, gameweek, predictions) => {
   }
 };
 
-export default {
+const getUserGameweekScore = async (userId, gameweek) => {
+  try {
+    const docId = `${userId}_${gameweek}`;
+    const predictionDoc = await db
+      .collection("userPredictions")
+      .doc(docId)
+      .get();
+
+    if (!predictionDoc.exists) {
+      console.log(
+        `No predictions found for user ${userId}, gameweek ${gameweek}`
+      );
+      return 0;
+    }
+
+    const predictionData = predictionDoc.data();
+    console.log(
+      `user=${userId}, gameweek=${gameweek}, total_score=${predictionData.total_score}`
+    );
+
+    return predictionData.total_score || 0;
+  } catch (error) {
+    console.error(
+      `Error getting gameweek score for user ${userId}, gameweek ${gameweek}:`,
+      error
+    );
+    return 0;
+  }
+};
+
+const userPredictionsService = {
   deleteAllUserPredictions,
   getUserPredictionsById,
   populatePredictions,
   calculateScores,
   calculateScoresForAllUsers,
   createOrUpdatePredictions,
+  getUserGameweekScore,
 };
+
+export { userPredictionsService };
+export default userPredictionsService;

@@ -1,5 +1,6 @@
 import express from "express";
 import { leaguesController } from "./leagues.controller.js";
+import { leagueScoresController } from "../leagueScores/leagueScores.controller.js";
 import { authenticateToken } from "../../middleware/auth.js";
 
 const router = express.Router();
@@ -12,6 +13,33 @@ router.post(
   leaguesController.getUserLeagues
 );
 router.post("/join", authenticateToken, leaguesController.joinLeague);
+
+// League scores routes
+router.get(
+  "/:leagueId/table",
+  authenticateToken,
+  leagueScoresController.getLeagueTable
+);
+router.get(
+  "/:leagueId/gameweek/:gameweek",
+  authenticateToken,
+  leagueScoresController.getGameweekRankings
+);
+router.get(
+  "/:leagueId/history/:userId",
+  authenticateToken,
+  leagueScoresController.getUserLeagueHistory
+);
+router.post(
+  "/:leagueId/calculate",
+  authenticateToken,
+  leagueScoresController.calculateLeagueScores
+);
+router.post(
+  "/calculate-all",
+  // authenticateToken,
+  leagueScoresController.calculateAllLeagueScores
+);
 
 // Public routes
 router.get("/:id", leaguesController.getLeagueById);

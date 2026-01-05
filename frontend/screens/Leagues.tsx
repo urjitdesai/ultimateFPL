@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
 import { leaguesAPI } from "../utils/api";
 import CreateLeagueModal from "../components/CreateLeagueModal";
 import JoinLeagueModal from "../components/JoinLeagueModal";
@@ -22,6 +23,7 @@ interface League {
 }
 
 const Leagues = () => {
+  const navigation = useNavigation();
   const [joinedLeagues, setJoinedLeagues] = useState<League[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -107,7 +109,17 @@ const Leagues = () => {
   ];
 
   const renderLeagueCard = (league: League) => (
-    <View key={league.id} style={styles.leagueCard}>
+    <TouchableOpacity
+      key={league.id}
+      style={styles.leagueCard}
+      onPress={() =>
+        (navigation as any).navigate("LeagueDetails", {
+          leagueId: league.id,
+          leagueName: league.name,
+        })
+      }
+      activeOpacity={0.7}
+    >
       <View style={styles.leagueHeader}>
         <Text style={styles.leagueName}>{league.name}</Text>
         <View
@@ -144,7 +156,7 @@ const Leagues = () => {
           </View>
         )}
       </View>
-    </View>
+    </TouchableOpacity>
   );
 
   return (
@@ -340,6 +352,11 @@ const styles = StyleSheet.create({
   },
   statItem: {
     flex: 1,
+  },
+  leagueFooter: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingTop: 8,
   },
   statLabel: {
     fontSize: 14,

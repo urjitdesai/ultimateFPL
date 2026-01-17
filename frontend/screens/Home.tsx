@@ -528,65 +528,68 @@ const Home = () => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.header}>
-          <View style={styles.headerContent}>
-            <View>
-              <Text style={styles.headerTitle}>Ultimate FPL</Text>
-              <Text style={styles.headerSubtitle}>
-                Gameweek {selectedGameweek} Predictions
-              </Text>
-            </View>
-            <View style={styles.userSection}>
-              {user && (
-                <Text style={styles.displayName}>
-                  {user.display_name || user.email || "User"}
-                </Text>
-              )}
-              <TouchableOpacity
-                style={styles.logoutButton}
-                onPress={handleLogout}
-              >
-                <Text style={styles.logoutButtonText}>Logout</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-
-        <GameweekSelector
-          selectedGameweek={selectedGameweek}
-          currentGameweek={currentGameweek}
-          onGameweekChange={handleGameweekChange}
-        />
-
-        {(loading || teamsLoading || loadingPredictions) && (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#007bff" />
-            <Text style={styles.loadingText}>
-              {loadingPredictions
-                ? "Loading predictions..."
-                : "Loading fixtures..."}
+      <View style={styles.header}>
+        <View style={styles.headerContent}>
+          <View>
+            <Text style={styles.headerTitle}>Ultimate FPL</Text>
+            <Text style={styles.headerSubtitle}>
+              Gameweek {selectedGameweek} Predictions
             </Text>
           </View>
-        )}
-
-        {error && (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>{error}</Text>
+          <View style={styles.userSection}>
+            {user && (
+              <Text style={styles.displayName}>
+                {user.display_name || user.email || "User"}
+              </Text>
+            )}
             <TouchableOpacity
-              style={styles.retryButton}
-              onPress={fetchCurrentGameweekAndFixtures}
+              style={styles.logoutButton}
+              onPress={handleLogout}
             >
-              <Text style={styles.retryButtonText}>Retry</Text>
+              <Text style={styles.logoutButtonText}>Logout</Text>
             </TouchableOpacity>
           </View>
-        )}
+        </View>
+      </View>
 
-        {!loading &&
-          !teamsLoading &&
-          !loadingPredictions &&
-          !error &&
-          fixtures.length > 0 && (
+      <GameweekSelector
+        selectedGameweek={selectedGameweek}
+        currentGameweek={currentGameweek}
+        onGameweekChange={handleGameweekChange}
+      />
+
+      {(loading || teamsLoading || loadingPredictions) && (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#007bff" />
+          <Text style={styles.loadingText}>
+            {loadingPredictions
+              ? "Loading predictions..."
+              : "Loading fixtures..."}
+          </Text>
+        </View>
+      )}
+
+      {error && (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={fetchCurrentGameweekAndFixtures}
+          >
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {!loading &&
+        !teamsLoading &&
+        !loadingPredictions &&
+        !error &&
+        fixtures.length > 0 && (
+          <ScrollView
+            style={styles.fixtureScrollView}
+            contentContainerStyle={styles.scrollContent}
+          >
             <View style={styles.content}>
               <View style={styles.sectionTitleContainer}>
                 <Text style={styles.sectionTitle}>
@@ -642,20 +645,20 @@ const Home = () => {
                 </TouchableOpacity>
               )}
             </View>
-          )}
+          </ScrollView>
+        )}
 
-        {!loading &&
-          !teamsLoading &&
-          !loadingPredictions &&
-          !error &&
-          fixtures.length === 0 && (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>
-                No fixtures available for this gameweek
-              </Text>
-            </View>
-          )}
-      </ScrollView>
+      {!loading &&
+        !teamsLoading &&
+        !loadingPredictions &&
+        !error &&
+        fixtures.length === 0 && (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>
+              No fixtures available for this gameweek
+            </Text>
+          </View>
+        )}
     </SafeAreaView>
   );
 };
@@ -667,6 +670,9 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
+  },
+  fixtureScrollView: {
+    flex: 1,
   },
   header: {
     backgroundColor: "#fff",

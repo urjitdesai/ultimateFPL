@@ -29,6 +29,7 @@ interface LeagueData {
   memberCount: number;
   leagueCode: string;
   createdAt: Date;
+  createdAtGameweek?: number;
 }
 
 interface LeagueMember {
@@ -41,6 +42,7 @@ interface LeagueMember {
   gameweekScore: number;
   totalScore: number;
   isNewMember: boolean;
+  joinedGameweek?: number;
   calculatedAt?: Date;
   position?: "above" | "below"; // For current user outside page
 }
@@ -203,6 +205,7 @@ const LeagueDetails: React.FC = () => {
       userId: member.userId,
       userName: member.userName,
       initialGameweek: selectedGameweek,
+      joinedGameweek: member.joinedGameweek || 1,
     });
   };
 
@@ -318,6 +321,7 @@ const LeagueDetails: React.FC = () => {
             currentGameweek={currentGameweek}
             availableGameweeks={availableGameweeks}
             onGameweekChange={handleGameweekChange}
+            minGameweek={leagueData?.createdAtGameweek || 1}
           />
 
           {/* Action Buttons */}

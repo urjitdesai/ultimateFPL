@@ -22,6 +22,7 @@ interface UserPredictionsParams {
   userId: string;
   userName: string;
   initialGameweek?: number;
+  joinedGameweek?: number;
 }
 
 interface PredictionStat {
@@ -60,7 +61,7 @@ interface FixtureInfo {
 const UserPredictions: React.FC = () => {
   const route = useRoute();
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
-  const { userId, userName, initialGameweek } =
+  const { userId, userName, initialGameweek, joinedGameweek } =
     route.params as UserPredictionsParams;
 
   const [predictions, setPredictions] = useState<Prediction[]>([]);
@@ -349,6 +350,7 @@ const UserPredictions: React.FC = () => {
         availableGameweeks={availableGameweeks}
         onGameweekChange={handleGameweekChange}
         loading={false}
+        minGameweek={joinedGameweek || 1}
       />
 
       {/* Score Summary */}

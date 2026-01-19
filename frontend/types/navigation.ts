@@ -10,6 +10,7 @@ export type RootStackParamList = {
     userId: string;
     userName: string;
     initialGameweek?: number;
+    joinedGameweek?: number;
   };
   UserPredictions2: {
     userId: string;

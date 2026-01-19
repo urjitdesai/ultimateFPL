@@ -13,6 +13,7 @@ interface LeagueGameweekSelectorProps {
   availableGameweeks: number[];
   onGameweekChange: (gameweek: number) => void;
   loading?: boolean;
+  minGameweek?: number; // Gameweeks before this will be disabled
 }
 
 const LeagueGameweekSelector: React.FC<LeagueGameweekSelectorProps> = ({
@@ -21,6 +22,7 @@ const LeagueGameweekSelector: React.FC<LeagueGameweekSelectorProps> = ({
   availableGameweeks,
   onGameweekChange,
   loading = false,
+  minGameweek = 1,
 }) => {
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -75,28 +77,34 @@ const LeagueGameweekSelector: React.FC<LeagueGameweekSelectorProps> = ({
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
       >
-        {availableGameweeks.map((gw) => (
-          <TouchableOpacity
-            key={gw}
-            style={[
-              styles.gameweekButton,
-              selectedGameweek === gw && styles.selectedGameweekButton,
-              currentGameweek === gw && styles.currentGameweekButton,
-            ]}
-            onPress={() => onGameweekChange(gw)}
-            activeOpacity={0.7}
-          >
-            <Text
+        {availableGameweeks.map((gw) => {
+          const isDisabled = gw < minGameweek;
+          return (
+            <TouchableOpacity
+              key={gw}
               style={[
-                styles.gameweekButtonText,
-                selectedGameweek === gw && styles.selectedGameweekButtonText,
-                currentGameweek === gw && styles.currentGameweekButtonText,
+                styles.gameweekButton,
+                selectedGameweek === gw && styles.selectedGameweekButton,
+                currentGameweek === gw && styles.currentGameweekButton,
+                isDisabled && styles.disabledGameweekButton,
               ]}
+              onPress={() => !isDisabled && onGameweekChange(gw)}
+              activeOpacity={isDisabled ? 1 : 0.7}
+              disabled={isDisabled}
             >
-              GW {gw}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <Text
+                style={[
+                  styles.gameweekButtonText,
+                  selectedGameweek === gw && styles.selectedGameweekButtonText,
+                  currentGameweek === gw && styles.currentGameweekButtonText,
+                  isDisabled && styles.disabledGameweekButtonText,
+                ]}
+              >
+                GW {gw}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
     </View>
   );
@@ -166,6 +174,14 @@ const styles = StyleSheet.create({
   currentGameweekButtonText: {
     color: "#28a745",
     fontWeight: "600",
+  },
+  disabledGameweekButton: {
+    backgroundColor: "#e9ecef",
+    borderColor: "#dee2e6",
+    opacity: 0.5,
+  },
+  disabledGameweekButtonText: {
+    color: "#adb5bd",
   },
 });
 

@@ -345,7 +345,11 @@ const UserPredictions: React.FC = () => {
           <Text style={styles.scoreSummaryLabel}>
             Gameweek {selectedGameweek}
           </Text>
-          <Text style={styles.scoreSummaryValue}>{totalScore} pts</Text>
+          {loading ? (
+            <ActivityIndicator size="small" color="#007bff" />
+          ) : (
+            <Text style={styles.scoreSummaryValue}>{totalScore} pts</Text>
+          )}
         </View>
       </View>
 

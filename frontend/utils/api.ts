@@ -1,5 +1,5 @@
 import axios from "axios";
-import { setupAuthInterceptors, tokenStorage } from "./authInterceptor";
+import { tokenStorage, fixturesCache, currentGameweekCache } from "./storage";
 
 // Create axios instance with default configuration
 const api = axios.create({
@@ -8,7 +8,35 @@ const api = axios.create({
 });
 
 // Setup auth interceptors
-setupAuthInterceptors(api);
+const setupAuthInterceptors = () => {
+  // Request interceptor to add JWT token to all requests
+  api.interceptors.request.use(
+    (config) => {
+      // Use synchronous get (from memory) for interceptors
+      const token = tokenStorage.get();
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      return config;
+    },
+    (error) => {
+      return Promise.reject(error);
+    }
+  );
+
+  // Response interceptor to handle token expiration
+  api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+      if (error.response?.status === 401) {
+        console.warn("Unauthorized request - token may be expired");
+      }
+      return Promise.reject(error);
+    }
+  );
+};
+
+setupAuthInterceptors();
 
 // Auth API functions
 export const authAPI = {
@@ -16,12 +44,12 @@ export const authAPI = {
   login: async (email: string, password: string) => {
     const response = await api.post("/api/users/login", { email, password });
 
-    // Store token from response in localStorage
     if (response.data.success) {
-      if (response.data.token) tokenStorage.set(response.data.token);
-
+      if (response.data.token) {
+        await tokenStorage.set(response.data.token);
+      }
       if (response.data.user) {
-        tokenStorage.setUser(response.data.user);
+        await tokenStorage.setUser(response.data.user);
       }
     }
 
@@ -42,12 +70,12 @@ export const authAPI = {
       favoriteTeamId,
     });
 
-    // Store token from response in localStorage
     if (response.data.success) {
-      if (response.data.token) tokenStorage.set(response.data.token);
-
+      if (response.data.token) {
+        await tokenStorage.set(response.data.token);
+      }
       if (response.data.user) {
-        tokenStorage.setUser(response.data.user);
+        await tokenStorage.setUser(response.data.user);
       }
     }
 
@@ -57,50 +85,53 @@ export const authAPI = {
   // Logout user
   logout: async () => {
     try {
-      // Call the backend logout endpoint
       const response = await api.post("/api/users/logout");
       return response.data;
     } finally {
-      // Always clear local token and user data, even if backend call fails
-      tokenStorage.remove();
-      tokenStorage.removeUser();
+      await tokenStorage.remove();
+      await tokenStorage.removeUser();
     }
   },
 
-  // Check if user is authenticated
+  // Check if user is authenticated (sync - uses memory)
   isAuthenticated: () => {
     const token = tokenStorage.get();
     return !!token;
   },
 
-  // Set token manually
-  setToken: (token: string) => {
-    tokenStorage.set(token);
+  // Initialize auth state from storage (call on app start)
+  initialize: async () => {
+    await tokenStorage.initialize();
   },
 
-  // Get current token
+  // Set token manually
+  setToken: async (token: string) => {
+    await tokenStorage.set(token);
+  },
+
+  // Get current token (sync)
   getToken: () => {
     return tokenStorage.get();
   },
 
   // Clear token
-  clearToken: () => {
-    tokenStorage.remove();
+  clearToken: async () => {
+    await tokenStorage.remove();
   },
 
-  // Get stored user data
+  // Get stored user data (sync - uses memory)
   getUser: () => {
     return tokenStorage.getUser();
   },
 
   // Set user data
-  setUser: (user: any) => {
-    tokenStorage.setUser(user);
+  setUser: async (user: any) => {
+    await tokenStorage.setUser(user);
   },
 
   // Clear user data
-  clearUser: () => {
-    tokenStorage.removeUser();
+  clearUser: async () => {
+    await tokenStorage.removeUser();
   },
 };
 
@@ -193,16 +224,54 @@ export const leaguesAPI = {
 
 // Fixtures API functions
 export const fixturesAPI = {
-  // Get fixtures for a specific gameweek
+  // Get fixtures for a specific gameweek (with caching)
   getFixturesForGameweek: async (gameweek: number) => {
+    // Check cache first
+    const cached = await fixturesCache.get(gameweek);
+    if (cached) {
+      console.log(`Using cached fixtures for GW${gameweek}`);
+      return cached;
+    }
+
+    // Fetch from API
     const response = await api.get(`/api/fixtures/${gameweek}`);
+
+    // Cache the result
+    await fixturesCache.set(gameweek, response.data);
+    console.log(`Cached fixtures for GW${gameweek}`);
+
     return response.data;
   },
 
-  // Get current gameweek
+  // Get current gameweek (with caching)
   getCurrentGameweek: async () => {
+    // Check cache first
+    const cached = await currentGameweekCache.get();
+    if (cached) {
+      console.log(`Using cached current gameweek: GW${cached.currentGameweek}`);
+      return cached;
+    }
+
+    // Fetch from API
     const response = await api.get("/api/fixtures/gameweek/current");
+
+    // Cache the result
+    await currentGameweekCache.set(response.data);
+    console.log(`Cached current gameweek: GW${response.data.currentGameweek}`);
+
     return response.data;
+  },
+
+  // Force refresh fixtures (bypasses cache)
+  refreshFixtures: async (gameweek: number) => {
+    await fixturesCache.remove(gameweek);
+    return fixturesAPI.getFixturesForGameweek(gameweek);
+  },
+
+  // Force refresh current gameweek (bypasses cache)
+  refreshCurrentGameweek: async () => {
+    await currentGameweekCache.remove();
+    return fixturesAPI.getCurrentGameweek();
   },
 };
 

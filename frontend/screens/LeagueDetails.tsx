@@ -13,7 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRoute, useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { RootStackParamList } from "../types/navigation";
-import { leaguesAPI } from "../utils/api";
+import { leaguesAPI, fixturesAPI } from "../utils/api";
 import LeagueTable from "../components/LeagueTable";
 import LeagueGameweekSelector from "../components/LeagueGameweekSelector";
 
@@ -131,9 +131,9 @@ const LeagueDetails: React.FC = () => {
 
   const fetchCurrentGameweek = async () => {
     try {
-      // This would need to be implemented in your fixtures API
-      // For now, we'll set it to 1 and generate available gameweeks
-      const current = 20; // Replace with actual current gameweek
+      // Use the cached fixturesAPI to get current gameweek
+      const response = await fixturesAPI.getCurrentGameweek();
+      const current = response.currentGameweek || 1;
       setCurrentGameweek(current);
       setSelectedGameweek(current);
 
@@ -142,6 +142,10 @@ const LeagueDetails: React.FC = () => {
       setAvailableGameweeks(gameweeks);
     } catch (error) {
       console.error("Error fetching current gameweek:", error);
+      // Fallback to default
+      setCurrentGameweek(1);
+      setSelectedGameweek(1);
+      setAvailableGameweeks([1]);
     }
   };
 

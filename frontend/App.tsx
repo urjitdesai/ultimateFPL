@@ -22,6 +22,9 @@ export default function App() {
 
   const checkAuthenticationStatus = async () => {
     try {
+      // Initialize auth state from AsyncStorage first
+      await authAPI.initialize();
+
       const token = authAPI.getToken();
       if (token && token.trim() !== "") {
         setIsAuthenticated(true);
@@ -30,7 +33,7 @@ export default function App() {
       }
     } catch (error) {
       console.error("Error checking authentication status:", error);
-      authAPI.clearToken();
+      await authAPI.clearToken();
       setIsAuthenticated(false);
     } finally {
       setIsLoading(false);

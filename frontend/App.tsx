@@ -7,6 +7,7 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import MainApp from "./components/MainApp";
 import LeagueDetails from "./screens/LeagueDetails";
+import UserPredictions from "./screens/UserPredictions";
 import { authAPI } from "./utils/api";
 
 const Stack = createStackNavigator();
@@ -60,6 +61,20 @@ export default function App() {
           options={{
             headerShown: true,
             title: "League Details",
+            headerStyle: {
+              backgroundColor: "#007bff",
+            },
+            headerTintColor: "#fff",
+            headerTitleStyle: {
+              fontWeight: "bold",
+            },
+          }}
+        />
+        <Stack.Screen
+          name="UserPredictions"
+          component={UserPredictions}
+          options={{
+            headerShown: true,
             headerStyle: {
               backgroundColor: "#007bff",
             },

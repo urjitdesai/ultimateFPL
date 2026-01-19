@@ -29,6 +29,48 @@ const getUserPredictionsById = async (req, res) => {
   }
 };
 
+const getUserPredictionsByUserId = async (req, res) => {
+  try {
+    const { userId, gameweek } = req.params;
+    const requestingUserId = req.user.id;
+
+    if (!userId || !gameweek) {
+      return res
+        .status(400)
+        .json({ error: "Both userId and gameweek are required" });
+    }
+
+    console.log(
+      `User ${requestingUserId} requesting predictions for user ${userId}, gameweek ${gameweek}. ` +
+        `Shared leagues: ${req.sharedLeagues?.join(", ") || "N/A"}`
+    );
+
+    const result = await userPredService.getUserPredictionsById(
+      userId,
+      gameweek
+    );
+
+    // Remove sensitive information if accessing another user's data
+    if (requestingUserId !== userId && result.predictions) {
+      // You can filter out sensitive data here if needed
+      // For now, we'll return all prediction data since it's league-scoped
+    }
+
+    res.json(result);
+  } catch (err) {
+    console.error(
+      `Error fetching predictions for user ${req.params.userId}:`,
+      err
+    );
+    if (err && /not found/i.test(err.message)) {
+      return res
+        .status(404)
+        .json({ error: "User predictions not found for this gameweek" });
+    }
+    res.status(500).json({ error: "Failed to get user predictions" });
+  }
+};
+
 const populate = async (req, res) => {
   try {
     const { event, user_id: userId } = req.body;
@@ -131,6 +173,7 @@ const createOrUpdatePredictions = async (req, res) => {
 export default {
   deleteAll,
   getUserPredictionsById,
+  getUserPredictionsByUserId,
   populate,
   calculate,
   calculateAllUsersScores,

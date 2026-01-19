@@ -6,6 +6,16 @@ export type RootStackParamList = {
     leagueId: string;
     leagueName: string;
   };
+  UserPredictions: {
+    userId: string;
+    userName: string;
+    initialGameweek?: number;
+  };
+  UserPredictions2: {
+    userId: string;
+    userName: string;
+    initialGameweek?: number;
+  };
 };
 
 export type TabParamList = {

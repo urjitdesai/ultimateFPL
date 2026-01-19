@@ -11,6 +11,8 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRoute, useNavigation } from "@react-navigation/native";
+import { StackNavigationProp } from "@react-navigation/stack";
+import { RootStackParamList } from "../types/navigation";
 import { leaguesAPI } from "../utils/api";
 import LeagueTable from "../components/LeagueTable";
 import LeagueGameweekSelector from "../components/LeagueGameweekSelector";
@@ -44,7 +46,7 @@ interface LeagueMember {
 
 const LeagueDetails: React.FC = () => {
   const route = useRoute();
-  const navigation = useNavigation();
+  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const { leagueId, leagueName } = route.params as LeagueDetailsParams;
 
   const [leagueData, setLeagueData] = useState<LeagueData | null>(null);
@@ -158,11 +160,12 @@ const LeagueDetails: React.FC = () => {
   };
 
   const handleMemberPress = (member: LeagueMember) => {
-    // Navigate to member profile or show member details
-    Alert.alert(
-      "Member Details",
-      `${member.userName}\nRank: ${member.rank}\nTotal Score: ${member.totalScore}`
-    );
+    // Navigate to UserPredictions screen to view this member's predictions
+    navigation.navigate("UserPredictions", {
+      userId: member.userId,
+      userName: member.userName,
+      initialGameweek: selectedGameweek,
+    });
   };
 
   const handleCalculateScores = async () => {

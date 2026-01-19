@@ -227,6 +227,14 @@ export const predictionsAPI = {
     });
     return response.data;
   },
+
+  // Get any user's predictions by userId and gameweek
+  getUserPredictionsByUserId: async (userId: string, gameweek: number) => {
+    const response = await api.get(
+      `/api/user-predictions/user/${userId}/gameweek/${gameweek}`
+    );
+    return response.data;
+  },
 };
 
 // Export the configured axios instance for custom requests

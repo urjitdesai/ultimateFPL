@@ -66,14 +66,15 @@ const UserPredictions: React.FC = () => {
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [fixtures, setFixtures] = useState<Record<string, FixtureInfo>>({});
   const [selectedGameweek, setSelectedGameweek] = useState<number>(
-    initialGameweek || 1
+    initialGameweek || 0
   );
-  const [currentGameweek, setCurrentGameweek] = useState<number>(1);
+  const [currentGameweek, setCurrentGameweek] = useState<number>(0);
   const [availableGameweeks, setAvailableGameweeks] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [totalScore, setTotalScore] = useState<number>(0);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   const { teams, getTeamById, getTeamLogo, loading: teamsLoading } = useTeams();
 
@@ -91,10 +92,11 @@ const UserPredictions: React.FC = () => {
   }, [userName]);
 
   useEffect(() => {
-    if (selectedGameweek && !teamsLoading) {
+    // Only fetch predictions once initialized and not loading teams
+    if (isInitialized && selectedGameweek > 0 && !teamsLoading) {
       fetchPredictions(selectedGameweek);
     }
-  }, [selectedGameweek, teamsLoading]);
+  }, [selectedGameweek, teamsLoading, isInitialized]);
 
   const fetchCurrentGameweek = async () => {
     try {
@@ -102,25 +104,35 @@ const UserPredictions: React.FC = () => {
       const current = response.currentGameweek || 20;
       setCurrentGameweek(current);
 
+      // Generate available gameweeks (1 to current)
+      const gameweeks = Array.from({ length: current }, (_, i) => i + 1);
+      setAvailableGameweeks(gameweeks);
+
       // If no initial gameweek was provided, use current
       if (!initialGameweek) {
         setSelectedGameweek(current);
       }
 
-      // Generate available gameweeks (1 to current)
-      const gameweeks = Array.from({ length: current }, (_, i) => i + 1);
-      setAvailableGameweeks(gameweeks);
+      // Mark as initialized so predictions can be fetched
+      setIsInitialized(true);
     } catch (error) {
       console.error("Error fetching current gameweek:", error);
       // Fallback
       const fallbackGameweeks = Array.from({ length: 38 }, (_, i) => i + 1);
       setAvailableGameweeks(fallbackGameweeks);
+      if (!initialGameweek) {
+        setSelectedGameweek(1);
+      }
+      setIsInitialized(true);
     }
   };
 
   const fetchPredictions = async (gameweek: number) => {
     setLoading(true);
     setError(null);
+    // Clear existing predictions to prevent stale data
+    setPredictions([]);
+    setFixtures({});
 
     try {
       console.log(
@@ -155,24 +167,24 @@ const UserPredictions: React.FC = () => {
       // The API returns the document directly with a 'predictions' array field
       const predictionsData = predictionsResponse.predictions || [];
 
-      console.log(`Found ${predictionsData.length} predictions`);
+      console.log(`Found ${predictionsData.length} predictions from API`);
+      console.log(
+        "All prediction IDs:",
+        predictionsData.map((p: Prediction) => p.fixture_id || p.id)
+      );
       if (predictionsData.length > 0) {
         console.log("First prediction:", predictionsData[0]);
       }
 
-      if (predictionsData.length > 0) {
-        setPredictions(predictionsData);
+      // Set predictions (the data from API should already be correct)
+      setPredictions(predictionsData);
 
-        // Calculate total score
-        const total = predictionsData.reduce(
-          (sum: number, pred: Prediction) => sum + (pred.total_score || 0),
-          0
-        );
-        setTotalScore(total);
-      } else {
-        setPredictions([]);
-        setTotalScore(0);
-      }
+      // Calculate total score
+      const total = predictionsData.reduce(
+        (sum: number, pred: Prediction) => sum + (pred.total_score || 0),
+        0
+      );
+      setTotalScore(total);
     } catch (err: any) {
       console.error("Error fetching predictions:", err);
       console.error("Error response:", err.response?.data);
@@ -250,7 +262,7 @@ const UserPredictions: React.FC = () => {
               {formatTime(fixture?.kickoff_time)}
             </Text>
           </View>
-          {fixture?.finished && predictionScore !== undefined && (
+          {predictionScore !== undefined && (
             <View
               style={[
                 styles.fixtureScoreContainer,

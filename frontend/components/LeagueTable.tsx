@@ -19,6 +19,7 @@ interface LeagueMember {
   totalScore: number;
   isNewMember: boolean;
   calculatedAt?: Date;
+  position?: "above" | "below"; // For current user outside page
 }
 
 interface LeagueTableProps {
@@ -27,6 +28,7 @@ interface LeagueTableProps {
   onMemberPress?: (member: LeagueMember) => void;
   loading?: boolean;
   emptyMessage?: string;
+  currentUserEntry?: LeagueMember | null;
 }
 
 const LeagueTable: React.FC<LeagueTableProps> = ({
@@ -35,6 +37,7 @@ const LeagueTable: React.FC<LeagueTableProps> = ({
   onMemberPress,
   loading = false,
   emptyMessage = "No league data available",
+  currentUserEntry = null,
 }) => {
   const renderPositionChange = (member: LeagueMember) => {
     if (member.isNewMember) {
@@ -98,6 +101,74 @@ const LeagueTable: React.FC<LeagueTableProps> = ({
     );
   }
 
+  const renderMemberRow = (
+    member: LeagueMember,
+    index: number,
+    isCurrentUser: boolean = false,
+    isLast: boolean = false
+  ) => (
+    <TouchableOpacity
+      key={member.userId}
+      style={[
+        styles.tableRow,
+        isLast && styles.lastRow,
+        isCurrentUser && styles.currentUserRow,
+      ]}
+      onPress={() => onMemberPress?.(member)}
+      activeOpacity={onMemberPress ? 0.7 : 1}
+    >
+      {/* Rank */}
+      <View style={styles.rankColumn}>
+        <Text style={getRankStyle(member.rank)}>{member.rank}</Text>
+        {member.rank <= 3 && (
+          <View style={styles.medalContainer}>
+            <Ionicons
+              name="medal"
+              size={12}
+              color={
+                member.rank === 1
+                  ? "#ffd700"
+                  : member.rank === 2
+                  ? "#c0c0c0"
+                  : "#cd7f32"
+              }
+            />
+          </View>
+        )}
+      </View>
+
+      {/* Position Change */}
+      <View style={styles.changeColumn}>{renderPositionChange(member)}</View>
+
+      {/* Player Info */}
+      <View style={styles.playerColumn}>
+        <Text
+          style={[styles.playerName, isCurrentUser && styles.currentUserText]}
+          numberOfLines={1}
+        >
+          {member.userName} {isCurrentUser && "(You)"}
+        </Text>
+        {member.userEmail && (
+          <Text style={styles.playerEmail} numberOfLines={1}>
+            {member.userEmail}
+          </Text>
+        )}
+      </View>
+
+      {/* Gameweek Score */}
+      {gameweek && (
+        <View style={styles.gameweekColumn}>
+          <Text style={styles.gameweekScore}>{member.gameweekScore}</Text>
+        </View>
+      )}
+
+      {/* Total Score */}
+      <View style={styles.totalColumn}>
+        <Text style={styles.totalScore}>{member.totalScore}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+
   return (
     <View style={styles.container}>
       {/* Table Header */}
@@ -113,68 +184,40 @@ const LeagueTable: React.FC<LeagueTableProps> = ({
         <Text style={[styles.headerText, styles.totalColumn]}>Total</Text>
       </View>
 
+      {/* Current User Entry - Above (if ranked higher than current page) */}
+      {currentUserEntry && currentUserEntry.position === "above" && (
+        <>
+          {renderMemberRow(currentUserEntry, -1, true, false)}
+          <View style={styles.separatorContainer}>
+            <View style={styles.separatorLine} />
+            <Text style={styles.separatorText}>···</Text>
+            <View style={styles.separatorLine} />
+          </View>
+        </>
+      )}
+
       {/* Table Body */}
       <ScrollView style={styles.tableBody} showsVerticalScrollIndicator={false}>
-        {members.map((member, index) => (
-          <TouchableOpacity
-            key={member.userId}
-            style={[
-              styles.tableRow,
-              index === members.length - 1 && styles.lastRow,
-            ]}
-            onPress={() => onMemberPress?.(member)}
-            activeOpacity={onMemberPress ? 0.7 : 1}
-          >
-            {/* Rank */}
-            <View style={styles.rankColumn}>
-              <Text style={getRankStyle(member.rank)}>{member.rank}</Text>
-              {member.rank <= 3 && (
-                <View style={styles.medalContainer}>
-                  <Ionicons
-                    name="medal"
-                    size={12}
-                    color={
-                      member.rank === 1
-                        ? "#ffd700"
-                        : member.rank === 2
-                        ? "#c0c0c0"
-                        : "#cd7f32"
-                    }
-                  />
-                </View>
-              )}
-            </View>
+        {members.map((member, index) =>
+          renderMemberRow(
+            member,
+            index,
+            false,
+            index === members.length - 1 && !currentUserEntry?.position
+          )
+        )}
 
-            {/* Position Change */}
-            <View style={styles.changeColumn}>
-              {renderPositionChange(member)}
+        {/* Current User Entry - Below (if ranked lower than current page) */}
+        {currentUserEntry && currentUserEntry.position === "below" && (
+          <>
+            <View style={styles.separatorContainer}>
+              <View style={styles.separatorLine} />
+              <Text style={styles.separatorText}>···</Text>
+              <View style={styles.separatorLine} />
             </View>
-
-            {/* Player Info */}
-            <View style={styles.playerColumn}>
-              <Text style={styles.playerName} numberOfLines={1}>
-                {member.userName}
-              </Text>
-              {member.userEmail && (
-                <Text style={styles.playerEmail} numberOfLines={1}>
-                  {member.userEmail}
-                </Text>
-              )}
-            </View>
-
-            {/* Gameweek Score */}
-            {gameweek && (
-              <View style={styles.gameweekColumn}>
-                <Text style={styles.gameweekScore}>{member.gameweekScore}</Text>
-              </View>
-            )}
-
-            {/* Total Score */}
-            <View style={styles.totalColumn}>
-              <Text style={styles.totalScore}>{member.totalScore}</Text>
-            </View>
-          </TouchableOpacity>
-        ))}
+            {renderMemberRow(currentUserEntry, members.length, true, true)}
+          </>
+        )}
       </ScrollView>
     </View>
   );
@@ -338,6 +381,36 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
     color: "#212529",
+  },
+  // Current user styles
+  currentUserRow: {
+    backgroundColor: "#e3f2fd",
+    borderLeftWidth: 3,
+    borderLeftColor: "#007bff",
+  },
+  currentUserText: {
+    color: "#007bff",
+    fontWeight: "bold",
+  },
+  // Separator styles for "..." between current user and page content
+  separatorContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: "#f8f9fa",
+  },
+  separatorLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "#dee2e6",
+  },
+  separatorText: {
+    fontSize: 16,
+    color: "#6c757d",
+    paddingHorizontal: 12,
+    fontWeight: "bold",
   },
 });
 

@@ -3,7 +3,8 @@ import { leagueScoresService } from "./leagueScores.service.js";
 const getLeagueTable = async (req, res) => {
   try {
     const { leagueId } = req.params;
-    const { gameweek } = req.query;
+    const { gameweek, page, pageSize } = req.query;
+    const currentUserId = req.user?.id; // Get current user from auth token
 
     if (!leagueId) {
       return res.status(400).json({
@@ -13,22 +14,32 @@ const getLeagueTable = async (req, res) => {
     }
 
     const gameweekNum = gameweek ? parseInt(gameweek, 10) : null;
-    console.log(`Getting league table for leagueId: ${leagueId}, gameweek: ${gameweekNum}`);
+    const pageNum = page ? parseInt(page, 10) : 1;
+    const pageSizeNum = pageSize ? parseInt(pageSize, 10) : 50;
 
-    const leagueTable = await leagueScoresService.getLeagueTable(
-      leagueId,
-      gameweekNum
+    console.log(
+      `Getting league table for leagueId: ${leagueId}, gameweek: ${gameweekNum}, page: ${pageNum}, pageSize: ${pageSizeNum}, currentUserId: ${currentUserId}`
     );
 
-    console.log(`League table response:`, JSON.stringify(leagueTable, null, 2));
+    const result = await leagueScoresService.getLeagueTable(
+      leagueId,
+      gameweekNum,
+      { page: pageNum, pageSize: pageSizeNum, currentUserId }
+    );
+
+    console.log(
+      `League table response: ${result.members.length} members, pagination:`,
+      result.pagination
+    );
 
     res.json({
       success: true,
       data: {
         leagueId,
         gameweek: gameweekNum,
-        table: leagueTable,
-        memberCount: leagueTable.length,
+        table: result.members,
+        pagination: result.pagination,
+        currentUserEntry: result.currentUserEntry,
       },
     });
   } catch (error) {

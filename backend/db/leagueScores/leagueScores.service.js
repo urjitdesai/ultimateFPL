@@ -208,27 +208,51 @@ const getGameweekRankings = async (leagueId, gameweek) => {
   }
 };
 
-const getLeagueTable = async (leagueId, gameweek = null) => {
+const getLeagueTable = async (leagueId, gameweek = null, options = {}) => {
+  const { page = 1, pageSize = 50, currentUserId = null } = options;
+
   try {
     // If no gameweek specified, get the latest available
     if (!gameweek) {
       gameweek = await getLatestCalculatedGameweek(leagueId);
       if (!gameweek) {
-        return [];
+        return {
+          members: [],
+          pagination: { page: 1, pageSize, totalMembers: 0, totalPages: 0 },
+          currentUserEntry: null,
+        };
       }
     }
 
+    // First, get total count for pagination
+    const totalCountSnapshot = await db
+      .collection("league_scores")
+      .where("leagueId", "==", leagueId)
+      .where("gameweek", "==", gameweek)
+      .count()
+      .get();
+
+    const totalMembers = totalCountSnapshot.data().count;
+    const totalPages = Math.ceil(totalMembers / pageSize);
+    const startRank = (page - 1) * pageSize + 1;
+    const endRank = page * pageSize;
+
+    // Get paginated scores ordered by rank
     const scoresSnapshot = await db
       .collection("league_scores")
       .where("leagueId", "==", leagueId)
       .where("gameweek", "==", gameweek)
       .orderBy("rank")
+      .startAt(startRank)
+      .endAt(endRank)
       .get();
 
     const scores = [];
+    const userIdsInPage = new Set();
 
     for (const doc of scoresSnapshot.docs) {
       const scoreData = doc.data();
+      userIdsInPage.add(scoreData.userId);
 
       // Get user details
       const userDoc = await db.collection("users").doc(scoreData.userId).get();
@@ -248,7 +272,53 @@ const getLeagueTable = async (leagueId, gameweek = null) => {
       });
     }
 
-    return scores;
+    // Get current user's entry if they're not in the current page
+    let currentUserEntry = null;
+    if (currentUserId && !userIdsInPage.has(currentUserId)) {
+      const userScoreSnapshot = await db
+        .collection("league_scores")
+        .where("leagueId", "==", leagueId)
+        .where("gameweek", "==", gameweek)
+        .where("userId", "==", currentUserId)
+        .limit(1)
+        .get();
+
+      if (!userScoreSnapshot.empty) {
+        const userScoreData = userScoreSnapshot.docs[0].data();
+        const userDoc = await db.collection("users").doc(currentUserId).get();
+        const userData = userDoc.exists ? userDoc.data() : {};
+
+        currentUserEntry = {
+          userId: currentUserId,
+          userName: userData.display_name || userData.email || "Unknown User",
+          userEmail: userData.email,
+          rank: userScoreData.rank,
+          previousRank: userScoreData.previousRank,
+          rankChange: userScoreData.rankChange,
+          gameweekScore: userScoreData.gameweekScore,
+          totalScore: userScoreData.totalScore,
+          isNewMember: userScoreData.isNewMember || false,
+          calculatedAt: userScoreData.calculatedAt,
+          // Indicate where the user should be shown
+          position: userScoreData.rank < startRank ? "above" : "below",
+        };
+      }
+    }
+
+    return {
+      members: scores,
+      pagination: {
+        page,
+        pageSize,
+        totalMembers,
+        totalPages,
+        startRank,
+        endRank: Math.min(endRank, totalMembers),
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+      },
+      currentUserEntry,
+    };
   } catch (error) {
     console.error(`Error getting league table for league ${leagueId}:`, error);
     throw error;

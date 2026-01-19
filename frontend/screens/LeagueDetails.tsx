@@ -42,6 +42,18 @@ interface LeagueMember {
   totalScore: number;
   isNewMember: boolean;
   calculatedAt?: Date;
+  position?: "above" | "below"; // For current user outside page
+}
+
+interface Pagination {
+  page: number;
+  pageSize: number;
+  totalMembers: number;
+  totalPages: number;
+  startRank: number;
+  endRank: number;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
 }
 
 const LeagueDetails: React.FC = () => {
@@ -51,6 +63,11 @@ const LeagueDetails: React.FC = () => {
 
   const [leagueData, setLeagueData] = useState<LeagueData | null>(null);
   const [leagueTable, setLeagueTable] = useState<LeagueMember[]>([]);
+  const [currentUserEntry, setCurrentUserEntry] = useState<LeagueMember | null>(
+    null
+  );
+  const [pagination, setPagination] = useState<Pagination | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
   const [selectedGameweek, setSelectedGameweek] = useState<number>(1);
   const [currentGameweek, setCurrentGameweek] = useState<number>(1);
   const [availableGameweeks, setAvailableGameweeks] = useState<number[]>([]);
@@ -128,18 +145,30 @@ const LeagueDetails: React.FC = () => {
     }
   };
 
-  const fetchLeagueTable = async (gameweek: number) => {
+  const fetchLeagueTable = async (gameweek: number, page: number = 1) => {
     setTableLoading(true);
     try {
-      const response = await leaguesAPI.getLeagueTable(leagueId, gameweek);
+      const response = await leaguesAPI.getLeagueTable(
+        leagueId,
+        gameweek,
+        page,
+        50
+      );
       if (response.success && response.data?.table) {
         setLeagueTable(response.data.table);
+        setPagination(response.data.pagination || null);
+        setCurrentUserEntry(response.data.currentUserEntry || null);
+        setCurrentPage(page);
       } else {
         setLeagueTable([]);
+        setPagination(null);
+        setCurrentUserEntry(null);
       }
     } catch (error) {
       console.error("Error fetching league table:", error);
       setLeagueTable([]);
+      setPagination(null);
+      setCurrentUserEntry(null);
       Alert.alert("Error", "Failed to load league table");
     } finally {
       setTableLoading(false);
@@ -150,13 +179,18 @@ const LeagueDetails: React.FC = () => {
     setRefreshing(true);
     await Promise.all([
       fetchLeagueDetails(),
-      fetchLeagueTable(selectedGameweek),
+      fetchLeagueTable(selectedGameweek, currentPage),
     ]);
     setRefreshing(false);
   };
 
   const handleGameweekChange = (gameweek: number) => {
     setSelectedGameweek(gameweek);
+    setCurrentPage(1); // Reset to first page when changing gameweek
+  };
+
+  const handlePageChange = (newPage: number) => {
+    fetchLeagueTable(selectedGameweek, newPage);
   };
 
   const handleMemberPress = (member: LeagueMember) => {
@@ -308,7 +342,53 @@ const LeagueDetails: React.FC = () => {
               onMemberPress={handleMemberPress}
               loading={tableLoading}
               emptyMessage={`No data available for gameweek ${selectedGameweek}`}
+              currentUserEntry={currentUserEntry}
             />
+
+            {/* Pagination Controls */}
+            {pagination && pagination.totalPages > 1 && (
+              <View style={styles.paginationContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.pageButton,
+                    !pagination.hasPrevPage && styles.pageButtonDisabled,
+                  ]}
+                  onPress={() => handlePageChange(currentPage - 1)}
+                  disabled={!pagination.hasPrevPage || tableLoading}
+                >
+                  <Ionicons
+                    name="chevron-back"
+                    size={20}
+                    color={pagination.hasPrevPage ? "#007bff" : "#ccc"}
+                  />
+                </TouchableOpacity>
+
+                <View style={styles.pageInfo}>
+                  <Text style={styles.pageInfoText}>
+                    {pagination.startRank}-{pagination.endRank} of{" "}
+                    {pagination.totalMembers}
+                  </Text>
+                  <Text style={styles.pageNumberText}>
+                    Page {currentPage} of {pagination.totalPages}
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  style={[
+                    styles.pageButton,
+                    !pagination.hasNextPage && styles.pageButtonDisabled,
+                  ]}
+                  onPress={() => handlePageChange(currentPage + 1)}
+                  disabled={!pagination.hasNextPage || tableLoading}
+                >
+                  <Ionicons
+                    name="chevron-forward"
+                    size={20}
+                    color={pagination.hasNextPage ? "#007bff" : "#ccc"}
+                  />
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         </>
 
@@ -429,6 +509,42 @@ const styles = StyleSheet.create({
   },
   tableContainer: {
     padding: 16,
+  },
+  // Pagination styles
+  paginationContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    backgroundColor: "#fff",
+    borderTopWidth: 1,
+    borderTopColor: "#e9ecef",
+    marginTop: 8,
+    borderRadius: 8,
+  },
+  pageButton: {
+    padding: 10,
+    borderRadius: 8,
+    backgroundColor: "#f8f9fa",
+  },
+  pageButtonDisabled: {
+    opacity: 0.5,
+  },
+  pageInfo: {
+    flex: 1,
+    alignItems: "center",
+    paddingHorizontal: 16,
+  },
+  pageInfoText: {
+    fontSize: 14,
+    color: "#495057",
+    fontWeight: "500",
+  },
+  pageNumberText: {
+    fontSize: 12,
+    color: "#6c757d",
+    marginTop: 2,
   },
   historyContainer: {
     padding: 40,

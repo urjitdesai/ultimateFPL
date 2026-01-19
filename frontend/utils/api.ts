@@ -147,9 +147,15 @@ export const leaguesAPI = {
   },
 
   // League scores functions
-  getLeagueTable: async (leagueId: string, gameweek?: number) => {
+  getLeagueTable: async (
+    leagueId: string,
+    gameweek?: number,
+    page: number = 1,
+    pageSize: number = 50
+  ) => {
     const url = `/api/leagues/${leagueId}/table`;
-    const params = gameweek ? { gameweek } : {};
+    const params: Record<string, any> = { page, pageSize };
+    if (gameweek) params.gameweek = gameweek;
     const response = await api.get(url, { params });
     return response.data;
   },

@@ -173,15 +173,23 @@ const LeagueTable: React.FC<LeagueTableProps> = ({
     <View style={styles.container}>
       {/* Table Header */}
       <View style={styles.tableHeader}>
-        <Text style={[styles.headerText, styles.rankColumn]}>Pos</Text>
-        <Text style={[styles.headerText, styles.changeColumn]}>Change</Text>
-        <Text style={[styles.headerText, styles.playerColumn]}>Player</Text>
+        <View style={styles.rankColumn}>
+          <Text style={styles.headerText}>Pos</Text>
+        </View>
+        <View style={styles.changeColumn}>
+          <Text style={styles.headerText}>Change</Text>
+        </View>
+        <View style={styles.playerColumn}>
+          <Text style={styles.headerText}>Player</Text>
+        </View>
         {gameweek && (
-          <Text style={[styles.headerText, styles.gameweekColumn]}>
-            GW{gameweek}
-          </Text>
+          <View style={styles.gameweekColumn}>
+            <Text style={styles.headerText}>GW{gameweek}</Text>
+          </View>
         )}
-        <Text style={[styles.headerText, styles.totalColumn]}>Total</Text>
+        <View style={styles.totalColumn}>
+          <Text style={styles.headerText}>Total</Text>
+        </View>
       </View>
 
       {/* Current User Entry - Above (if ranked higher than current page) */}

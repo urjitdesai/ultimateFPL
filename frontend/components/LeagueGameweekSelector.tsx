@@ -95,11 +95,6 @@ const LeagueGameweekSelector: React.FC<LeagueGameweekSelectorProps> = ({
             >
               GW {gw}
             </Text>
-            {currentGameweek === gw && (
-              <View style={styles.currentIndicator}>
-                <Text style={styles.currentIndicatorText}>•</Text>
-              </View>
-            )}
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -171,16 +166,6 @@ const styles = StyleSheet.create({
   currentGameweekButtonText: {
     color: "#28a745",
     fontWeight: "600",
-  },
-  currentIndicator: {
-    position: "absolute",
-    top: -2,
-    right: 4,
-  },
-  currentIndicatorText: {
-    color: "#28a745",
-    fontSize: 14,
-    fontWeight: "bold",
   },
 });
 

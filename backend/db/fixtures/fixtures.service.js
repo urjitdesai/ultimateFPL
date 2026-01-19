@@ -82,7 +82,9 @@ const getCurrentGameweek = async () => {
 
     // Get current time
     const currentTime = new Date();
-    console.log("Current time:", currentTime.toISOString());
+
+    // 2 hours in milliseconds
+    const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
 
     // Get all fixtures
     const snap = await db.collection("fixtures").get();
@@ -92,54 +94,57 @@ const getCurrentGameweek = async () => {
     }
 
     const fixtures = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    console.log(`Found ${fixtures.length} fixtures`);
 
-    // Filter fixtures that have a future kickoff time
-    const upcomingFixtures = fixtures.filter((fixture) => {
-      // Check if fixture has kickoff_time or similar time field
-      const fixtureTime = fixture.kickoff_time;
+    // Get all unique gameweeks and sort them
+    const gameweeks = [...new Set(fixtures.map((f) => f.event || f.gameweek))]
+      .filter((gw) => gw != null)
+      .sort((a, b) => a - b);
 
-      if (!fixtureTime) {
-        console.log(`Fixture ${fixture.id} has no time field`);
-        return false;
+    // For each gameweek, find the first fixture time
+    const gameweekFirstFixtures = gameweeks
+      .map((gw) => {
+        const gwFixtures = fixtures
+          .filter((f) => (f.event || f.gameweek) === gw && f.kickoff_time)
+          .sort((a, b) => new Date(a.kickoff_time) - new Date(b.kickoff_time));
+
+        return {
+          gameweek: gw,
+          firstFixtureTime:
+            gwFixtures.length > 0 ? new Date(gwFixtures[0].kickoff_time) : null,
+        };
+      })
+      .filter((gw) => gw.firstFixtureTime !== null);
+
+    // Find the current gameweek based on deadline logic:
+    // Current gameweek = the FIRST gameweek whose deadline has NOT passed yet
+    // (i.e., the gameweek users should be making predictions for)
+    // If all deadlines have passed, return the last gameweek
+
+    let currentGameweek = gameweeks[gameweeks.length - 1]; // Default to last gameweek if all passed
+    let deadlineTime = null;
+
+    for (let i = 0; i < gameweekFirstFixtures.length; i++) {
+      const gw = gameweekFirstFixtures[i];
+      const timeUntilGW = gw.firstFixtureTime.getTime() - currentTime.getTime();
+
+      // If we're NOT past the 2-hour deadline for this gameweek
+      if (timeUntilGW > TWO_HOURS_MS) {
+        currentGameweek = gw.gameweek;
+        // Deadline is 2 hours before the first fixture
+        deadlineTime = new Date(gw.firstFixtureTime.getTime() - TWO_HOURS_MS);
+        break;
       }
-
-      // Convert to Date object
-      const kickoffDate = new Date(fixtureTime);
-
-      // Check if this fixture is in the future
-      return kickoffDate > currentTime;
-    });
-
-    console.log(`Found ${upcomingFixtures.length} upcoming fixtures`);
-
-    if (upcomingFixtures.length === 0) {
-      // If no upcoming fixtures, return the highest gameweek/event
-      const maxEvent = Math.max(
-        ...fixtures.map((f) => f.event || f.gameweek || 0)
-      );
-      console.log("No upcoming fixtures, returning max gameweek:", maxEvent);
-      return maxEvent;
     }
 
-    // Sort upcoming fixtures by time (earliest first)
-    upcomingFixtures.sort((a, b) => {
-      const timeA = new Date(a.kickoff_time || a.datetime || a.date);
-      const timeB = new Date(b.kickoff_time || b.datetime || b.date);
-      return timeA - timeB;
-    });
-
-    // Get the event ID (gameweek) of the next fixture
-    const nextFixture = upcomingFixtures[0];
-    const currentGameweek = nextFixture.event || nextFixture.gameweek;
-
+    console.log(`Current gameweek determined: GW${currentGameweek}`);
     console.log(
-      `Next fixture is in gameweek ${currentGameweek} at ${
-        nextFixture.kickoff_time || nextFixture.datetime || nextFixture.date
-      }`
+      `Deadline: ${deadlineTime ? deadlineTime.toISOString() : "N/A"}`
     );
 
-    return currentGameweek;
+    return {
+      gameweek: currentGameweek,
+      deadline: deadlineTime ? deadlineTime.toISOString() : null,
+    };
   } catch (error) {
     console.error("Error in getCurrentGameweek service:", error);
     throw new Error("Failed to determine current gameweek");

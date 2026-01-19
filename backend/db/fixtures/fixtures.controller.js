@@ -55,7 +55,10 @@ const getCurrentGameweek = async (req, res) => {
   console.log("in getCurrentGameweek controller");
   try {
     const result = await fixtureService.getCurrentGameweek();
-    res.json({ currentGameweek: result });
+    res.json({
+      currentGameweek: result.gameweek,
+      deadline: result.deadline,
+    });
   } catch (err) {
     console.error("Error getting current gameweek:", err);
     res.status(500).json({ error: "Failed to get current gameweek" });

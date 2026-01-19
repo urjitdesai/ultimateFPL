@@ -54,6 +54,7 @@ interface User {
 const Home = () => {
   const [currentGameweek, setCurrentGameweek] = useState<number>(0);
   const [selectedGameweek, setSelectedGameweek] = useState<number>(0);
+  const [deadline, setDeadline] = useState<string | null>(null);
   const [fixtures, setFixtures] = useState<FixtureData[]>([]);
   const [predictions, setPredictions] = useState<PredictionData>({});
   const [captainFixture, setCaptainFixture] = useState<string | null>(null);
@@ -64,6 +65,7 @@ const Home = () => {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [loadingPredictions, setLoadingPredictions] = useState(false);
+  const [hasExistingPredictions, setHasExistingPredictions] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
 
@@ -158,6 +160,7 @@ const Home = () => {
   const fetchUserPredictions = async (gameweek: number) => {
     if (gameweek > currentGameweek) return; // Don't fetch predictions for future gameweeks
     setLoadingPredictions(true);
+    setHasExistingPredictions(false);
     try {
       const response = await predictionsAPI.getUserPredictions(gameweek);
 
@@ -202,12 +205,17 @@ const Home = () => {
       }
 
       setPredictions(predictionsMap);
+      // Mark that we have existing predictions from the backend
+      if (Object.keys(predictionsMap).length > 0) {
+        setHasExistingPredictions(true);
+      }
       console.log("User predictions loaded with scores");
     } catch (err) {
       console.error("Error fetching user predictions:", err);
       // If predictions don't exist or error occurs, just clear predictions
       setPredictions({});
       setCaptainFixture(null);
+      setHasExistingPredictions(false);
       setGameweekScores({ totalScore: 0, hasScores: false });
     } finally {
       setLoadingPredictions(false);
@@ -301,6 +309,9 @@ const Home = () => {
       const response = await fixturesAPI.getCurrentGameweek();
       const newGameweek = response.currentGameweek;
       setCurrentGameweek(newGameweek);
+      if (response.deadline) {
+        setDeadline(response.deadline);
+      }
       return newGameweek;
     } catch (err) {
       console.error("Error fetching current gameweek:", err);
@@ -324,6 +335,7 @@ const Home = () => {
     // Clear existing predictions when switching gameweeks
     setPredictions({});
     setCaptainFixture(null);
+    setHasExistingPredictions(false);
 
     if (!teamsLoading && getTeamById(1)) {
       fetchFixturesForGameweek(gameweek);
@@ -360,6 +372,38 @@ const Home = () => {
       day: "numeric",
       month: "short",
     });
+  };
+
+  const formatDeadline = (deadlineString: string) => {
+    const deadlineDate = new Date(deadlineString);
+    const now = new Date();
+    const diffMs = deadlineDate.getTime() - now.getTime();
+
+    if (diffMs <= 0) {
+      return "Deadline passed";
+    }
+
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const diffHours = Math.floor(
+      (diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
+    );
+    const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+
+    const dateStr = deadlineDate.toLocaleDateString("en-GB", {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    if (diffDays > 0) {
+      return `${dateStr} (${diffDays}d ${diffHours}h)`;
+    } else if (diffHours > 0) {
+      return `${dateStr} (${diffHours}h ${diffMins}m)`;
+    } else {
+      return `${dateStr} (${diffMins}m)`;
+    }
   };
 
   const renderFixtureCard = (fixture: FixtureData) => (
@@ -592,12 +636,20 @@ const Home = () => {
           >
             <View style={styles.content}>
               <View style={styles.sectionTitleContainer}>
-                <Text style={styles.sectionTitle}>
-                  Gameweek {selectedGameweek}
-                  {currentGameweek === selectedGameweek && (
-                    <Text style={styles.currentIndicator}> (Current)</Text>
+                <View style={styles.gameweekTitleRow}>
+                  <Text style={styles.sectionTitle}>
+                    Gameweek {selectedGameweek}
+                    {currentGameweek === selectedGameweek && (
+                      <Text style={styles.currentIndicator}> (Current)</Text>
+                    )}
+                  </Text>
+                  {/* Deadline display for current gameweek - inline */}
+                  {selectedGameweek === currentGameweek && deadline && (
+                    <Text style={styles.deadlineInline}>
+                      ⏰ Deadline: {formatDeadline(deadline)}
+                    </Text>
                   )}
-                </Text>
+                </View>
                 {selectedGameweek < currentGameweek &&
                   gameweekScores.hasScores && (
                     <Text style={styles.gameweekTotalScore}>
@@ -606,7 +658,7 @@ const Home = () => {
                   )}
               </View>
 
-              {Object.keys(predictions).length > 0 &&
+              {hasExistingPredictions &&
                 selectedGameweek <= currentGameweek && (
                   <View style={styles.predictionStatus}>
                     <Text style={styles.predictionStatusText}>
@@ -774,6 +826,24 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 16,
+    flexWrap: "wrap",
+  },
+  gameweekTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  deadlineInline: {
+    fontSize: 12,
+    color: "#856404",
+    backgroundColor: "#fff3cd",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#ffc107",
+    overflow: "hidden",
   },
   gameweekTotalScore: {
     fontSize: 16,

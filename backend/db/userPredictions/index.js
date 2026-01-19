@@ -32,7 +32,7 @@ router.post(
 // POST /api/user-predictions/calculate-scores
 router.post(
   "/calculate-scores",
-  authenticateToken,
+  // authenticateToken,
   userPredController.calculate
 );
 

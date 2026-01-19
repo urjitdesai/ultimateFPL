@@ -1,6 +1,6 @@
 import express from "express";
 import { leaguesController } from "./leagues.controller.js";
-import { leagueScoresController } from "../leagueScores/leagueScores.controller.js";
+import { leagueScores2Controller } from "../leagueScores/leagueScores2.controller.js";
 import { authenticateToken } from "../../middleware/auth.js";
 
 const router = express.Router();
@@ -14,31 +14,55 @@ router.post(
 );
 router.post("/join", authenticateToken, leaguesController.joinLeague);
 
-// League scores routes
+// League scores routes (v2 - league-specific scores)
 router.get(
   "/:leagueId/table",
   authenticateToken,
-  leagueScoresController.getLeagueTable
+  leagueScores2Controller.getLeagueTable
 );
 router.get(
   "/:leagueId/gameweek/:gameweek",
   authenticateToken,
-  leagueScoresController.getGameweekRankings
+  leagueScores2Controller.getGameweekRankings
 );
 router.get(
   "/:leagueId/history/:userId",
   authenticateToken,
-  leagueScoresController.getUserLeagueHistory
+  leagueScores2Controller.getUserLeagueHistory
 );
+
+// Admin routes for score management
+router.post(
+  "/scores/update-gameweek",
+  authenticateToken,
+  leagueScores2Controller.updateLeagueScoresForGameweek
+);
+router.post(
+  "/scores/backfill",
+  // authenticateToken,
+  leagueScores2Controller.backfillLeagueScores
+);
+router.post(
+  "/scores/initialize",
+  authenticateToken,
+  leagueScores2Controller.initializeUserLeagueScore
+);
+router.delete(
+  "/scores/delete-all",
+  authenticateToken,
+  leagueScores2Controller.deleteAllLeagueScores
+);
+
+// Legacy routes (keeping for backward compatibility)
 router.post(
   "/:leagueId/calculate",
   authenticateToken,
-  leagueScoresController.calculateLeagueScores
+  leagueScores2Controller.calculateLeagueScores
 );
 router.post(
   "/calculate-all",
   // authenticateToken,
-  leagueScoresController.calculateAllLeagueScores
+  leagueScores2Controller.updateLeagueScoresForGameweek
 );
 
 // Public routes

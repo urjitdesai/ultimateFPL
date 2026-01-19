@@ -1,5 +1,6 @@
 import { db } from "../../firestore.js";
 import fixtureService from "../fixtures/fixtures.service.js";
+import leagueScores2Service from "../leagueScores/leagueScores2.service.js";
 
 // Helper function to generate a unique 6-digit alphanumeric code
 const generateUniqueLeagueCode = async () => {
@@ -45,6 +46,9 @@ const createLeague = async ({
   const newLeagueRef = db.collection("leagues").doc();
   const leagueCode = await generateUniqueLeagueCode();
 
+  // Get the current active gameweek
+  const currentGameweek = await fixtureService.getCurrentGameweek();
+
   await newLeagueRef.set({
     name,
     description,
@@ -52,10 +56,11 @@ const createLeague = async ({
     is_private,
     leagueCode,
     createdAt: new Date(),
+    createdAtGameweek: currentGameweek,
   });
 
   // Automatically add creator as a member
-  const joiningGameweek = await fixtureService.getCurrentGameweek();
+  const joiningGameweek = currentGameweek;
   await db
     .collection("users_leagues")
     .doc(`${newLeagueRef.id}_${creatorUserId}`)
@@ -65,6 +70,21 @@ const createLeague = async ({
       joined_at: new Date(),
       joining_gameweek: joiningGameweek,
     });
+
+  // Initialize league score document for the creator
+  try {
+    await leagueScores2Service.initializeUserLeagueScore(
+      newLeagueRef.id,
+      creatorUserId,
+      joiningGameweek
+    );
+    console.log(
+      `Initialized league score for creator ${creatorUserId} in new league ${newLeagueRef.id}`
+    );
+  } catch (scoreError) {
+    console.error(`Error initializing league score for creator:`, scoreError);
+    // Don't fail league creation if score initialization fails
+  }
 
   return {
     id: newLeagueRef.id,
@@ -200,6 +220,21 @@ const joinLeague = async (userId, league_code) => {
     joined_at: new Date(),
     joining_gameweek: joiningGameweek,
   });
+
+  // Initialize league score document for this user in this league
+  try {
+    await leagueScores2Service.initializeUserLeagueScore(
+      leagueDoc.id,
+      userId,
+      joiningGameweek
+    );
+    console.log(
+      `Initialized league score for user ${userId} in league ${leagueDoc.id}`
+    );
+  } catch (scoreError) {
+    console.error(`Error initializing league score:`, scoreError);
+    // Don't fail the join operation if score initialization fails
+  }
 
   console.log(`User ${userId} successfully joined league ${leagueData.name}`);
 

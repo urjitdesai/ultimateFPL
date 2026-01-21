@@ -126,8 +126,9 @@ const LeagueTable: React.FC<LeagueTableProps> = ({
         isCurrentUser && styles.currentUserRow,
         member.notYetParticipating && styles.notParticipatingRow,
       ]}
-      onPress={() => onMemberPress?.(member)}
-      activeOpacity={onMemberPress ? 0.7 : 1}
+      onPress={() => !member.notYetParticipating && onMemberPress?.(member)}
+      activeOpacity={onMemberPress && !member.notYetParticipating ? 0.7 : 1}
+      disabled={member.notYetParticipating}
     >
       {/* Rank */}
       <View style={styles.rankColumn}>

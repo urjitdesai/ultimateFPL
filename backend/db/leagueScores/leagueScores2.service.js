@@ -469,19 +469,36 @@ const getLeagueTable = async (leagueId, gameweek, options = {}) => {
     const userIds = leagueScoresSnapshot.docs.map((doc) => doc.data().userId);
     const userMap = await fetchUserDetailsMap(userIds);
 
-    // Build table entries
-    const tableEntries = [];
+    // Build table entries - separate ranked and unranked users
+    const rankedEntries = [];
+    const unrankedEntries = []; // Users who joined after the selected gameweek
 
     for (const doc of leagueScoresSnapshot.docs) {
       const data = doc.data();
-      const { userId, gameweekScores = {}, joinedGameweek } = data;
 
-      // Skip users who hadn't joined yet in the selected gameweek
-      if (joinedGameweek > gameweek) {
-        continue;
-      }
+      const { userId, gameweekScores = {}, joinedGameweek = 1 } = data;
 
       const userData = userMap.get(userId) || { name: "Unknown", email: null };
+      console.log(`data for user ${userData.name}=`, data);
+      // Users who joined after the selected gameweek should appear but with rank "-"
+      if (joinedGameweek && joinedGameweek > gameweek) {
+        console.log(`adding user= ${userData.name} to unranked entries`);
+
+        unrankedEntries.push({
+          userId,
+          userName: userData.name,
+          userEmail: userData.email,
+          totalScore: 0,
+          gameweekScore: 0,
+          joinedGameweek,
+          rank: null, // Will display as "-" in frontend
+          previousRank: null,
+          rankChange: 0,
+          isNewMember: false,
+          notYetParticipating: true, // Flag to indicate user hasn't started participating
+        });
+        continue;
+      }
 
       // Calculate score up to requested gameweek only
       const scoreUpToGameweek = calculateScoreUpToGameweek(
@@ -490,7 +507,7 @@ const getLeagueTable = async (leagueId, gameweek, options = {}) => {
         gameweek
       );
 
-      tableEntries.push({
+      rankedEntries.push({
         userId,
         userName: userData.name,
         userEmail: userData.email,
@@ -498,23 +515,26 @@ const getLeagueTable = async (leagueId, gameweek, options = {}) => {
         gameweekScore: gameweekScores[gameweek.toString()] || 0,
         joinedGameweek,
         gameweekScores, // Include for rank change calculation
+        notYetParticipating: false,
       });
     }
 
-    // Sort by total score descending, gameweek score as tiebreaker
-    tableEntries.sort((a, b) => {
+    // Sort ranked entries by total score descending, gameweek score as tiebreaker
+    rankedEntries.sort((a, b) => {
       if (b.totalScore !== a.totalScore) {
         return b.totalScore - a.totalScore;
       }
       return b.gameweekScore - a.gameweekScore;
     });
 
-    // Add rank (handle ties - same score = same rank)
-    assignRanks(tableEntries, "totalScore");
+    // Add rank to ranked entries (handle ties - same score = same rank)
+    assignRanks(rankedEntries, "totalScore");
 
     // Calculate previous rank from previous gameweek (for rank change display)
-    // This is optional but useful for showing movement
-    await calculateRankChanges(tableEntries, leagueId, gameweek);
+    await calculateRankChanges(rankedEntries, leagueId, gameweek);
+
+    // Combine ranked and unranked entries - unranked go at the bottom
+    const tableEntries = [...rankedEntries, ...unrankedEntries];
 
     // Pagination
     const totalCount = tableEntries.length;
@@ -904,6 +924,117 @@ const getUserLeagueHistory = async (leagueId, userId) => {
 };
 
 // ============================================
+// LEGACY COMPATIBILITY FUNCTIONS
+// ============================================
+
+/**
+ * Get the latest calculated gameweek for a league
+ * @param {string} leagueId - The league ID
+ * @returns {Promise<number|null>}
+ */
+const getLatestCalculatedGameweek = async (leagueId) => {
+  try {
+    // Get any league_scores document for this league
+    const snapshot = await db
+      .collection("league_scores")
+      .where("leagueId", "==", leagueId)
+      .limit(1)
+      .get();
+
+    if (snapshot.empty) {
+      return null;
+    }
+
+    // Return the lastUpdatedGameweek from the first doc
+    const data = snapshot.docs[0].data();
+    return data.lastUpdatedGameweek || null;
+  } catch (error) {
+    console.error(
+      `Error getting latest gameweek for league ${leagueId}:`,
+      error
+    );
+    return null;
+  }
+};
+
+/**
+ * Calculate league scores for a specific gameweek (wrapper for updateLeagueScoresForGameweek)
+ * This is for backwards compatibility with the old service
+ * @param {string} leagueId - The league ID
+ * @param {number} gameweek - The gameweek to calculate
+ * @returns {Promise<Array>}
+ */
+const calculateLeagueScores = async (leagueId, gameweek) => {
+  console.log(
+    `Calculating league scores for league ${leagueId}, gameweek ${gameweek}`
+  );
+
+  try {
+    const result = await updateLeagueScoresForGameweek(leagueId, gameweek);
+
+    // Return scores in the format expected by the controller
+    return result.scores || [];
+  } catch (error) {
+    console.error(
+      `Error calculating league scores for league ${leagueId}:`,
+      error
+    );
+    throw error;
+  }
+};
+
+/**
+ * Calculate scores for all leagues after a gameweek completes
+ * @param {number} gameweek - The gameweek to calculate
+ * @returns {Promise<Array>}
+ */
+const calculateAllLeagueScores = async (gameweek) => {
+  console.log(`Starting calculation for all leagues, gameweek ${gameweek}`);
+
+  try {
+    // Get all leagues
+    const leaguesSnapshot = await db.collection("leagues").get();
+    const results = [];
+
+    for (const leagueDoc of leaguesSnapshot.docs) {
+      try {
+        const leagueId = leagueDoc.id;
+        const leagueData = leagueDoc.data();
+
+        console.log(
+          `Calculating scores for league: ${leagueData.name} (${leagueId})`
+        );
+
+        const result = await updateLeagueScoresForGameweek(leagueId, gameweek);
+        results.push({
+          leagueId,
+          leagueName: leagueData.name,
+          memberCount: result.processed || 0,
+          success: true,
+        });
+      } catch (error) {
+        console.error(
+          `Error calculating scores for league ${leagueDoc.id}:`,
+          error
+        );
+        results.push({
+          leagueId: leagueDoc.id,
+          leagueName: leagueDoc.data().name,
+          success: false,
+          error: error.message,
+        });
+      }
+    }
+
+    console.log(`Completed calculation for ${results.length} leagues`);
+    return results;
+  } catch (error) {
+    console.error("Error calculating scores for all leagues:", error);
+    throw error;
+  }
+};
+
+// ============================================
 // EXPORTS
 // ============================================
 
@@ -921,11 +1052,17 @@ const leagueScores2Service = {
   getLeagueTable,
   getGameweekRankings,
   getUserLeagueHistory,
+  getLatestCalculatedGameweek,
+
+  // Legacy compatibility (wrappers for old API)
+  calculateLeagueScores,
+  calculateAllLeagueScores,
 
   // Migration
   backfillLeagueScores,
   deleteAllLeagueScores,
 };
 
-export { leagueScores2Service };
+// Also export as leagueScoresService for backwards compatibility
+export { leagueScores2Service, leagueScores2Service as leagueScoresService };
 export default leagueScores2Service;

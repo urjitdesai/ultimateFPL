@@ -12,12 +12,13 @@ interface LeagueMember {
   userId: string;
   userName: string;
   userEmail?: string;
-  rank: number;
+  rank: number | null;
   previousRank: number | null;
   rankChange: number;
   gameweekScore: number;
   totalScore: number;
   isNewMember: boolean;
+  notYetParticipating?: boolean;
   calculatedAt?: Date;
   position?: "above" | "below"; // For current user outside page
 }
@@ -40,6 +41,15 @@ const LeagueTable: React.FC<LeagueTableProps> = ({
   currentUserEntry = null,
 }) => {
   const renderPositionChange = (member: LeagueMember) => {
+    // If user hasn't started participating yet, show nothing
+    if (member.notYetParticipating) {
+      return (
+        <View style={styles.noChangeContainer}>
+          <Text style={styles.notParticipatingText}>-</Text>
+        </View>
+      );
+    }
+
     if (member.isNewMember) {
       return (
         <View style={styles.newMemberBadge}>
@@ -77,7 +87,8 @@ const LeagueTable: React.FC<LeagueTableProps> = ({
     );
   };
 
-  const getRankStyle = (rank: number) => {
+  const getRankStyle = (rank: number | null | undefined) => {
+    if (rank === null || rank === undefined) return styles.rankText;
     if (rank === 1) return [styles.rankText, styles.firstPlace];
     if (rank === 2) return [styles.rankText, styles.secondPlace];
     if (rank === 3) return [styles.rankText, styles.thirdPlace];
@@ -113,28 +124,38 @@ const LeagueTable: React.FC<LeagueTableProps> = ({
         styles.tableRow,
         isLast && styles.lastRow,
         isCurrentUser && styles.currentUserRow,
+        member.notYetParticipating && styles.notParticipatingRow,
       ]}
       onPress={() => onMemberPress?.(member)}
       activeOpacity={onMemberPress ? 0.7 : 1}
     >
       {/* Rank */}
       <View style={styles.rankColumn}>
-        <Text style={getRankStyle(member.rank)}>{member.rank}</Text>
-        {member.rank <= 3 && (
-          <View style={styles.medalContainer}>
-            <Ionicons
-              name="medal"
-              size={12}
-              color={
-                member.rank === 1
-                  ? "#ffd700"
-                  : member.rank === 2
-                  ? "#c0c0c0"
-                  : "#cd7f32"
-              }
-            />
-          </View>
-        )}
+        <Text style={getRankStyle(member.rank)}>
+          {member.rank !== null && member.rank !== undefined
+            ? member.rank
+            : "-"}
+        </Text>
+        {member.rank !== null &&
+          member.rank !== undefined &&
+          member.rank >= 1 &&
+          member.rank <= 3 && (
+            <View style={styles.medalContainer}>
+              <Ionicons
+                name="medal"
+                size={12}
+                color={
+                  member.rank === 1
+                    ? "#ffd700"
+                    : member.rank === 2
+                    ? "#c0c0c0"
+                    : member.rank === 3
+                    ? "#cd7f32"
+                    : ""
+                }
+              />
+            </View>
+          )}
       </View>
 
       {/* Position Change */}
@@ -419,6 +440,16 @@ const styles = StyleSheet.create({
     color: "#6c757d",
     paddingHorizontal: 12,
     fontWeight: "bold",
+  },
+  // Not yet participating styles
+  notParticipatingRow: {
+    backgroundColor: "#f8f9fa",
+    opacity: 0.7,
+  },
+  notParticipatingText: {
+    fontSize: 14,
+    color: "#6c757d",
+    fontWeight: "600",
   },
 });
 

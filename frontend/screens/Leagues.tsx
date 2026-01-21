@@ -18,8 +18,9 @@ interface League {
   id: string;
   name: string;
   type: "public" | "private";
-  memberCount?: number; // New field from backend
-  rank: number;
+  memberCount?: number;
+  userRank?: number | null;
+  totalMembers?: number;
 }
 
 const Leagues = () => {
@@ -50,7 +51,8 @@ const Leagues = () => {
         name: league.name,
         type: league.is_private ? "private" : "public",
         memberCount: league.memberCount || 0,
-        rank: 0, // TODO: Calculate actual rank based on user's position
+        userRank: league.userRank || null,
+        totalMembers: league.totalMembers || league.memberCount || 0,
       }));
       setJoinedLeagues(transformedLeagues);
     } catch (err) {
@@ -149,10 +151,12 @@ const Leagues = () => {
             {(league.memberCount || 0).toLocaleString()}
           </Text>
         </View>
-        {league.rank > 0 && (
+        {league.userRank && (
           <View style={styles.statItem}>
             <Text style={styles.statLabel}>Your Rank</Text>
-            <Text style={styles.statValue}>#{league.rank}</Text>
+            <Text style={styles.statValue}>
+              #{league.userRank} of {league.totalMembers}
+            </Text>
           </View>
         )}
       </View>

@@ -14,19 +14,52 @@ const getFixtureById = async (eventId) => {
   return fixtures;
 };
 
-const populateFixtures = async (eventId) => {
+/**
+ * Fetch fixtures from remote API and write to Firestore
+ * @param {number|null} gameweek - Optional gameweek to fetch. If null, fetches all fixtures.
+ * @returns {Object} Result with inserted count
+ */
+const populateFixtures = async (gameweek = null) => {
   const backendApi = process.env.BACKEND_API;
   if (!backendApi) {
     throw new Error("BACKEND_API environment variable not defined");
   }
-  const url = `${backendApi.replace(/\/$/, "")}/fixtures`;
+
+  // Build URL - add event parameter if gameweek is specified
+  let url = `${backendApi.replace(/\/$/, "")}/fixtures`;
+  if (gameweek !== null) {
+    url += `?event=${gameweek}`;
+  }
 
   try {
+    console.log(`[FIXTURES] Fetching fixtures from: ${url}`);
     const resp = await axios.get(url, { timeout: 15000 });
-    console.log("resp.data= ", resp.data);
-    const fixtures = Array.isArray(resp.data)
+
+    let fixtures = Array.isArray(resp.data)
       ? resp.data
       : resp.data.fixtures || resp.data;
+
+    // If fetching all fixtures but filtering by gameweek (fallback if API doesn't support event param)
+    if (
+      gameweek !== null &&
+      fixtures.length > 0 &&
+      fixtures[0].event !== undefined
+    ) {
+      const originalCount = fixtures.length;
+      fixtures = fixtures.filter((f) => f.event === parseInt(gameweek, 10));
+      console.log(
+        `[FIXTURES] Filtered ${originalCount} fixtures to ${fixtures.length} for gameweek ${gameweek}`
+      );
+    }
+
+    if (fixtures.length === 0) {
+      console.log(
+        `[FIXTURES] No fixtures found${
+          gameweek ? ` for gameweek ${gameweek}` : ""
+        }`
+      );
+      return { inserted: 0, gameweek };
+    }
 
     // Firestore batch limit is 500; chunk into batches of 400 to be safe
     const chunkSize = 400;
@@ -43,12 +76,76 @@ const populateFixtures = async (eventId) => {
       await batch.commit();
       totalWritten += chunk.length;
     }
-    console.log("Insertion complete.");
-    return { inserted: totalWritten };
+
+    console.log(
+      `[FIXTURES] Insertion complete. ${totalWritten} fixtures written${
+        gameweek ? ` for gameweek ${gameweek}` : ""
+      }`
+    );
+    return { inserted: totalWritten, gameweek };
   } catch (err) {
     console.error("Error populating fixtures:", err);
-    throw new Error("Failed to fetch or write fixtures");
+    throw new Error(
+      `Failed to fetch or write fixtures${
+        gameweek ? ` for gameweek ${gameweek}` : ""
+      }`
+    );
   }
+};
+
+/**
+ * Populate fixtures for a specific gameweek
+ * @param {number} gameweek - The gameweek number (1-38)
+ * @returns {Object} Result with inserted count
+ */
+const populateFixturesForGameweek = async (gameweek) => {
+  if (!gameweek || gameweek < 1 || gameweek > 38) {
+    throw new Error("Valid gameweek (1-38) is required");
+  }
+  return populateFixtures(parseInt(gameweek, 10));
+};
+
+/**
+ * Populate fixtures for a range of gameweeks
+ * @param {number} startGameweek - Starting gameweek
+ * @param {number} endGameweek - Ending gameweek (inclusive)
+ * @returns {Object} Results for each gameweek
+ */
+const populateFixturesForRange = async (startGameweek, endGameweek) => {
+  if (
+    !startGameweek ||
+    !endGameweek ||
+    startGameweek < 1 ||
+    endGameweek > 38 ||
+    startGameweek > endGameweek
+  ) {
+    throw new Error(
+      "Valid startGameweek and endGameweek (1-38, start <= end) are required"
+    );
+  }
+
+  const results = {
+    startGameweek,
+    endGameweek,
+    gameweekResults: [],
+    totalInserted: 0,
+  };
+
+  for (let gw = startGameweek; gw <= endGameweek; gw++) {
+    try {
+      const gwResult = await populateFixtures(gw);
+      results.gameweekResults.push(gwResult);
+      results.totalInserted += gwResult.inserted;
+    } catch (error) {
+      results.gameweekResults.push({
+        gameweek: gw,
+        error: error.message,
+        inserted: 0,
+      });
+    }
+  }
+
+  return results;
 };
 
 const deleteAllFixtures = async () => {
@@ -155,6 +252,8 @@ export default {
   listFixtures,
   deleteAllFixtures,
   populateFixtures,
+  populateFixturesForGameweek,
+  populateFixturesForRange,
   getFixtureById,
   getCurrentGameweek,
 };

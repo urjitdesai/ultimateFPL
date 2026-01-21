@@ -65,10 +65,80 @@ const getCurrentGameweek = async (req, res) => {
   }
 };
 
+// POST /api/fixtures/populate/:gameweek - Populate fixtures for a specific gameweek
+const populateFixturesForGameweek = async (req, res) => {
+  try {
+    const gameweek = parseInt(req.params.gameweek, 10);
+
+    if (!gameweek || gameweek < 1 || gameweek > 38) {
+      return res
+        .status(400)
+        .json({ error: "Valid gameweek (1-38) is required" });
+    }
+
+    console.log(`[FIXTURES] Populating fixtures for gameweek ${gameweek}`);
+    const result = await fixtureService.populateFixturesForGameweek(gameweek);
+
+    res.json({
+      success: true,
+      message: `Fixtures populated for gameweek ${gameweek}`,
+      ...result,
+    });
+  } catch (err) {
+    console.error("Error populating fixtures for gameweek:", err);
+    res
+      .status(500)
+      .json({
+        error: err.message || "Failed to populate fixtures for gameweek",
+      });
+  }
+};
+
+// POST /api/fixtures/populate-range - Populate fixtures for a range of gameweeks
+const populateFixturesForRange = async (req, res) => {
+  try {
+    const { startGameweek, endGameweek } = req.body;
+
+    if (
+      !startGameweek ||
+      !endGameweek ||
+      startGameweek < 1 ||
+      endGameweek > 38 ||
+      startGameweek > endGameweek
+    ) {
+      return res.status(400).json({
+        error:
+          "Valid startGameweek and endGameweek (1-38, start <= end) are required",
+      });
+    }
+
+    console.log(
+      `[FIXTURES] Populating fixtures for gameweeks ${startGameweek} to ${endGameweek}`
+    );
+    const result = await fixtureService.populateFixturesForRange(
+      parseInt(startGameweek, 10),
+      parseInt(endGameweek, 10)
+    );
+
+    res.json({
+      success: true,
+      message: `Fixtures populated for gameweeks ${startGameweek}-${endGameweek}`,
+      ...result,
+    });
+  } catch (err) {
+    console.error("Error populating fixtures for range:", err);
+    res
+      .status(500)
+      .json({ error: err.message || "Failed to populate fixtures for range" });
+  }
+};
+
 export default {
   listFixtures,
   deleteAllFixtures,
   populateFixtures,
+  populateFixturesForGameweek,
+  populateFixturesForRange,
   getFixtureById,
   getCurrentGameweek,
 };

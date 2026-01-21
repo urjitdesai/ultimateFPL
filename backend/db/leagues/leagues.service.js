@@ -1,6 +1,7 @@
 import { db } from "../../firestore.js";
 import fixtureService from "../fixtures/fixtures.service.js";
 import leagueScores2Service from "../leagueScores/leagueScores2.service.js";
+import TEAMS from "../constants/teams.js";
 
 // Helper function to generate a unique 6-digit alphanumeric code
 const generateUniqueLeagueCode = async () => {
@@ -47,7 +48,8 @@ const createLeague = async ({
   const leagueCode = await generateUniqueLeagueCode();
 
   // Get the current active gameweek
-  const currentGameweek = await fixtureService.getCurrentGameweek();
+  const currentGameweekData = await fixtureService.getCurrentGameweek();
+  const currentGameweek = currentGameweekData.gameweek;
 
   await newLeagueRef.set({
     name,
@@ -117,6 +119,15 @@ const getLeagueById = async (leagueId) => {
 
 const getUserLeagues = async (userId) => {
   try {
+    // Get current gameweek for rank calculation
+    let currentGameweek = 1;
+    try {
+      const gameweekData = await fixtureService.getCurrentGameweek();
+      currentGameweek = gameweekData?.gameweek || 1;
+    } catch (err) {
+      console.error("Error getting current gameweek for user leagues:", err);
+    }
+
     // Get all user_league relationships for this user
     const userLeaguesSnapshot = await db
       .collection("users_leagues")
@@ -132,7 +143,7 @@ const getUserLeagues = async (userId) => {
       (doc) => doc.data().league_id
     );
 
-    // Get actual league data and member counts
+    // Get actual league data, member counts, and user rank
     const leaguesPromises = leagueIds.map(async (leagueId) => {
       const leagueDoc = await db.collection("leagues").doc(leagueId).get();
       if (!leagueDoc.exists) return null;
@@ -143,9 +154,59 @@ const getUserLeagues = async (userId) => {
         .where("league_id", "==", leagueId)
         .get();
 
+      // Calculate user's rank in this league
+      let userRank = null;
+      const totalMembers = membersSnapshot.size;
+
+      try {
+        // Get all league scores for this league
+        const scoresSnapshot = await db
+          .collection("league_scores")
+          .where("leagueId", "==", leagueId)
+          .get();
+
+        if (!scoresSnapshot.empty) {
+          // Calculate total score for each user up to current gameweek
+          const userScores = scoresSnapshot.docs.map((doc) => {
+            const data = doc.data();
+            const gameweekScores = data.gameweekScores || {};
+
+            // Sum scores from gameweek 1 to current gameweek
+            let totalScore = 0;
+            for (let gw = 1; gw <= currentGameweek; gw++) {
+              const gwKey = `gw${gw}`;
+              if (gameweekScores[gwKey]?.points) {
+                totalScore += gameweekScores[gwKey].points;
+              }
+            }
+
+            return {
+              oderId: data.oderId,
+              totalScore,
+            };
+          });
+
+          // Sort by total score descending
+          userScores.sort((a, b) => b.totalScore - a.totalScore);
+
+          // Find user's rank
+          const userIndex = userScores.findIndex((s) => s.oderId === userId);
+          if (userIndex !== -1) {
+            userRank = userIndex + 1;
+          }
+        }
+      } catch (rankError) {
+        console.error(
+          `Error calculating rank for league ${leagueId}:`,
+          rankError
+        );
+      }
+
       return {
         doc: leagueDoc,
-        memberCount: membersSnapshot.size,
+        memberCount: totalMembers,
+        userRank,
+        totalMembers,
       };
     });
 
@@ -155,7 +216,7 @@ const getUserLeagues = async (userId) => {
     const leagues = leagueResults
       .filter((result) => result !== null)
       .map((result) => {
-        const { doc, memberCount } = result;
+        const { doc, memberCount, userRank, totalMembers } = result;
         const userLeagueDoc = userLeaguesSnapshot.docs.find(
           (userDoc) => userDoc.data().league_id === doc.id
         );
@@ -164,6 +225,8 @@ const getUserLeagues = async (userId) => {
           id: doc.id,
           ...doc.data(),
           memberCount,
+          userRank,
+          totalMembers,
           // Add membership metadata
           joined_at: userLeagueDoc?.data().joined_at,
           joining_gameweek: userLeagueDoc?.data().joining_gameweek,
@@ -211,7 +274,8 @@ const joinLeague = async (userId, league_code) => {
   }
 
   // Create entry inside users_leagues collection
-  const joiningGameweek = await fixtureService.getCurrentGameweek();
+  const joiningGameweekData = await fixtureService.getCurrentGameweek();
+  const joiningGameweek = joiningGameweekData.gameweek;
   console.log("joiningGameweek= ", joiningGameweek);
 
   await db.collection("users_leagues").doc(`${leagueDoc.id}_${userId}`).set({
@@ -256,6 +320,139 @@ const getAllLeagues = async () => {
   }));
 };
 
+// Create default public leagues for all Premier League teams
+const createDefaultTeamLeagues = async () => {
+  const results = {
+    created: [],
+    existing: [],
+    errors: [],
+  };
+
+  // Get current gameweek for setting createdAtGameweek
+  const currentGameweekData = await fixtureService.getCurrentGameweek();
+  const currentGameweek = currentGameweekData.gameweek;
+
+  for (const [teamId, teamData] of Object.entries(TEAMS)) {
+    const teamLeagueCode = `TEAM${teamId.padStart(2, "0")}`; // e.g., TEAM01, TEAM02, etc.
+
+    try {
+      // Check if team league already exists
+      const existingLeague = await db
+        .collection("leagues")
+        .where("leagueCode", "==", teamLeagueCode)
+        .limit(1)
+        .get();
+
+      if (!existingLeague.empty) {
+        results.existing.push({
+          teamId,
+          teamName: teamData.displayName,
+          leagueCode: teamLeagueCode,
+        });
+        continue;
+      }
+
+      // Create new team league
+      const newLeagueRef = db.collection("leagues").doc();
+      const leagueData = {
+        name: `${teamData.displayName} Fans League`,
+        description: `Official public league for ${teamData.displayName} supporters`,
+        leagueCode: teamLeagueCode,
+        creatorUserId: "SYSTEM", // System-created league
+        is_private: false,
+        teamId: parseInt(teamId), // Store which team this league is for
+        leagueType: "team", // Differentiate from user-created leagues
+        createdAtGameweek: currentGameweek,
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+
+      await newLeagueRef.set(leagueData);
+
+      results.created.push({
+        id: newLeagueRef.id,
+        teamId,
+        teamName: teamData.displayName,
+        leagueCode: teamLeagueCode,
+      });
+    } catch (error) {
+      results.errors.push({
+        teamId,
+        teamName: teamData.displayName,
+        error: error.message,
+      });
+    }
+  }
+
+  return results;
+};
+
+// Create or get a gameweek league (e.g., "GW1 Joiners League")
+const createOrGetGameweekLeague = async (gameweek) => {
+  const gameweekLeagueCode = `GW${String(gameweek).padStart(2, "0")}`; // e.g., GW01, GW02, etc.
+
+  // Check if gameweek league already exists
+  const existingLeague = await db
+    .collection("leagues")
+    .where("leagueCode", "==", gameweekLeagueCode)
+    .limit(1)
+    .get();
+
+  if (!existingLeague.empty) {
+    const leagueDoc = existingLeague.docs[0];
+    return {
+      id: leagueDoc.id,
+      ...leagueDoc.data(),
+      alreadyExists: true,
+    };
+  }
+
+  // Create new gameweek league
+  const newLeagueRef = db.collection("leagues").doc();
+  const leagueData = {
+    name: `Gameweek ${gameweek}`,
+    description: `Public league for users who joined during Gameweek ${gameweek}`,
+    leagueCode: gameweekLeagueCode,
+    creatorUserId: "SYSTEM",
+    is_private: false,
+    gameweek: gameweek, // Store which gameweek this league is for
+    leagueType: "gameweek", // Differentiate from user-created leagues
+    createdAtGameweek: gameweek,
+    created_at: new Date(),
+    updated_at: new Date(),
+    type: "general",
+  };
+
+  await newLeagueRef.set(leagueData);
+
+  return {
+    id: newLeagueRef.id,
+    ...leagueData,
+    alreadyExists: false,
+  };
+};
+
+// Get team league by team ID
+const getTeamLeague = async (teamId) => {
+  const teamLeagueCode = `TEAM${String(teamId).padStart(2, "0")}`;
+
+  const leagueSnapshot = await db
+    .collection("leagues")
+    .where("leagueCode", "==", teamLeagueCode)
+    .limit(1)
+    .get();
+
+  if (leagueSnapshot.empty) {
+    return null;
+  }
+
+  const leagueDoc = leagueSnapshot.docs[0];
+  return {
+    id: leagueDoc.id,
+    ...leagueDoc.data(),
+  };
+};
+
 // Export as a single service object
 export const leaguesService = {
   createLeague,
@@ -264,4 +461,7 @@ export const leaguesService = {
   getAllLeagues,
   joinLeague,
   generateUniqueLeagueCode,
+  createDefaultTeamLeagues,
+  createOrGetGameweekLeague,
+  getTeamLeague,
 };

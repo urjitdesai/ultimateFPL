@@ -14,6 +14,16 @@ router.post(
 );
 router.post("/join", authenticateToken, leaguesController.joinLeague);
 
+// Admin routes for creating default leagues
+router.post(
+  "/create-default-team-leagues",
+  leaguesController.createDefaultTeamLeagues
+);
+router.post(
+  "/create-gameweek-league",
+  leaguesController.createDefaultGameweekLeague
+);
+
 // League scores routes (v2 - league-specific scores)
 router.get(
   "/:leagueId/table",

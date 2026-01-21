@@ -104,6 +104,44 @@ export const getAllLeagues = async (req, res) => {
   }
 };
 
+export const createDefaultTeamLeagues = async (req, res) => {
+  try {
+    const result = await leaguesService.createDefaultTeamLeagues();
+    return res.status(201).json({
+      success: true,
+      message: "Default team leagues processed",
+      ...result,
+    });
+  } catch (error) {
+    console.error("Error creating default team leagues:", error);
+    return res
+      .status(500)
+      .json({ error: "Failed to create default team leagues" });
+  }
+};
+
+export const createDefaultGameweekLeague = async (req, res) => {
+  const { gameweek } = req.body;
+
+  if (!gameweek || gameweek < 1 || gameweek > 38) {
+    return res.status(400).json({ error: "Valid gameweek (1-38) is required" });
+  }
+
+  try {
+    const result = await leaguesService.createOrGetGameweekLeague(gameweek);
+    return res.status(result.alreadyExists ? 200 : 201).json({
+      success: true,
+      message: result.alreadyExists
+        ? `Gameweek ${gameweek} league already exists`
+        : `Gameweek ${gameweek} league created`,
+      league: result,
+    });
+  } catch (error) {
+    console.error("Error creating gameweek league:", error);
+    return res.status(500).json({ error: "Failed to create gameweek league" });
+  }
+};
+
 // Export as a single controller object
 export const leaguesController = {
   createLeague,
@@ -111,4 +149,6 @@ export const leaguesController = {
   getUserLeagues,
   joinLeague,
   getAllLeagues,
+  createDefaultTeamLeagues,
+  createDefaultGameweekLeague,
 };

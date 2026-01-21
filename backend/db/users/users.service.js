@@ -4,6 +4,7 @@ import axios from "axios";
 import admin from "firebase-admin";
 import bcrypt from "bcrypt";
 import { leaguesService } from "../leagues/leagues.service.js";
+import fixtureService from "../fixtures/fixtures.service.js";
 
 const createUserInDb = async (email, password, displayName, favoriteTeamId) => {
   if (!admin) throw new Error("Firebase admin not initialized");
@@ -18,16 +19,53 @@ const createUserInDb = async (email, password, displayName, favoriteTeamId) => {
     throw new Error("User with this email already exists");
   }
 
+  // Get current gameweek for auto-joining gameweek league
+  const currentGameweekData = await fixtureService.getCurrentGameweek();
+  const currentGameweek = currentGameweekData.gameweek;
+
   // Create user with hashed password
   const docRef = await db.collection("users").add({
     email: email,
     display_name: displayName || null,
     password: passwordHash,
     favorite_team_id: favoriteTeamId || null,
+    joined_gameweek: currentGameweek, // Store which gameweek user joined
     created_at: new Date(),
   });
 
-  await leaguesService.joinLeague(docRef.id, "OVERALL"); // auto-join overall league
+  // Auto-join OVERALL league
+  await leaguesService.joinLeague(docRef.id, "OVERALL");
+
+  // Auto-join favorite team's league if user has a favorite team
+  if (favoriteTeamId) {
+    const teamLeagueCode = `TEAM${String(favoriteTeamId).padStart(2, "0")}`;
+    try {
+      await leaguesService.joinLeague(docRef.id, teamLeagueCode);
+      console.log(
+        `User ${docRef.id} auto-joined team league ${teamLeagueCode}`
+      );
+    } catch (error) {
+      // Team league might not exist yet, log but don't fail signup
+      console.warn(
+        `Could not auto-join team league ${teamLeagueCode}:`,
+        error.message
+      );
+    }
+  }
+
+  // Auto-join gameweek league
+  try {
+    // Create or get the gameweek league first
+    await leaguesService.createOrGetGameweekLeague(currentGameweek);
+    const gameweekLeagueCode = `GW${String(currentGameweek).padStart(2, "0")}`;
+    await leaguesService.joinLeague(docRef.id, gameweekLeagueCode);
+    console.log(
+      `User ${docRef.id} auto-joined gameweek league ${gameweekLeagueCode}`
+    );
+  } catch (error) {
+    // Log but don't fail signup
+    console.warn(`Could not auto-join gameweek league:`, error.message);
+  }
 
   // Create user object for JWT
   const userData = {

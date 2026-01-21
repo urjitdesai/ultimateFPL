@@ -18,6 +18,7 @@ import userPredictionsRouter from "./db/userPredictions/index.js";
 import constantsRouter from "./db/constants/index.js";
 import scoreRouter from "./db/score/index.js";
 import leaguesRouter from "./db/leagues/index.js";
+import simulateRouter from "./db/simulate/index.js";
 const app = express();
 
 app.use(
@@ -91,6 +92,7 @@ app.use("/api/user-predictions", userPredictionsRouter);
 app.use("/api/constants", constantsRouter);
 app.use("/api/score", scoreRouter);
 app.use("/api/leagues", leaguesRouter);
+app.use("/api/simulate", simulateRouter);
 
 const PORT = process.env.PORT || 3000;
 

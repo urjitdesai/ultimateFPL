@@ -405,6 +405,7 @@ const createOrUpdatePredictions = async (userId, gameweek, predictions) => {
             created_at: new Date(),
             updated_at: new Date(),
           })),
+          generatedBy: "USER",
           created_at: new Date(),
           updated_at: new Date(),
         });
@@ -481,6 +482,7 @@ const createOrUpdatePredictions = async (userId, gameweek, predictions) => {
 
         transaction.update(docRef, {
           predictions: updatedPredictions,
+          generatedBy: "USER",
           updated_at: new Date(),
         });
       }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Image,
   Alert,
   ActivityIndicator,
+  Animated,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { authAPI, fixturesAPI, predictionsAPI } from "../utils/api";
@@ -68,9 +69,35 @@ const Home = () => {
   const [hasExistingPredictions, setHasExistingPredictions] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastType, setToastType] = useState<"success" | "error">("success");
+  const toastOpacity = useRef(new Animated.Value(0)).current;
 
   const { getTeamById, getTeamLogo, loading: teamsLoading } = useTeams();
   const navigation = useNavigation();
+
+  // Show toast message with fade animation
+  const showToast = (
+    message: string,
+    type: "success" | "error" = "success",
+    duration: number = 3000
+  ) => {
+    setToastMessage(message);
+    setToastType(type);
+    Animated.sequence([
+      Animated.timing(toastOpacity, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.delay(duration),
+      Animated.timing(toastOpacity, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start(() => setToastMessage(null));
+  };
 
   // Handle logout
   const handleLogout = async () => {
@@ -294,11 +321,11 @@ const Home = () => {
         selectedGameweek
       );
 
-      Alert.alert("Success", "Your predictions have been submitted!");
+      showToast("✓ Predictions submitted successfully!", "success");
       console.log("Predictions submitted:", response);
     } catch (err) {
       console.error("Error submitting predictions:", err);
-      Alert.alert("Error", "Failed to submit predictions. Please try again.");
+      showToast("✗ Failed to submit predictions. Please try again.", "error");
     } finally {
       setSubmitting(false);
     }
@@ -711,6 +738,19 @@ const Home = () => {
             </Text>
           </View>
         )}
+
+      {/* Toast Message */}
+      {toastMessage && (
+        <Animated.View
+          style={[
+            styles.toast,
+            toastType === "error" ? styles.toastError : styles.toastSuccess,
+            { opacity: toastOpacity },
+          ]}
+        >
+          <Text style={styles.toastText}>{toastMessage}</Text>
+        </Animated.View>
+      )}
     </SafeAreaView>
   );
 };
@@ -1156,6 +1196,36 @@ const styles = StyleSheet.create({
   },
   captainToggleTextSelected: {
     color: "#856404",
+  },
+  toast: {
+    position: "absolute",
+    top: 60,
+    left: 20,
+    right: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    zIndex: 1000,
+  },
+  toastSuccess: {
+    backgroundColor: "#28a745",
+  },
+  toastError: {
+    backgroundColor: "#dc3545",
+  },
+  toastText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });
 

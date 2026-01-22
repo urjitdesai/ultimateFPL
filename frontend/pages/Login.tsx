@@ -7,7 +7,9 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
+  Image,
 } from "react-native";
+import fulltimepl2 from "../assets/fulltimepl-2.png";
 import { useNavigation } from "@react-navigation/native";
 import type { StackNavigationProp } from "@react-navigation/stack";
 import { authAPI } from "../utils/api";
@@ -52,6 +54,7 @@ const Login = () => {
 
   return (
     <View style={styles.container}>
+      <Image source={fulltimepl2} style={styles.logo} resizeMode="contain" />
       <Text style={styles.title}>Welcome Back!</Text>
       <TextInput
         style={styles.input}
@@ -77,6 +80,11 @@ const Login = () => {
 };
 
 const styles = StyleSheet.create({
+  logo: {
+    width: 300,
+    height: 300,
+    alignSelf: "center",
+  },
   container: {
     flex: 1,
     justifyContent: "center",

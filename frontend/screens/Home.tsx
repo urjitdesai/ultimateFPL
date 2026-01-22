@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { MaterialIcons } from "@expo/vector-icons";
 import {
   View,
   Text,
@@ -53,6 +54,7 @@ interface User {
 }
 
 const Home = () => {
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const [currentGameweek, setCurrentGameweek] = useState<number>(0);
   const [selectedGameweek, setSelectedGameweek] = useState<number>(0);
   const [deadline, setDeadline] = useState<string | null>(null);
@@ -601,24 +603,52 @@ const Home = () => {
       <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
       <View style={styles.header}>
         <View style={styles.headerContent}>
-          <View>
-            <Text style={styles.headerTitle}>Ultimate FPL</Text>
-            <Text style={styles.headerSubtitle}>
-              Gameweek {selectedGameweek} Predictions
-            </Text>
+          <View style={styles.headerLogoRow}>
+            <Image
+              source={require("../assets/fulltimepl-2.png")}
+              style={styles.headerLogo}
+              resizeMode="contain"
+            />
+            <View>
+              <Text style={styles.headerTitle}>Fulltime PL</Text>
+              <Text style={styles.headerSubtitle}>
+                Gameweek {selectedGameweek} Predictions
+              </Text>
+            </View>
           </View>
           <View style={styles.userSection}>
             {user && (
-              <Text style={styles.displayName}>
-                {user.display_name || user.email || "User"}
-              </Text>
+              <View style={styles.userMenuWrapper}>
+                <TouchableOpacity
+                  onPress={() => setShowUserMenu((v) => !v)}
+                  activeOpacity={0.7}
+                  style={styles.displayNameMenuRow}
+                >
+                  <Text style={styles.displayName}>
+                    {user.display_name || user.email || "User"}
+                  </Text>
+                  <MaterialIcons
+                    name="arrow-drop-down"
+                    size={22}
+                    color="#333"
+                    style={styles.menuArrowIcon}
+                  />
+                </TouchableOpacity>
+                {showUserMenu && (
+                  <View style={styles.userMenuDropdown}>
+                    <TouchableOpacity
+                      style={styles.userMenuItem}
+                      onPress={() => {
+                        setShowUserMenu(false);
+                        handleLogout();
+                      }}
+                    >
+                      <Text style={styles.userMenuItemText}>Logout</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
             )}
-            <TouchableOpacity
-              style={styles.logoutButton}
-              onPress={handleLogout}
-            >
-              <Text style={styles.logoutButtonText}>Logout</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -756,6 +786,16 @@ const Home = () => {
 };
 
 const styles = StyleSheet.create({
+  headerLogoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 2,
+  },
+  headerLogo: {
+    width: 80,
+    height: 80,
+    marginRight: 16,
+  },
   container: {
     flex: 1,
     backgroundColor: "#f8f9fa",
@@ -1062,16 +1102,33 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
-  logoutButton: {
-    backgroundColor: "#dc3545",
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 6,
+  userMenuWrapper: {
+    position: "relative",
+    zIndex: 100,
   },
-  logoutButtonText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "600",
+  userMenuDropdown: {
+    position: "absolute",
+    top: 36,
+    right: 0,
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#e9ecef",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 6,
+    minWidth: 120,
+  },
+  userMenuItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+  },
+  userMenuItemText: {
+    fontSize: 15,
+    color: "#dc3545",
+    fontWeight: "500",
   },
   userSection: {
     alignItems: "flex-end",
@@ -1081,6 +1138,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "#333",
+  },
+  displayNameMenuRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  menuArrowIcon: {
+    marginLeft: 4,
   },
   currentIndicator: {
     color: "#28a745",

@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Alert,
   ScrollView,
+  Image,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { StackNavigationProp } from "@react-navigation/stack";
@@ -74,6 +75,11 @@ const Signup = () => {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
+      <Image
+        source={require("../assets/fulltimepl-2.png")}
+        style={styles.logo}
+        resizeMode="contain"
+      />
       <Text style={styles.title}>Create an Account</Text>
       <TextInput
         style={styles.input}
@@ -171,6 +177,11 @@ const Signup = () => {
 };
 
 const styles = StyleSheet.create({
+  logo: {
+    width: 300,
+    height: 300,
+    alignSelf: "center",
+  },
   container: {
     flex: 1,
     justifyContent: "center",

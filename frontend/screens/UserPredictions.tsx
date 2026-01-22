@@ -283,59 +283,72 @@ const UserPredictions: React.FC = () => {
         </View>
 
         {/* Match Container */}
-        <View style={styles.matchContainer}>
-          {/* Home Team */}
-          <View style={styles.homeTeamSection}>
-            <View style={styles.teamInfo}>
-              {fixture?.team_h && getTeamLogo(fixture.team_h) && (
-                <Image
-                  source={getTeamLogo(fixture.team_h)}
-                  style={styles.teamLogo}
-                  resizeMode="contain"
-                />
-              )}
-              <Text style={styles.teamName}>
-                {homeTeam?.displayName || "Home"}
-              </Text>
+        <View style={styles.matchWrapper}>
+          <View style={styles.matchContainer}>
+            {/* Home Team */}
+            <View style={styles.homeTeamSection}>
+              <View style={styles.teamInfo}>
+                {fixture?.team_h && getTeamLogo(fixture.team_h) && (
+                  <Image
+                    source={getTeamLogo(fixture.team_h)}
+                    style={styles.teamLogo}
+                    resizeMode="contain"
+                  />
+                )}
+                <Text style={styles.teamName}>
+                  {homeTeam?.displayName || "Home"}
+                </Text>
+              </View>
+              <View style={styles.scoreInputContainer}>
+                <Text style={styles.scoreText}>{prediction.team_h_score}</Text>
+              </View>
             </View>
-            <View style={styles.scoreInputContainer}>
-              <Text style={styles.scoreText}>{prediction.team_h_score}</Text>
-              {fixture?.finished && fixture.team_h_score !== undefined && (
+
+            {/* VS */}
+            <View style={styles.vsContainer}>
+              <Text style={styles.vsText}>-</Text>
+            </View>
+
+            {/* Away Team */}
+            <View style={styles.awayTeamSection}>
+              <View style={styles.scoreInputContainer}>
+                <Text style={styles.scoreText}>{prediction.team_a_score}</Text>
+              </View>
+              <View style={styles.awayTeamInfo}>
+                <Text style={styles.awayTeamName}>
+                  {awayTeam?.displayName || "Away"}
+                </Text>
+                {fixture?.team_a && getTeamLogo(fixture.team_a) && (
+                  <Image
+                    source={getTeamLogo(fixture.team_a)}
+                    style={styles.teamLogo}
+                    resizeMode="contain"
+                  />
+                )}
+              </View>
+            </View>
+          </View>
+          {selectedGameweek < currentGameweek &&
+            fixture.team_h_score !== undefined &&
+            fixture.team_h_score !== null && (
+              <View style={styles.actualScoresSection}>
                 <Text style={styles.actualScoreText}>
                   {fixture.team_h_score}
                 </Text>
-              )}
-            </View>
-          </View>
-
-          {/* VS */}
-          <View style={styles.vsContainer}>
-            <Text style={styles.vsText}>-</Text>
-          </View>
-
-          {/* Away Team */}
-          <View style={styles.awayTeamSection}>
-            <View style={styles.scoreInputContainer}>
-              <Text style={styles.scoreText}>{prediction.team_a_score}</Text>
-              {fixture?.finished && fixture.team_a_score !== undefined && (
+                <Text
+                  style={[
+                    styles.actualScoreText,
+                    { marginLeft: 30, marginRight: 30 },
+                  ]}
+                >
+                  {" "}
+                  -{" "}
+                </Text>
                 <Text style={styles.actualScoreText}>
                   {fixture.team_a_score}
                 </Text>
-              )}
-            </View>
-            <View style={styles.awayTeamInfo}>
-              <Text style={styles.awayTeamName}>
-                {awayTeam?.displayName || "Away"}
-              </Text>
-              {fixture?.team_a && getTeamLogo(fixture.team_a) && (
-                <Image
-                  source={getTeamLogo(fixture.team_a)}
-                  style={styles.teamLogo}
-                  resizeMode="contain"
-                />
-              )}
-            </View>
-          </View>
+              </View>
+            )}
         </View>
       </View>
     );
@@ -554,6 +567,11 @@ const styles = StyleSheet.create({
     color: "#dc3545",
     fontWeight: "bold",
   },
+  matchWrapper: {
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   matchContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -570,6 +588,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "flex-start",
     flex: 1,
+  },
+  actualScoresSection: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 5,
   },
   teamInfo: {
     flexDirection: "row",

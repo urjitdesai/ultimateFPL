@@ -503,97 +503,102 @@ const Home = () => {
             )}
         </View>
 
-        <View style={styles.matchContainer}>
-          {/* Home Team */}
-          <View style={styles.homeTeamSection}>
-            <View style={styles.teamInfo}>
-              {fixture.homeTeamId && getTeamLogo(fixture.homeTeamId) && (
-                <Image
-                  source={getTeamLogo(fixture.homeTeamId)}
-                  style={styles.teamLogo}
-                  resizeMode="contain"
-                />
-              )}
-              <Text style={styles.teamName}>{fixture.homeTeam}</Text>
-            </View>
-            <View style={styles.scoreInputContainer}>
-              <TextInput
-                style={[
-                  styles.scoreInput,
-                  selectedGameweek > currentGameweek &&
-                    styles.scoreInputDisabled,
-                ]}
-                value={predictions[fixture.id]?.homeScore || ""}
-                onChangeText={(text) =>
-                  handlePredictionChange(fixture.id, "home", text)
-                }
-                placeholder="0"
-                placeholderTextColor="#6c757d"
-                keyboardType="numeric"
-                maxLength={2}
-                selectTextOnFocus={selectedGameweek <= currentGameweek}
-                editable={selectedGameweek <= currentGameweek}
-                pointerEvents={
-                  selectedGameweek <= currentGameweek ? "auto" : "none"
-                }
-              />
-              {selectedGameweek < currentGameweek &&
-                fixture.homeScore !== undefined &&
-                fixture.homeScore !== null && (
-                  <Text style={styles.actualScoreText}>
-                    {fixture.homeScore}
-                  </Text>
+        <View style={styles.matchWrapper}>
+          <View style={styles.matchContainer}>
+            {/* Home Team */}
+            <View style={styles.homeTeamSection}>
+              <View style={styles.teamInfo}>
+                {fixture.homeTeamId && getTeamLogo(fixture.homeTeamId) && (
+                  <Image
+                    source={getTeamLogo(fixture.homeTeamId)}
+                    style={styles.teamLogo}
+                    resizeMode="contain"
+                  />
                 )}
-            </View>
-          </View>
-
-          {/* VS */}
-          <View style={styles.vsContainer}>
-            <Text style={styles.vsText}>-</Text>
-          </View>
-
-          {/* Away Team */}
-          <View style={styles.awayTeamSection}>
-            <View style={styles.scoreInputContainer}>
-              <TextInput
-                style={[
-                  styles.scoreInput,
-                  selectedGameweek > currentGameweek &&
-                    styles.scoreInputDisabled,
-                ]}
-                value={predictions[fixture.id]?.awayScore || ""}
-                onChangeText={(text) =>
-                  handlePredictionChange(fixture.id, "away", text)
-                }
-                placeholder="0"
-                placeholderTextColor="#6c757d"
-                keyboardType="numeric"
-                maxLength={2}
-                selectTextOnFocus={selectedGameweek <= currentGameweek}
-                editable={selectedGameweek <= currentGameweek}
-                pointerEvents={
-                  selectedGameweek <= currentGameweek ? "auto" : "none"
-                }
-              />
-              {selectedGameweek < currentGameweek &&
-                fixture.awayScore !== undefined &&
-                fixture.awayScore !== null && (
-                  <Text style={styles.actualScoreText}>
-                    {fixture.awayScore}
-                  </Text>
-                )}
-            </View>
-            <View style={styles.awayTeamInfo}>
-              <Text style={styles.awayTeamName}>{fixture.awayTeam}</Text>
-              {fixture.awayTeamId && getTeamLogo(fixture.awayTeamId) && (
-                <Image
-                  source={getTeamLogo(fixture.awayTeamId)}
-                  style={styles.teamLogo}
-                  resizeMode="contain"
+                <Text style={styles.teamName}>{fixture.homeTeam}</Text>
+              </View>
+              <View style={styles.scoreInputContainer}>
+                <TextInput
+                  style={[
+                    styles.scoreInput,
+                    selectedGameweek > currentGameweek &&
+                      styles.scoreInputDisabled,
+                  ]}
+                  value={predictions[fixture.id]?.homeScore || ""}
+                  onChangeText={(text) =>
+                    handlePredictionChange(fixture.id, "home", text)
+                  }
+                  placeholder="0"
+                  placeholderTextColor="#6c757d"
+                  keyboardType="numeric"
+                  maxLength={2}
+                  selectTextOnFocus={selectedGameweek <= currentGameweek}
+                  editable={selectedGameweek <= currentGameweek}
+                  pointerEvents={
+                    selectedGameweek <= currentGameweek ? "auto" : "none"
+                  }
                 />
-              )}
+              </View>
+            </View>
+
+            {/* VS */}
+            <View style={styles.vsContainer}>
+              <Text style={styles.vsText}>-</Text>
+            </View>
+
+            {/* Away Team */}
+            <View style={styles.awayTeamSection}>
+              <View style={styles.scoreInputContainer}>
+                <TextInput
+                  style={[
+                    styles.scoreInput,
+                    selectedGameweek > currentGameweek &&
+                      styles.scoreInputDisabled,
+                  ]}
+                  value={predictions[fixture.id]?.awayScore || ""}
+                  onChangeText={(text) =>
+                    handlePredictionChange(fixture.id, "away", text)
+                  }
+                  placeholder="0"
+                  placeholderTextColor="#6c757d"
+                  keyboardType="numeric"
+                  maxLength={2}
+                  selectTextOnFocus={selectedGameweek <= currentGameweek}
+                  editable={selectedGameweek <= currentGameweek}
+                  pointerEvents={
+                    selectedGameweek <= currentGameweek ? "auto" : "none"
+                  }
+                />
+              </View>
+              <View style={styles.awayTeamInfo}>
+                <Text style={styles.awayTeamName}>{fixture.awayTeam}</Text>
+                {fixture.awayTeamId && getTeamLogo(fixture.awayTeamId) && (
+                  <Image
+                    source={getTeamLogo(fixture.awayTeamId)}
+                    style={styles.teamLogo}
+                    resizeMode="contain"
+                  />
+                )}
+              </View>
             </View>
           </View>
+          {selectedGameweek < currentGameweek &&
+            fixture.homeScore !== undefined &&
+            fixture.homeScore !== null && (
+              <View style={styles.actualScoresSection}>
+                <Text style={styles.actualScoreText}>{fixture.homeScore}</Text>
+                <Text
+                  style={[
+                    styles.actualScoreText,
+                    { marginLeft: 30, marginRight: 30 },
+                  ]}
+                >
+                  {" "}
+                  -{" "}
+                </Text>
+                <Text style={styles.actualScoreText}>{fixture.awayScore}</Text>
+              </View>
+            )}
         </View>
       </View>
     </View>
@@ -993,6 +998,11 @@ const styles = StyleSheet.create({
     color: "#007bff",
     fontWeight: "600",
   },
+  matchWrapper: {
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   matchContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -1009,6 +1019,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "flex-start",
     flex: 1,
+  },
+  actualScoresSection: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 5,
   },
   teamSection: {
     flex: 1,

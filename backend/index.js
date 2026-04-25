@@ -19,6 +19,7 @@ import constantsRouter from "./db/constants/index.js";
 import scoreRouter from "./db/score/index.js";
 import leaguesRouter from "./db/leagues/index.js";
 import simulateRouter from "./db/simulate/index.js";
+import schemasRouter from "./schemas/index.js";
 const app = express();
 
 app.use(
@@ -32,7 +33,7 @@ app.use(
       "http://127.0.0.1:19006",
     ],
     credentials: true, // Allow cookies to be sent
-  })
+  }),
 );
 app.use(express.json());
 app.use(cookieParser());
@@ -93,6 +94,7 @@ app.use("/api/constants", constantsRouter);
 app.use("/api/score", scoreRouter);
 app.use("/api/leagues", leaguesRouter);
 app.use("/api/simulate", simulateRouter);
+app.use("/api/schemas", schemasRouter);
 
 const PORT = process.env.PORT || 3000;
 

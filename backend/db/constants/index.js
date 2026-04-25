@@ -1,5 +1,6 @@
 import express from "express";
 import teams from "./teams.js";
+import { scores } from "./scores.js";
 
 const router = express.Router();
 
@@ -50,3 +51,19 @@ router.get("/teams/:id", (req, res) => {
 });
 
 export default router;
+
+// GET /api/constants/scoring - Get scoring rules
+router.get("/scoring", (req, res) => {
+  try {
+    res.json({
+      success: true,
+      data: ``,
+    });
+  } catch (error) {
+    console.error("Error fetching scoring rules:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch scoring rules",
+    });
+  }
+});

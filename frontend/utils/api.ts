@@ -312,5 +312,14 @@ export const predictionsAPI = {
   },
 };
 
+// Constants API functions
+export const constantsAPI = {
+  // Get scoring rules
+  getScoringRules: async () => {
+    const response = await api.get("/api/constants/scoring");
+    return response.data;
+  },
+};
+
 // Export the configured axios instance for custom requests
 export default api;

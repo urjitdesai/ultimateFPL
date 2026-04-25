@@ -12,9 +12,15 @@ import {
   Alert,
   ActivityIndicator,
   Animated,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { authAPI, fixturesAPI, predictionsAPI } from "../utils/api";
+import {
+  authAPI,
+  fixturesAPI,
+  predictionsAPI,
+  constantsAPI,
+} from "../utils/api";
 import { useNavigation } from "@react-navigation/native";
 import { useTeams } from "../hooks/useTeams";
 import GameweekSelector from "../components/GameweekSelector";
@@ -73,6 +79,10 @@ const Home = () => {
   const [user, setUser] = useState<User | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [toastType, setToastType] = useState<"success" | "error">("success");
+  const [showScoringModal, setShowScoringModal] = useState(false);
+  const [scoringRules, setScoringRules] = useState<any>(null);
+  const [scoringLoading, setScoringLoading] = useState(false);
+  const [scoringError, setScoringError] = useState<string | null>(null);
   const toastOpacity = useRef(new Animated.Value(0)).current;
 
   const { getTeamById, getTeamLogo, loading: teamsLoading } = useTeams();
@@ -394,6 +404,24 @@ const Home = () => {
     }
   }, [currentGameweek, teamsLoading]);
 
+  // Fetch scoring rules from backend
+  const fetchScoringRules = async () => {
+    setScoringLoading(true);
+    setScoringError(null);
+    try {
+      const data = await constantsAPI.getScoringRules();
+      if (data.success) {
+        setScoringRules(data.data);
+      } else {
+        setScoringError("Failed to load scoring rules");
+      }
+    } catch (err) {
+      setScoringError("Failed to load scoring rules");
+    } finally {
+      setScoringLoading(false);
+    }
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString("en-GB", {
@@ -621,39 +649,53 @@ const Home = () => {
               </Text>
             </View>
           </View>
-          <View style={styles.userSection}>
-            {user && (
-              <View style={styles.userMenuWrapper}>
-                <TouchableOpacity
-                  onPress={() => setShowUserMenu((v) => !v)}
-                  activeOpacity={0.7}
-                  style={styles.displayNameMenuRow}
-                >
-                  <Text style={styles.displayName}>
-                    {user.display_name || user.email || "User"}
-                  </Text>
-                  <MaterialIcons
-                    name="arrow-drop-down"
-                    size={22}
-                    color="#333"
-                    style={styles.menuArrowIcon}
-                  />
-                </TouchableOpacity>
-                {showUserMenu && (
-                  <View style={styles.userMenuDropdown}>
-                    <TouchableOpacity
-                      style={styles.userMenuItem}
-                      onPress={() => {
-                        setShowUserMenu(false);
-                        handleLogout();
-                      }}
-                    >
-                      <Text style={styles.userMenuItemText}>Logout</Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-              </View>
+          <View style={styles.headerRightRow}>
+            {selectedGameweek === currentGameweek && (
+              <TouchableOpacity
+                style={styles.scoringInfoButton}
+                onPress={() => {
+                  setShowScoringModal(true);
+                  if (!scoringRules && !scoringLoading) fetchScoringRules();
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.scoringInfoText}>How do we score?</Text>
+              </TouchableOpacity>
             )}
+            <View style={styles.userSection}>
+              {user && (
+                <View style={styles.userMenuWrapper}>
+                  <TouchableOpacity
+                    onPress={() => setShowUserMenu((v) => !v)}
+                    activeOpacity={0.7}
+                    style={styles.displayNameMenuRow}
+                  >
+                    <Text style={styles.displayName}>
+                      {user.display_name || user.email || "User"}
+                    </Text>
+                    <MaterialIcons
+                      name="arrow-drop-down"
+                      size={22}
+                      color="#333"
+                      style={styles.menuArrowIcon}
+                    />
+                  </TouchableOpacity>
+                  {showUserMenu && (
+                    <View style={styles.userMenuDropdown}>
+                      <TouchableOpacity
+                        style={styles.userMenuItem}
+                        onPress={() => {
+                          setShowUserMenu(false);
+                          handleLogout();
+                        }}
+                      >
+                        <Text style={styles.userMenuItemText}>Logout</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+              )}
+            </View>
           </View>
         </View>
       </View>
@@ -786,6 +828,51 @@ const Home = () => {
           <Text style={styles.toastText}>{toastMessage}</Text>
         </Animated.View>
       )}
+      {/* Scoring Modal */}
+      <Modal
+        visible={showScoringModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowScoringModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>How do we score?</Text>
+            {scoringLoading ? (
+              <ActivityIndicator size="large" color="#007bff" />
+            ) : scoringError ? (
+              <Text style={styles.modalError}>{scoringError}</Text>
+            ) : scoringRules ? (
+              <View style={styles.scoringList}>
+                <Text style={styles.scoringItem}>
+                  <Text style={styles.scoringLabel}>Correct Result:</Text>{" "}
+                  {scoringRules.correct_result} pts
+                </Text>
+                <Text style={styles.scoringItem}>
+                  <Text style={styles.scoringLabel}>Correct Scoreline:</Text>{" "}
+                  {scoringRules.correct_scoreline} pts
+                </Text>
+                <Text style={styles.scoringItem}>
+                  <Text style={styles.scoringLabel}>Goals Scored:</Text>{" "}
+                  {scoringRules.goals_scored} pts
+                </Text>
+                <Text style={styles.scoringItem}>
+                  <Text style={styles.scoringLabel}>Assists:</Text>{" "}
+                  {scoringRules.assists} pts
+                </Text>
+              </View>
+            ) : (
+              <Text style={styles.modalError}>No scoring rules found.</Text>
+            )}
+            <TouchableOpacity
+              style={styles.closeModalButton}
+              onPress={() => setShowScoringModal(false)}
+            >
+              <Text style={styles.closeModalButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -1306,6 +1393,81 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",
+  },
+  headerRightRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+  },
+  scoringInfoButton: {
+    backgroundColor: "#e7f3ff",
+    borderColor: "#b8daff",
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginRight: 8,
+  },
+  scoringInfoText: {
+    color: "#007bff",
+    fontWeight: "600",
+    fontSize: 14,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.3)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 24,
+    width: "80%",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 18,
+    color: "#007bff",
+  },
+  scoringList: {
+    alignItems: "flex-start",
+    marginBottom: 18,
+    width: "100%",
+  },
+  scoringItem: {
+    fontSize: 16,
+    marginBottom: 10,
+    color: "#212529",
+  },
+  scoringLabel: {
+    fontWeight: "bold",
+    color: "#007bff",
+  },
+  modalError: {
+    color: "#dc3545",
+    fontSize: 16,
+    marginBottom: 18,
+    textAlign: "center",
+  },
+  closeModalButton: {
+    backgroundColor: "#007bff",
+    borderRadius: 8,
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    marginTop: 8,
+  },
+  closeModalButtonText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 16,
   },
 });
 

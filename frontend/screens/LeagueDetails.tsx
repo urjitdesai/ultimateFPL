@@ -7,13 +7,14 @@ import {
   TouchableOpacity,
   Alert,
   RefreshControl,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRoute, useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { RootStackParamList } from "../types/navigation";
-import { leaguesAPI, fixturesAPI } from "../utils/api";
+import { leaguesAPI, fixturesAPI, h2hAPI } from "../utils/api";
 import LeagueTable from "../components/LeagueTable";
 import LeagueGameweekSelector from "../components/LeagueGameweekSelector";
 
@@ -76,7 +77,10 @@ const LeagueDetails: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [tableLoading, setTableLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState<"table" | "history">("table");
+  const [activeTab, setActiveTab] = useState<"table" | "history" | "h2h">("table");
+  const [h2hTable, setH2HTable] = useState<any[]>([]);
+  const [h2hTableLoading, setH2HTableLoading] = useState(false);
+  const [isH2HLeague, setIsH2HLeague] = useState(false);
 
   useEffect(() => {
     fetchLeagueDetails();
@@ -94,6 +98,12 @@ const LeagueDetails: React.FC = () => {
       const response = await leaguesAPI.getLeagueById(leagueId);
       if (response.success && response.league) {
         setLeagueData(response.league);
+        const isH2H = response.league.leagueType === "h2h";
+        setIsH2HLeague(isH2H);
+        if (isH2H) {
+          setActiveTab("h2h");
+          fetchH2HTable();
+        }
         // Set the navigation header with league info
         navigation.setOptions({
           headerTitle: () => (
@@ -185,9 +195,25 @@ const LeagueDetails: React.FC = () => {
     setRefreshing(true);
     await Promise.all([
       fetchLeagueDetails(),
-      fetchLeagueTable(selectedGameweek, currentPage),
+      isH2HLeague
+        ? fetchH2HTable()
+        : fetchLeagueTable(selectedGameweek, currentPage),
     ]);
     setRefreshing(false);
+  };
+
+  const fetchH2HTable = async () => {
+    setH2HTableLoading(true);
+    try {
+      const response = await h2hAPI.getH2HLeagueTable(leagueId);
+      if (response.success) {
+        setH2HTable(response.table || []);
+      }
+    } catch (error) {
+      console.error("Error fetching H2H table:", error);
+    } finally {
+      setH2HTableLoading(false);
+    }
   };
 
   const handleGameweekChange = (gameweek: number) => {
@@ -282,40 +308,36 @@ const LeagueDetails: React.FC = () => {
           </View>
         )} */}
 
-        {/* Temporarily commented out tabs since we only have one tab */}
-        {/* <View style={styles.tabContainer}>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === "table" && styles.activeTab]}
-            onPress={() => setActiveTab("table")}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                activeTab === "table" && styles.activeTabText,
-              ]}
+        {/* Tabs */}
+        <View style={styles.tabContainer}>
+          {!isH2HLeague && (
+            <TouchableOpacity
+              style={[styles.tab, activeTab === "table" && styles.activeTab]}
+              onPress={() => setActiveTab("table")}
             >
-              Table
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === "history" && styles.activeTab]}
-            onPress={() => setActiveTab("history")}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                activeTab === "history" && styles.activeTabText,
-              ]}
+              <Text style={[styles.tabText, activeTab === "table" && styles.activeTabText]}>
+                Table
+              </Text>
+            </TouchableOpacity>
+          )}
+          {isH2HLeague && (
+            <TouchableOpacity
+              style={[styles.tab, activeTab === "h2h" && styles.activeTab]}
+              onPress={() => setActiveTab("h2h")}
             >
-              History
-            </Text>
-          </TouchableOpacity>
-        </View> */}
+              <Text style={[styles.tabText, activeTab === "h2h" && styles.activeTabText]}>
+                ⚔ H2H Table
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
+        {/* Standard League Table */}
         {/* {activeTab === "table" && ( */}
         {/* Removed tab condition since we only show table content now */}
+        {activeTab === "table" && (
         <>
-          {/* Gameweek Selector */}
+          {/* Gameweek Selector */}}
           <LeagueGameweekSelector
             selectedGameweek={selectedGameweek}
             currentGameweek={currentGameweek}
@@ -399,15 +421,48 @@ const LeagueDetails: React.FC = () => {
             )}
           </View>
         </>
+        )}
 
-        {/* Temporarily commented out history tab content */}
-        {/* {activeTab === "history" && (
-          <View style={styles.historyContainer}>
-            <Text style={styles.comingSoonText}>
-              History view coming soon...
-            </Text>
+        {/* H2H League Table */}
+        {activeTab === "h2h" && (
+          <View style={styles.h2hTableContainer}>
+            <TouchableOpacity
+              style={styles.calculateButton}
+              onPress={fetchH2HTable}
+              disabled={h2hTableLoading}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="refresh" size={16} color="#fff" />
+              <Text style={styles.calculateButtonText}>Refresh</Text>
+            </TouchableOpacity>
+
+            {h2hTableLoading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#fd7e14" />
+                <Text style={styles.loadingText}>Loading H2H table...</Text>
+              </View>
+            ) : h2hTable.length === 0 ? (
+              <View style={styles.loadingContainer}>
+                <Text style={styles.noDataText}>No H2H data yet. Place wagers to see standings.</Text>
+              </View>
+            ) : (
+              h2hTable.map((entry: any, index: number) => (
+                <View key={entry.userId} style={styles.h2hRow}>
+                  <Text style={styles.h2hRank}>{entry.rank}</Text>
+                  <View style={styles.h2hUserInfo}>
+                    <Text style={styles.h2hUserName}>{entry.userName}</Text>
+                    <Text style={styles.h2hUserStats}>
+                      W{entry.wagersWon} / L{entry.wagersLost}
+                    </Text>
+                  </View>
+                  <Text style={styles.h2hScore}>
+                    {entry.totalScore > 0 ? "+" : ""}{entry.totalScore} pts
+                  </Text>
+                </View>
+              ))
+            )}
           </View>
-        )} */}
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -597,6 +652,54 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#fff",
     fontWeight: "500",
+  },
+  h2hTableContainer: {
+    padding: 12,
+  },
+  h2hRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  h2hRank: {
+    width: 30,
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#fd7e14",
+    textAlign: "center",
+  },
+  h2hUserInfo: {
+    flex: 1,
+    marginLeft: 10,
+  },
+  h2hUserName: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#212529",
+  },
+  h2hUserStats: {
+    fontSize: 12,
+    color: "#6c757d",
+    marginTop: 2,
+  },
+  h2hScore: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#212529",
+  },
+  noDataText: {
+    textAlign: "center",
+    color: "#6c757d",
+    fontSize: 14,
+    marginTop: 20,
+    fontStyle: "italic",
   },
 });
 

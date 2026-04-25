@@ -25,6 +25,7 @@ const CreateLeagueModal: React.FC<CreateLeagueModalProps> = ({
 }) => {
   const [leagueName, setLeagueName] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
+  const [leagueType, setLeagueType] = useState<"standard" | "h2h">("standard");
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [createdLeague, setCreatedLeague] = useState<any>(null);
@@ -40,7 +41,8 @@ const CreateLeagueModal: React.FC<CreateLeagueModalProps> = ({
       const response = await leaguesAPI.createLeague(
         leagueName.trim(),
         "",
-        isPrivate
+        isPrivate,
+        leagueType
       );
 
       if (response.success) {
@@ -63,6 +65,7 @@ const CreateLeagueModal: React.FC<CreateLeagueModalProps> = ({
   const handleClose = () => {
     setLeagueName("");
     setIsPrivate(false);
+    setLeagueType("standard");
     setLoading(false);
     setShowSuccess(false);
     setCreatedLeague(null);
@@ -98,6 +101,59 @@ const CreateLeagueModal: React.FC<CreateLeagueModalProps> = ({
               maxLength={50}
               autoFocus={true}
             />
+
+            {/* League Type Toggle */}
+            <Text style={styles.sectionLabel}>League Type</Text>
+            <View style={styles.leagueTypeContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.leagueTypeOption,
+                  leagueType === "standard" && styles.leagueTypeSelected,
+                ]}
+                onPress={() => setLeagueType("standard")}
+              >
+                <Text
+                  style={[
+                    styles.leagueTypeText,
+                    leagueType === "standard" && styles.leagueTypeTextSelected,
+                  ]}
+                >
+                  Standard
+                </Text>
+                <Text
+                  style={[
+                    styles.leagueTypeDesc,
+                    leagueType === "standard" && styles.leagueTypeDescSelected,
+                  ]}
+                >
+                  Compete on prediction points
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.leagueTypeOption,
+                  leagueType === "h2h" && styles.leagueTypeSelectedH2H,
+                ]}
+                onPress={() => setLeagueType("h2h")}
+              >
+                <Text
+                  style={[
+                    styles.leagueTypeText,
+                    leagueType === "h2h" && styles.leagueTypeTextSelected,
+                  ]}
+                >
+                  Head-to-Head
+                </Text>
+                <Text
+                  style={[
+                    styles.leagueTypeDesc,
+                    leagueType === "h2h" && styles.leagueTypeDescSelected,
+                  ]}
+                >
+                  Wager points against opponents
+                </Text>
+              </TouchableOpacity>
+            </View>
 
             <TouchableOpacity
               style={styles.checkboxContainer}
@@ -304,6 +360,51 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#6c757d",
     lineHeight: 18,
+  },
+  sectionLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#495057",
+    marginBottom: 10,
+  },
+  leagueTypeContainer: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 24,
+  },
+  leagueTypeOption: {
+    flex: 1,
+    borderWidth: 2,
+    borderColor: "#dee2e6",
+    borderRadius: 10,
+    padding: 12,
+    alignItems: "center",
+    backgroundColor: "#f8f9fa",
+  },
+  leagueTypeSelected: {
+    borderColor: "#007bff",
+    backgroundColor: "#e7f3ff",
+  },
+  leagueTypeSelectedH2H: {
+    borderColor: "#fd7e14",
+    backgroundColor: "#fff3e0",
+  },
+  leagueTypeText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#6c757d",
+    marginBottom: 4,
+  },
+  leagueTypeTextSelected: {
+    color: "#212529",
+  },
+  leagueTypeDesc: {
+    fontSize: 11,
+    color: "#adb5bd",
+    textAlign: "center",
+  },
+  leagueTypeDescSelected: {
+    color: "#495057",
   },
 
   // Success Modal Styles

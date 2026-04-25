@@ -1,6 +1,7 @@
 import { db } from "../../firestore.js";
 import fixtureService from "../fixtures/fixtures.service.js";
 import leagueScores2Service from "../leagueScores/leagueScores2.service.js";
+import { h2hWagersService } from "../h2hWagers/h2hWagers.service.js";
 import TEAMS from "../constants/teams.js";
 
 // Helper function to generate a unique 6-digit alphanumeric code
@@ -43,7 +44,12 @@ const createLeague = async ({
   description,
   creatorUserId,
   is_private,
+  leagueType = "standard",
 }) => {
+  if (!["standard", "h2h"].includes(leagueType)) {
+    throw new Error("Invalid leagueType. Must be 'standard' or 'h2h'.");
+  }
+
   const newLeagueRef = db.collection("leagues").doc();
   const leagueCode = await generateUniqueLeagueCode();
 
@@ -57,6 +63,7 @@ const createLeague = async ({
     creatorUserId,
     is_private,
     leagueCode,
+    leagueType,
     createdAt: new Date(),
     createdAtGameweek: currentGameweek,
   });
@@ -75,13 +82,21 @@ const createLeague = async ({
 
   // Initialize league score document for the creator
   try {
-    await leagueScores2Service.initializeUserLeagueScore(
-      newLeagueRef.id,
-      creatorUserId,
-      joiningGameweek
-    );
+    if (leagueType === "h2h") {
+      await h2hWagersService.initializeUserH2HLeagueScore(
+        newLeagueRef.id,
+        creatorUserId,
+        joiningGameweek
+      );
+    } else {
+      await leagueScores2Service.initializeUserLeagueScore(
+        newLeagueRef.id,
+        creatorUserId,
+        joiningGameweek
+      );
+    }
     console.log(
-      `Initialized league score for creator ${creatorUserId} in new league ${newLeagueRef.id}`
+      `Initialized ${leagueType} league score for creator ${creatorUserId} in new league ${newLeagueRef.id}`
     );
   } catch (scoreError) {
     console.error(`Error initializing league score for creator:`, scoreError);
@@ -95,6 +110,7 @@ const createLeague = async ({
     creatorUserId,
     is_private,
     leagueCode,
+    leagueType,
   };
 };
 
@@ -287,11 +303,19 @@ const joinLeague = async (userId, league_code) => {
 
   // Initialize league score document for this user in this league
   try {
-    await leagueScores2Service.initializeUserLeagueScore(
-      leagueDoc.id,
-      userId,
-      joiningGameweek
-    );
+    if (leagueData.leagueType === "h2h") {
+      await h2hWagersService.initializeUserH2HLeagueScore(
+        leagueDoc.id,
+        userId,
+        joiningGameweek
+      );
+    } else {
+      await leagueScores2Service.initializeUserLeagueScore(
+        leagueDoc.id,
+        userId,
+        joiningGameweek
+      );
+    }
     console.log(
       `Initialized league score for user ${userId} in league ${leagueDoc.id}`
     );

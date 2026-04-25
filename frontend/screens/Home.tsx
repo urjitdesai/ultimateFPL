@@ -20,6 +20,8 @@ import {
   fixturesAPI,
   predictionsAPI,
   constantsAPI,
+  leaguesAPI,
+  h2hAPI,
 } from "../utils/api";
 import { useNavigation } from "@react-navigation/native";
 import { useTeams } from "../hooks/useTeams";
@@ -83,6 +85,14 @@ const Home = () => {
   const [scoringRules, setScoringRules] = useState<any>(null);
   const [scoringLoading, setScoringLoading] = useState(false);
   const [scoringError, setScoringError] = useState<string | null>(null);
+  // H2H wager state
+  const [h2hLeagues, setH2HLeagues] = useState<any[]>([]);
+  const [h2hWagers, setH2HWagers] = useState<{ [fixtureId: string]: any }>({});
+  const [h2hWagersLoading, setH2HWagersLoading] = useState(false);
+  const [h2hWagerSummary, setH2HWagerSummary] = useState<{ [leagueId: string]: { totalWagered: number; remainingCap: number } }>({});
+  // Per-fixture H2H wager form state: { [fixtureId]: { leagueId, outcome, amount, open } }
+  const [h2hWagerForm, setH2HWagerForm] = useState<{ [fixtureId: string]: { leagueId: string; outcome: "home" | "draw" | "away" | null; amount: number; open: boolean } }>({});
+  const [h2hSubmitting, setH2HSubmitting] = useState<{ [fixtureId: string]: boolean }>({});
   const toastOpacity = useRef(new Animated.Value(0)).current;
 
   const { getTeamById, getTeamLogo, loading: teamsLoading } = useTeams();
@@ -395,7 +405,15 @@ const Home = () => {
   // Get user data when component mounts
   useEffect(() => {
     getUserData();
+    fetchH2HLeagues();
   }, []);
+
+  // Fetch H2H wagers when gameweek or h2h leagues change
+  useEffect(() => {
+    if (selectedGameweek && h2hLeagues.length > 0) {
+      fetchH2HWagersForGameweek(selectedGameweek);
+    }
+  }, [selectedGameweek, h2hLeagues.length]);
 
   // Fetch fixtures when current gameweek changes and teams are loaded
   useEffect(() => {
@@ -419,6 +437,100 @@ const Home = () => {
       setScoringError("Failed to load scoring rules");
     } finally {
       setScoringLoading(false);
+    }
+  };
+
+  // Fetch user's H2H leagues
+  const fetchH2HLeagues = async () => {
+    try {
+      const response = await leaguesAPI.getUserLeagues();
+      const leagues = response.success ? response.leagues : [];
+      const h2h = leagues.filter((l: any) => l.leagueType === "h2h");
+      setH2HLeagues(h2h);
+      // Pre-select first H2H league in each fixture form
+      if (h2h.length > 0) {
+        // initialise wager forms lazily per fixture
+      }
+    } catch (err) {
+      // Silently fail - H2H is optional
+    }
+  };
+
+  // Fetch existing H2H wagers for the current gameweek across all H2H leagues
+  const fetchH2HWagersForGameweek = async (gameweek: number) => {
+    if (h2hLeagues.length === 0) return;
+    setH2HWagersLoading(true);
+    try {
+      const summaries: { [leagueId: string]: any } = {};
+      const wagersByFixture: { [fixtureId: string]: any } = {};
+
+      await Promise.all(
+        h2hLeagues.map(async (league: any) => {
+          try {
+            const data = await h2hAPI.getMyWagersForGameweek(league.id, gameweek);
+            summaries[league.id] = {
+              totalWagered: data.totalWagered || 0,
+              remainingCap: data.remainingCap ?? 100,
+            };
+            (data.wagers || []).forEach((wager: any) => {
+              const key = `${league.id}_${wager.fixtureId}`;
+              wagersByFixture[key] = wager;
+            });
+          } catch {
+            // League may have no wagers
+          }
+        })
+      );
+
+      setH2HWagerSummary(summaries);
+      setH2HWagers(wagersByFixture);
+    } catch (err) {
+      // Silent fail
+    } finally {
+      setH2HWagersLoading(false);
+    }
+  };
+
+  // Open / close wager panel for a fixture
+  const toggleH2HPanel = (fixtureId: string) => {
+    const defaultLeague = h2hLeagues[0]?.id || "";
+    setH2HWagerForm((prev) => ({
+      ...prev,
+      [fixtureId]: prev[fixtureId]
+        ? { ...prev[fixtureId], open: !prev[fixtureId].open }
+        : { leagueId: defaultLeague, outcome: null, amount: 10, open: true },
+    }));
+  };
+
+  // Submit an H2H wager
+  const submitH2HWager = async (fixtureId: string) => {
+    const form = h2hWagerForm[fixtureId];
+    if (!form || !form.outcome || !form.leagueId) {
+      showToast("Please select a league and outcome.", "error");
+      return;
+    }
+    setH2HSubmitting((prev) => ({ ...prev, [fixtureId]: true }));
+    try {
+      await h2hAPI.placeWager(
+        form.leagueId,
+        Number(fixtureId),
+        selectedGameweek,
+        form.outcome,
+        form.amount
+      );
+      showToast("✓ H2H wager placed!", "success");
+      // Refresh wager data
+      await fetchH2HWagersForGameweek(selectedGameweek);
+      // Close the panel
+      setH2HWagerForm((prev) => ({
+        ...prev,
+        [fixtureId]: { ...prev[fixtureId], open: false },
+      }));
+    } catch (err: any) {
+      const msg = err?.response?.data?.error || "Failed to place wager.";
+      showToast(`✗ ${msg}`, "error");
+    } finally {
+      setH2HSubmitting((prev) => ({ ...prev, [fixtureId]: false }));
     }
   };
 
@@ -628,6 +740,188 @@ const Home = () => {
               </View>
             )}
         </View>
+
+        {/* H2H Wager Panel - only for current gameweek, only if in H2H leagues */}
+        {selectedGameweek === currentGameweek &&
+          h2hLeagues.length > 0 &&
+          !fixture.started &&
+          !fixture.finished && (() => {
+            const form = h2hWagerForm[fixture.id];
+            const activeLeagueId = form?.leagueId || h2hLeagues[0]?.id;
+            const existingWager = h2hWagers[`${activeLeagueId}_${fixture.id}`];
+            const cap = h2hWagerSummary[activeLeagueId];
+
+            return (
+              <View style={styles.h2hContainer}>
+                <TouchableOpacity
+                  style={styles.h2hToggleButton}
+                  onPress={() => toggleH2HPanel(fixture.id)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.h2hToggleText}>
+                    {existingWager
+                      ? `⚔  H2H Wager: ${existingWager.totalAmount} pts (${existingWager.status})`
+                      : "⚔  Place H2H Wager"}
+                  </Text>
+                  <Text style={styles.h2hToggleArrow}>
+                    {form?.open ? "▲" : "▼"}
+                  </Text>
+                </TouchableOpacity>
+
+                {form?.open && (
+                  <View style={styles.h2hPanel}>
+                    {/* League selector (if multiple H2H leagues) */}
+                    {h2hLeagues.length > 1 && (
+                      <View style={styles.h2hLabelRow}>
+                        <Text style={styles.h2hLabel}>League:</Text>
+                        <View style={styles.h2hLeagueRow}>
+                          {h2hLeagues.map((league: any) => (
+                            <TouchableOpacity
+                              key={league.id}
+                              style={[
+                                styles.h2hLeagueChip,
+                                form.leagueId === league.id &&
+                                  styles.h2hLeagueChipActive,
+                              ]}
+                              onPress={() =>
+                                setH2HWagerForm((prev) => ({
+                                  ...prev,
+                                  [fixture.id]: {
+                                    ...prev[fixture.id],
+                                    leagueId: league.id,
+                                  },
+                                }))
+                              }
+                            >
+                              <Text
+                                style={[
+                                  styles.h2hLeagueChipText,
+                                  form.leagueId === league.id &&
+                                    styles.h2hLeagueChipTextActive,
+                                ]}
+                              >
+                                {league.name}
+                              </Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      </View>
+                    )}
+
+                    {/* Outcome buttons */}
+                    <Text style={styles.h2hLabel}>Predict outcome:</Text>
+                    <View style={styles.h2hOutcomeRow}>
+                      {(["home", "draw", "away"] as const).map((o) => (
+                        <TouchableOpacity
+                          key={o}
+                          style={[
+                            styles.h2hOutcomeBtn,
+                            form?.outcome === o && styles.h2hOutcomeBtnActive,
+                          ]}
+                          onPress={() =>
+                            setH2HWagerForm((prev) => ({
+                              ...prev,
+                              [fixture.id]: { ...prev[fixture.id], outcome: o },
+                            }))
+                          }
+                        >
+                          <Text
+                            style={[
+                              styles.h2hOutcomeText,
+                              form?.outcome === o &&
+                                styles.h2hOutcomeTextActive,
+                            ]}
+                          >
+                            {o === "home"
+                              ? fixture.homeTeam
+                              : o === "away"
+                              ? fixture.awayTeam
+                              : "Draw"}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+
+                    {/* Amount stepper */}
+                    <Text style={styles.h2hLabel}>
+                      Wager amount (10–100 pts):
+                    </Text>
+                    <View style={styles.h2hAmountRow}>
+                      <TouchableOpacity
+                        style={styles.h2hStepBtn}
+                        onPress={() =>
+                          setH2HWagerForm((prev) => ({
+                            ...prev,
+                            [fixture.id]: {
+                              ...prev[fixture.id],
+                              amount: Math.max(
+                                10,
+                                (prev[fixture.id]?.amount || 10) - 10
+                              ),
+                            },
+                          }))
+                        }
+                      >
+                        <Text style={styles.h2hStepText}>−</Text>
+                      </TouchableOpacity>
+                      <Text style={styles.h2hAmountText}>
+                        {form?.amount || 10} pts
+                      </Text>
+                      <TouchableOpacity
+                        style={styles.h2hStepBtn}
+                        onPress={() => {
+                          const currentAmount = form?.amount || 10;
+                          const remaining =
+                            cap?.remainingCap ?? 100;
+                          const maxAllowed = Math.min(
+                            100,
+                            currentAmount + remaining
+                          );
+                          setH2HWagerForm((prev) => ({
+                            ...prev,
+                            [fixture.id]: {
+                              ...prev[fixture.id],
+                              amount: Math.min(
+                                maxAllowed,
+                                currentAmount + 10
+                              ),
+                            },
+                          }));
+                        }}
+                      >
+                        <Text style={styles.h2hStepText}>+</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {cap && (
+                      <Text style={styles.h2hCapText}>
+                        Gameweek cap: {cap.totalWagered}/100 pts used •{" "}
+                        {cap.remainingCap} pts remaining
+                      </Text>
+                    )}
+
+                    <TouchableOpacity
+                      style={[
+                        styles.h2hSubmitBtn,
+                        (!form?.outcome || h2hSubmitting[fixture.id]) &&
+                          styles.h2hSubmitBtnDisabled,
+                      ]}
+                      onPress={() => submitH2HWager(fixture.id)}
+                      disabled={!form?.outcome || !!h2hSubmitting[fixture.id]}
+                    >
+                      {h2hSubmitting[fixture.id] ? (
+                        <ActivityIndicator size="small" color="#fff" />
+                      ) : (
+                        <Text style={styles.h2hSubmitText}>
+                          {existingWager ? "Update Wager" : "Place Wager"}
+                        </Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            );
+          })()}
       </View>
     </View>
   );
@@ -1468,6 +1762,153 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "bold",
     fontSize: 16,
+  },
+  // ─── H2H Wager Panel ───────────────────────────────────────────────────────
+  h2hContainer: {
+    marginTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#e9ecef",
+    paddingTop: 10,
+  },
+  h2hToggleButton: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#fff3e0",
+    borderWidth: 1,
+    borderColor: "#fd7e14",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  h2hToggleText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#e65100",
+  },
+  h2hToggleArrow: {
+    fontSize: 11,
+    color: "#e65100",
+  },
+  h2hPanel: {
+    marginTop: 10,
+    padding: 12,
+    backgroundColor: "#fffbf5",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#ffe0b2",
+  },
+  h2hLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#6c757d",
+    marginBottom: 6,
+    marginTop: 4,
+  },
+  h2hLabelRow: {
+    marginBottom: 4,
+  },
+  h2hLeagueRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginBottom: 6,
+  },
+  h2hLeagueChip: {
+    borderWidth: 1,
+    borderColor: "#dee2e6",
+    borderRadius: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    backgroundColor: "#f8f9fa",
+  },
+  h2hLeagueChipActive: {
+    borderColor: "#fd7e14",
+    backgroundColor: "#fff3e0",
+  },
+  h2hLeagueChipText: {
+    fontSize: 12,
+    color: "#6c757d",
+  },
+  h2hLeagueChipTextActive: {
+    color: "#e65100",
+    fontWeight: "600",
+  },
+  h2hOutcomeRow: {
+    flexDirection: "row",
+    gap: 6,
+    marginBottom: 10,
+  },
+  h2hOutcomeBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "#dee2e6",
+    borderRadius: 8,
+    paddingVertical: 8,
+    alignItems: "center",
+    backgroundColor: "#f8f9fa",
+  },
+  h2hOutcomeBtnActive: {
+    borderColor: "#fd7e14",
+    backgroundColor: "#fd7e14",
+  },
+  h2hOutcomeText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#6c757d",
+    textAlign: "center",
+  },
+  h2hOutcomeTextActive: {
+    color: "#fff",
+  },
+  h2hAmountRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 16,
+    marginBottom: 8,
+  },
+  h2hStepBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#fd7e14",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  h2hStepText: {
+    fontSize: 20,
+    color: "#fff",
+    fontWeight: "bold",
+    lineHeight: 22,
+  },
+  h2hAmountText: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#212529",
+    minWidth: 70,
+    textAlign: "center",
+  },
+  h2hCapText: {
+    fontSize: 11,
+    color: "#6c757d",
+    textAlign: "center",
+    marginBottom: 10,
+  },
+  h2hSubmitBtn: {
+    backgroundColor: "#fd7e14",
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: "center",
+    marginTop: 4,
+  },
+  h2hSubmitBtnDisabled: {
+    backgroundColor: "#adb5bd",
+  },
+  h2hSubmitText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 14,
   },
 });
 

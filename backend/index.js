@@ -20,6 +20,7 @@ import scoreRouter from "./db/score/index.js";
 import leaguesRouter from "./db/leagues/index.js";
 import simulateRouter from "./db/simulate/index.js";
 import schemasRouter from "./schemas/index.js";
+import h2hWagersRouter from "./db/h2hWagers/index.js";
 const app = express();
 
 app.use(
@@ -95,6 +96,7 @@ app.use("/api/score", scoreRouter);
 app.use("/api/leagues", leaguesRouter);
 app.use("/api/simulate", simulateRouter);
 app.use("/api/schemas", schemasRouter);
+app.use("/api/h2h", h2hWagersRouter);
 
 const PORT = process.env.PORT || 3000;
 

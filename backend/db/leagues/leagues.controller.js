@@ -3,7 +3,7 @@ import { leaguesService } from "../leagues/leagues.service.js";
 export const createLeague = async (req, res) => {
   // creatorUserId is now available from JWT token
   const creatorUserId = req.user.id;
-  const { name, description, is_private } = req.body;
+  const { name, description, is_private, leagueType } = req.body;
 
   if (!name) {
     return res.status(400).json({ error: "League name is required" });
@@ -15,6 +15,7 @@ export const createLeague = async (req, res) => {
       description,
       creatorUserId,
       is_private: is_private || false,
+      leagueType: leagueType || "standard",
     });
     return res.status(201).json({
       success: true,

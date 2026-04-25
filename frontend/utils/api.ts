@@ -155,12 +155,14 @@ export const leaguesAPI = {
   createLeague: async (
     name: string,
     description?: string,
-    isPrivate: boolean = false
+    isPrivate: boolean = false,
+    leagueType: "standard" | "h2h" = "standard"
   ) => {
     const response = await api.post("/api/leagues/create", {
       name,
       description,
       is_private: isPrivate,
+      leagueType,
     });
     return response.data;
   },
@@ -317,6 +319,46 @@ export const constantsAPI = {
   // Get scoring rules
   getScoringRules: async () => {
     const response = await api.get("/api/constants/scoring");
+    return response.data;
+  },
+};
+
+// H2H Wagers API functions
+export const h2hAPI = {
+  // Place or update a wager on a fixture
+  placeWager: async (
+    leagueId: string,
+    fixtureId: number,
+    gameweek: number,
+    outcome: "home" | "draw" | "away",
+    amount: number
+  ) => {
+    const response = await api.post(`/api/h2h/${leagueId}/wager`, {
+      fixtureId,
+      gameweek,
+      outcome,
+      amount,
+    });
+    return response.data;
+  },
+
+  // Get current user's wager summary for a gameweek in a league
+  getMyWagersForGameweek: async (leagueId: string, gameweek: number) => {
+    const response = await api.get(`/api/h2h/${leagueId}/wagers/${gameweek}`);
+    return response.data;
+  },
+
+  // Get all wagers on a fixture in a league
+  getWagersForFixture: async (leagueId: string, fixtureId: number) => {
+    const response = await api.get(
+      `/api/h2h/${leagueId}/fixture/${fixtureId}/wagers`
+    );
+    return response.data;
+  },
+
+  // Get H2H league table
+  getH2HLeagueTable: async (leagueId: string) => {
+    const response = await api.get(`/api/h2h/${leagueId}/table`);
     return response.data;
   },
 };

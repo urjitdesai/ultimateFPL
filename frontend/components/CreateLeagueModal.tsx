@@ -42,7 +42,7 @@ const CreateLeagueModal: React.FC<CreateLeagueModalProps> = ({
         leagueName.trim(),
         "",
         isPrivate,
-        leagueType
+        leagueType,
       );
 
       if (response.success) {

@@ -30,6 +30,7 @@ interface LeagueTableProps {
   loading?: boolean;
   emptyMessage?: string;
   currentUserEntry?: LeagueMember | null;
+  currentUserId?: string;
 }
 
 const LeagueTable: React.FC<LeagueTableProps> = ({
@@ -39,6 +40,7 @@ const LeagueTable: React.FC<LeagueTableProps> = ({
   loading = false,
   emptyMessage = "No league data available",
   currentUserEntry = null,
+  currentUserId,
 }) => {
   const renderPositionChange = (member: LeagueMember) => {
     // If user hasn't started participating yet, show nothing
@@ -116,7 +118,7 @@ const LeagueTable: React.FC<LeagueTableProps> = ({
     member: LeagueMember,
     index: number,
     isCurrentUser: boolean = false,
-    isLast: boolean = false
+    isLast: boolean = false,
   ) => (
     <TouchableOpacity
       key={member.userId}
@@ -149,10 +151,10 @@ const LeagueTable: React.FC<LeagueTableProps> = ({
                   member.rank === 1
                     ? "#ffd700"
                     : member.rank === 2
-                    ? "#c0c0c0"
-                    : member.rank === 3
-                    ? "#cd7f32"
-                    : ""
+                      ? "#c0c0c0"
+                      : member.rank === 3
+                        ? "#cd7f32"
+                        : ""
                 }
               />
             </View>
@@ -232,9 +234,9 @@ const LeagueTable: React.FC<LeagueTableProps> = ({
           renderMemberRow(
             member,
             index,
-            false,
-            index === members.length - 1 && !currentUserEntry?.position
-          )
+            currentUserId ? member.userId === currentUserId : false,
+            index === members.length - 1 && !currentUserEntry?.position,
+          ),
         )}
 
         {/* Current User Entry - Below (if ranked lower than current page) */}

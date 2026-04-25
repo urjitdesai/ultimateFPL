@@ -77,14 +77,14 @@ const validateWagerDeadline = async (fixtureId, gameweek) => {
 
   if (fixture.started || fixture.finished) {
     throw new Error(
-      "Wager deadline has passed. This fixture has already started."
+      "Wager deadline has passed. This fixture has already started.",
     );
   }
 
   const kickoffTime = new Date(fixture.kickoff_time);
   if (new Date() >= kickoffTime) {
     throw new Error(
-      "Wager deadline has passed. Kickoff time has been reached."
+      "Wager deadline has passed. Kickoff time has been reached.",
     );
   }
 
@@ -98,7 +98,7 @@ const getTotalWageredThisGameweek = async (
   leagueId,
   userId,
   gameweek,
-  excludeFixtureId = null
+  excludeFixtureId = null,
 ) => {
   const snapshot = await db
     .collection("h2h_wagers")
@@ -122,7 +122,11 @@ const getTotalWageredThisGameweek = async (
 // INITIALIZE H2H LEAGUE SCORE
 // ============================================
 
-const initializeUserH2HLeagueScore = async (leagueId, userId, joinedGameweek) => {
+const initializeUserH2HLeagueScore = async (
+  leagueId,
+  userId,
+  joinedGameweek,
+) => {
   const docId = `${leagueId}_${userId}`;
   const docRef = db.collection("h2h_league_scores").doc(docId);
 
@@ -172,7 +176,7 @@ const placeWager = async ({
     amount > MAX_WAGER_PER_FIXTURE
   ) {
     throw new Error(
-      `Wager amount must be between ${MIN_WAGER} and ${MAX_WAGER_PER_FIXTURE} points.`
+      `Wager amount must be between ${MIN_WAGER} and ${MAX_WAGER_PER_FIXTURE} points.`,
     );
   }
 
@@ -204,12 +208,12 @@ const placeWager = async ({
     leagueId,
     userId,
     gameweek,
-    fixtureId
+    fixtureId,
   );
   if (alreadyWagered + amount > MAX_WAGER_PER_GAMEWEEK) {
     const remaining = MAX_WAGER_PER_GAMEWEEK - alreadyWagered;
     throw new Error(
-      `Gameweek wager cap reached. You can only wager ${remaining} more points this gameweek.`
+      `Gameweek wager cap reached. You can only wager ${remaining} more points this gameweek.`,
     );
   }
 
@@ -223,13 +227,13 @@ const placeWager = async ({
     // Cannot change outcome once matched
     if (data.matchedAmount > 0 && data.outcome !== outcome) {
       throw new Error(
-        "Cannot change outcome once part of your wager is matched."
+        "Cannot change outcome once part of your wager is matched.",
       );
     }
     // Cannot reduce below already-matched amount
     if (amount < data.matchedAmount) {
       throw new Error(
-        `Cannot reduce wager below matched amount (${data.matchedAmount} pts).`
+        `Cannot reduce wager below matched amount (${data.matchedAmount} pts).`,
       );
     }
   }
@@ -252,8 +256,8 @@ const placeWager = async ({
           existing.matchedAmount >= amount
             ? "fully_matched"
             : existing.matchedAmount > 0
-            ? "partially_matched"
-            : "pending",
+              ? "partially_matched"
+              : "pending",
         updatedAt: new Date(),
         matches: prevMatches,
       };
@@ -290,7 +294,7 @@ const placeWager = async ({
         (doc) =>
           doc.id !== docId &&
           opposingOutcomes.includes(doc.data().outcome) &&
-          doc.data().userId !== userId
+          doc.data().userId !== userId,
       )
       .map((doc) => ({ id: doc.id, ref: doc.ref, data: doc.data() }));
 
@@ -324,8 +328,7 @@ const placeWager = async ({
         update: {
           matchedAmount: newOppMatchedAmount,
           unmatchedAmount: newOppUnmatched,
-          status:
-            newOppUnmatched <= 0 ? "fully_matched" : "partially_matched",
+          status: newOppUnmatched <= 0 ? "fully_matched" : "partially_matched",
           matches: updatedOppMatches,
           updatedAt: new Date(),
         },
@@ -347,8 +350,8 @@ const placeWager = async ({
       wagerData.matchedAmount >= wagerData.totalAmount
         ? "fully_matched"
         : wagerData.matchedAmount > 0
-        ? "partially_matched"
-        : "pending";
+          ? "partially_matched"
+          : "pending";
 
     // Write all updates
     transaction.set(wagerRef, wagerData, { merge: false });
@@ -413,15 +416,13 @@ const getWagersForFixture = async (leagueId, fixtureId) => {
 const resolveGameweekWagers = async (leagueId, gameweek) => {
   // --- 1. Fetch all fixtures for this gameweek ---
   const fixtures = await fixturesService.getFixtureById(gameweek);
-  const fixtureMap = new Map(
-    fixtures.map((f) => [Number(f.id), f])
-  );
+  const fixtureMap = new Map(fixtures.map((f) => [Number(f.id), f]));
 
   // Ensure all fixtures are finished
   const unfinished = fixtures.filter((f) => !f.finished);
   if (unfinished.length > 0) {
     throw new Error(
-      `Cannot resolve: ${unfinished.length} fixture(s) in gameweek ${gameweek} are not finished yet.`
+      `Cannot resolve: ${unfinished.length} fixture(s) in gameweek ${gameweek} are not finished yet.`,
     );
   }
 
@@ -458,7 +459,7 @@ const resolveGameweekWagers = async (leagueId, gameweek) => {
 
     const actualResult = getMatchResult(
       fixture.team_h_score,
-      fixture.team_a_score
+      fixture.team_a_score,
     );
 
     // Tally up net change from matched portions
@@ -539,14 +540,12 @@ const resolveGameweekWagers = async (leagueId, gameweek) => {
         t.update(scoreDocRef, {
           totalScore: newTotal,
           [`gameweekScores.${gameweek}`]: newGWScore,
-          wagersWon:
-            (data.wagersWon || 0) + (netChange > 0 ? 1 : 0),
-          wagersLost:
-            (data.wagersLost || 0) + (netChange < 0 ? 1 : 0),
+          wagersWon: (data.wagersWon || 0) + (netChange > 0 ? 1 : 0),
+          wagersLost: (data.wagersLost || 0) + (netChange < 0 ? 1 : 0),
           lastUpdatedGameweek: Number(gameweek),
           updatedAt: new Date(),
         });
-      })
+      }),
     );
   }
 
@@ -586,8 +585,7 @@ const voidUnmatchedWagersForFixture = async (leagueId, fixtureId, gameweek) => {
     if (data.status === "voided" || data.status === "resolved") return;
 
     if (data.unmatchedAmount > 0) {
-      const newStatus =
-        data.matchedAmount > 0 ? "fully_matched" : "voided";
+      const newStatus = data.matchedAmount > 0 ? "fully_matched" : "voided";
       batch.update(doc.ref, {
         unmatchedAmount: 0,
         status: newStatus,
@@ -616,7 +614,7 @@ const getH2HLeagueTable = async (leagueId) => {
   // Fetch user names
   const userIds = snapshot.docs.map((doc) => doc.data().userId);
   const userDocs = await Promise.all(
-    userIds.map((uid) => db.collection("users").doc(uid).get())
+    userIds.map((uid) => db.collection("users").doc(uid).get()),
   );
   const userMap = new Map();
   userDocs.forEach((doc) => {

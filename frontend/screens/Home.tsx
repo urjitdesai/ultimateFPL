@@ -89,10 +89,21 @@ const Home = () => {
   const [h2hLeagues, setH2HLeagues] = useState<any[]>([]);
   const [h2hWagers, setH2HWagers] = useState<{ [fixtureId: string]: any }>({});
   const [h2hWagersLoading, setH2HWagersLoading] = useState(false);
-  const [h2hWagerSummary, setH2HWagerSummary] = useState<{ [leagueId: string]: { totalWagered: number; remainingCap: number } }>({});
+  const [h2hWagerSummary, setH2HWagerSummary] = useState<{
+    [leagueId: string]: { totalWagered: number; remainingCap: number };
+  }>({});
   // Per-fixture H2H wager form state: { [fixtureId]: { leagueId, outcome, amount, open } }
-  const [h2hWagerForm, setH2HWagerForm] = useState<{ [fixtureId: string]: { leagueId: string; outcome: "home" | "draw" | "away" | null; amount: number; open: boolean } }>({});
-  const [h2hSubmitting, setH2HSubmitting] = useState<{ [fixtureId: string]: boolean }>({});
+  const [h2hWagerForm, setH2HWagerForm] = useState<{
+    [fixtureId: string]: {
+      leagueId: string;
+      outcome: "home" | "draw" | "away" | null;
+      amount: number;
+      open: boolean;
+    };
+  }>({});
+  const [h2hSubmitting, setH2HSubmitting] = useState<{
+    [fixtureId: string]: boolean;
+  }>({});
   const toastOpacity = useRef(new Animated.Value(0)).current;
 
   const { getTeamById, getTeamLogo, loading: teamsLoading } = useTeams();
@@ -102,7 +113,7 @@ const Home = () => {
   const showToast = (
     message: string,
     type: "success" | "error" = "success",
-    duration: number = 3000
+    duration: number = 3000,
   ) => {
     setToastMessage(message);
     setToastType(type);
@@ -172,12 +183,12 @@ const Home = () => {
             status: fixture.finished
               ? "finished"
               : fixture.started
-              ? "live"
-              : "upcoming",
+                ? "live"
+                : "upcoming",
             homeScore: fixture.team_h_score,
             awayScore: fixture.team_a_score,
           };
-        }
+        },
       );
 
       // Sort fixtures by time, then by home team ID
@@ -275,7 +286,7 @@ const Home = () => {
   const handlePredictionChange = (
     fixtureId: string,
     team: "home" | "away",
-    score: string
+    score: string,
   ) => {
     // Don't allow changes for future gameweeks
     if (selectedGameweek > currentGameweek) {
@@ -340,7 +351,7 @@ const Home = () => {
 
       const response = await predictionsAPI.submitPredictions(
         predictionsArray,
-        selectedGameweek
+        selectedGameweek,
       );
 
       showToast("✓ Predictions submitted successfully!", "success");
@@ -467,7 +478,10 @@ const Home = () => {
       await Promise.all(
         h2hLeagues.map(async (league: any) => {
           try {
-            const data = await h2hAPI.getMyWagersForGameweek(league.id, gameweek);
+            const data = await h2hAPI.getMyWagersForGameweek(
+              league.id,
+              gameweek,
+            );
             summaries[league.id] = {
               totalWagered: data.totalWagered || 0,
               remainingCap: data.remainingCap ?? 100,
@@ -479,7 +493,7 @@ const Home = () => {
           } catch {
             // League may have no wagers
           }
-        })
+        }),
       );
 
       setH2HWagerSummary(summaries);
@@ -516,7 +530,7 @@ const Home = () => {
         Number(fixtureId),
         selectedGameweek,
         form.outcome,
-        form.amount
+        form.amount,
       );
       showToast("✓ H2H wager placed!", "success");
       // Refresh wager data
@@ -554,7 +568,7 @@ const Home = () => {
 
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
     const diffHours = Math.floor(
-      (diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
+      (diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60),
     );
     const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
 
@@ -745,7 +759,8 @@ const Home = () => {
         {selectedGameweek === currentGameweek &&
           h2hLeagues.length > 0 &&
           !fixture.started &&
-          !fixture.finished && (() => {
+          !fixture.finished &&
+          (() => {
             const form = h2hWagerForm[fixture.id];
             const activeLeagueId = form?.leagueId || h2hLeagues[0]?.id;
             const existingWager = h2hWagers[`${activeLeagueId}_${fixture.id}`];
@@ -835,8 +850,8 @@ const Home = () => {
                             {o === "home"
                               ? fixture.homeTeam
                               : o === "away"
-                              ? fixture.awayTeam
-                              : "Draw"}
+                                ? fixture.awayTeam
+                                : "Draw"}
                           </Text>
                         </TouchableOpacity>
                       ))}
@@ -856,7 +871,7 @@ const Home = () => {
                               ...prev[fixture.id],
                               amount: Math.max(
                                 10,
-                                (prev[fixture.id]?.amount || 10) - 10
+                                (prev[fixture.id]?.amount || 10) - 10,
                               ),
                             },
                           }))
@@ -871,20 +886,16 @@ const Home = () => {
                         style={styles.h2hStepBtn}
                         onPress={() => {
                           const currentAmount = form?.amount || 10;
-                          const remaining =
-                            cap?.remainingCap ?? 100;
+                          const remaining = cap?.remainingCap ?? 100;
                           const maxAllowed = Math.min(
                             100,
-                            currentAmount + remaining
+                            currentAmount + remaining,
                           );
                           setH2HWagerForm((prev) => ({
                             ...prev,
                             [fixture.id]: {
                               ...prev[fixture.id],
-                              amount: Math.min(
-                                maxAllowed,
-                                currentAmount + 10
-                              ),
+                              amount: Math.min(maxAllowed, currentAmount + 10),
                             },
                           }));
                         }}

@@ -32,7 +32,7 @@ const generateUniqueLeagueCode = async () => {
 
   if (attempts >= maxAttempts) {
     throw new Error(
-      "Unable to generate unique league code after maximum attempts"
+      "Unable to generate unique league code after maximum attempts",
     );
   }
 
@@ -86,17 +86,17 @@ const createLeague = async ({
       await h2hWagersService.initializeUserH2HLeagueScore(
         newLeagueRef.id,
         creatorUserId,
-        joiningGameweek
+        joiningGameweek,
       );
     } else {
       await leagueScores2Service.initializeUserLeagueScore(
         newLeagueRef.id,
         creatorUserId,
-        joiningGameweek
+        joiningGameweek,
       );
     }
     console.log(
-      `Initialized ${leagueType} league score for creator ${creatorUserId} in new league ${newLeagueRef.id}`
+      `Initialized ${leagueType} league score for creator ${creatorUserId} in new league ${newLeagueRef.id}`,
     );
   } catch (scoreError) {
     console.error(`Error initializing league score for creator:`, scoreError);
@@ -156,7 +156,7 @@ const getUserLeagues = async (userId) => {
 
     // Get league IDs
     const leagueIds = userLeaguesSnapshot.docs.map(
-      (doc) => doc.data().league_id
+      (doc) => doc.data().league_id,
     );
 
     // Get actual league data, member counts, and user rank
@@ -214,7 +214,7 @@ const getUserLeagues = async (userId) => {
       } catch (rankError) {
         console.error(
           `Error calculating rank for league ${leagueId}:`,
-          rankError
+          rankError,
         );
       }
 
@@ -234,7 +234,7 @@ const getUserLeagues = async (userId) => {
       .map((result) => {
         const { doc, memberCount, userRank, totalMembers } = result;
         const userLeagueDoc = userLeaguesSnapshot.docs.find(
-          (userDoc) => userDoc.data().league_id === doc.id
+          (userDoc) => userDoc.data().league_id === doc.id,
         );
 
         return {
@@ -307,17 +307,17 @@ const joinLeague = async (userId, league_code) => {
       await h2hWagersService.initializeUserH2HLeagueScore(
         leagueDoc.id,
         userId,
-        joiningGameweek
+        joiningGameweek,
       );
     } else {
       await leagueScores2Service.initializeUserLeagueScore(
         leagueDoc.id,
         userId,
-        joiningGameweek
+        joiningGameweek,
       );
     }
     console.log(
-      `Initialized league score for user ${userId} in league ${leagueDoc.id}`
+      `Initialized league score for user ${userId} in league ${leagueDoc.id}`,
     );
   } catch (scoreError) {
     console.error(`Error initializing league score:`, scoreError);

@@ -70,7 +70,7 @@ export const joinLeague = async (req, res) => {
   try {
     const joinLeagueResult = await leaguesService.joinLeague(
       userId,
-      league_code
+      league_code,
     );
     return res.status(200).json({
       success: true,

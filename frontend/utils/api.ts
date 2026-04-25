@@ -21,7 +21,7 @@ const setupAuthInterceptors = () => {
     },
     (error) => {
       return Promise.reject(error);
-    }
+    },
   );
 
   // Response interceptor to handle token expiration
@@ -32,7 +32,7 @@ const setupAuthInterceptors = () => {
         console.warn("Unauthorized request - token may be expired");
       }
       return Promise.reject(error);
-    }
+    },
   );
 };
 
@@ -61,7 +61,7 @@ export const authAPI = {
     email: string,
     password: string,
     displayName?: string,
-    favoriteTeamId?: string
+    favoriteTeamId?: string,
   ) => {
     const response = await api.post("/api/users/signup", {
       email,
@@ -156,7 +156,7 @@ export const leaguesAPI = {
     name: string,
     description?: string,
     isPrivate: boolean = false,
-    leagueType: "standard" | "h2h" = "standard"
+    leagueType: "standard" | "h2h" = "standard",
   ) => {
     const response = await api.post("/api/leagues/create", {
       name,
@@ -184,7 +184,7 @@ export const leaguesAPI = {
     leagueId: string,
     gameweek?: number,
     page: number = 1,
-    pageSize: number = 50
+    pageSize: number = 50,
   ) => {
     const url = `/api/leagues/${leagueId}/table`;
     const params: Record<string, any> = { page, pageSize };
@@ -195,7 +195,7 @@ export const leaguesAPI = {
 
   getGameweekRankings: async (leagueId: string, gameweek: number) => {
     const response = await api.get(
-      `/api/leagues/${leagueId}/gameweek/${gameweek}`
+      `/api/leagues/${leagueId}/gameweek/${gameweek}`,
     );
     return response.data;
   },
@@ -203,7 +203,7 @@ export const leaguesAPI = {
   getUserLeagueHistory: async (
     leagueId: string,
     userId: string,
-    limit?: number
+    limit?: number,
   ) => {
     const url = `/api/leagues/${leagueId}/history/${userId}`;
     const params = limit ? { limit } : {};
@@ -288,7 +288,7 @@ export const predictionsAPI = {
       captain: boolean;
       gameweek: number;
     }>,
-    gameweek: number
+    gameweek: number,
   ) => {
     const response = await api.post("/api/user-predictions", {
       predictions,
@@ -308,7 +308,7 @@ export const predictionsAPI = {
   // Get any user's predictions by userId and gameweek
   getUserPredictionsByUserId: async (userId: string, gameweek: number) => {
     const response = await api.get(
-      `/api/user-predictions/user/${userId}/gameweek/${gameweek}`
+      `/api/user-predictions/user/${userId}/gameweek/${gameweek}`,
     );
     return response.data;
   },
@@ -331,7 +331,7 @@ export const h2hAPI = {
     fixtureId: number,
     gameweek: number,
     outcome: "home" | "draw" | "away",
-    amount: number
+    amount: number,
   ) => {
     const response = await api.post(`/api/h2h/${leagueId}/wager`, {
       fixtureId,
@@ -351,7 +351,7 @@ export const h2hAPI = {
   // Get all wagers on a fixture in a league
   getWagersForFixture: async (leagueId: string, fixtureId: number) => {
     const response = await api.get(
-      `/api/h2h/${leagueId}/fixture/${fixtureId}/wagers`
+      `/api/h2h/${leagueId}/fixture/${fixtureId}/wagers`,
     );
     return response.data;
   },

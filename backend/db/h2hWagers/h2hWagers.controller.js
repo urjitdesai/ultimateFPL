@@ -40,7 +40,12 @@ export const placeWager = async (req, res) => {
     });
   } catch (error) {
     console.error("Error placing H2H wager:", error);
-    const status = error.message.includes("deadline") || error.message.includes("Invalid") || error.message.includes("cap") ? 400 : 500;
+    const status =
+      error.message.includes("deadline") ||
+      error.message.includes("Invalid") ||
+      error.message.includes("cap")
+        ? 400
+        : 500;
     return res.status(status).json({ success: false, error: error.message });
   }
 };
@@ -57,7 +62,7 @@ export const getMyWagersForGameweek = async (req, res) => {
     const summary = await h2hWagersService.getUserGameweekWagerSummary(
       leagueId,
       userId,
-      Number(gameweek)
+      Number(gameweek),
     );
     return res.status(200).json({ success: true, ...summary });
   } catch (error) {
@@ -74,7 +79,10 @@ export const getWagersForFixture = async (req, res) => {
   const { leagueId, fixtureId } = req.params;
 
   try {
-    const wagers = await h2hWagersService.getWagersForFixture(leagueId, Number(fixtureId));
+    const wagers = await h2hWagersService.getWagersForFixture(
+      leagueId,
+      Number(fixtureId),
+    );
     return res.status(200).json({ success: true, wagers });
   } catch (error) {
     console.error("Error fetching fixture wagers:", error);
@@ -108,7 +116,7 @@ export const resolveGameweekWagers = async (req, res) => {
   try {
     const result = await h2hWagersService.resolveGameweekWagers(
       leagueId,
-      Number(gameweek)
+      Number(gameweek),
     );
     return res.status(200).json({
       success: true,
@@ -133,7 +141,7 @@ export const voidUnmatchedWagers = async (req, res) => {
     const result = await h2hWagersService.voidUnmatchedWagersForFixture(
       leagueId,
       Number(fixtureId),
-      Number(gameweek)
+      Number(gameweek),
     );
     return res.status(200).json({
       success: true,

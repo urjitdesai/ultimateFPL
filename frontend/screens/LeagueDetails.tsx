@@ -15,6 +15,7 @@ import { useRoute, useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { RootStackParamList } from "../types/navigation";
 import { leaguesAPI, fixturesAPI, h2hAPI } from "../utils/api";
+import { tokenStorage } from "../utils/storage";
 import LeagueTable from "../components/LeagueTable";
 import LeagueGameweekSelector from "../components/LeagueGameweekSelector";
 
@@ -37,7 +38,7 @@ interface LeagueMember {
   userId: string;
   userName: string;
   userEmail?: string;
-  rank: number;
+  rank: number | null;
   previousRank: number | null;
   rankChange: number;
   gameweekScore: number;
@@ -67,7 +68,7 @@ const LeagueDetails: React.FC = () => {
   const [leagueData, setLeagueData] = useState<LeagueData | null>(null);
   const [leagueTable, setLeagueTable] = useState<LeagueMember[]>([]);
   const [currentUserEntry, setCurrentUserEntry] = useState<LeagueMember | null>(
-    null
+    null,
   );
   const [pagination, setPagination] = useState<Pagination | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -77,14 +78,20 @@ const LeagueDetails: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [tableLoading, setTableLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState<"table" | "history" | "h2h">("table");
+  const [activeTab, setActiveTab] = useState<"table" | "history" | "h2h">(
+    "table",
+  );
   const [h2hTable, setH2HTable] = useState<any[]>([]);
   const [h2hTableLoading, setH2HTableLoading] = useState(false);
   const [isH2HLeague, setIsH2HLeague] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchLeagueDetails();
     fetchCurrentGameweek();
+    tokenStorage.getUser().then((user: any) => {
+      if (user?.id) setCurrentUserId(user.id);
+    });
   }, [leagueId]);
 
   useEffect(() => {
@@ -168,7 +175,7 @@ const LeagueDetails: React.FC = () => {
         leagueId,
         gameweek,
         page,
-        50
+        50,
       );
       if (response.success && response.data?.table) {
         setLeagueTable(response.data.table);
@@ -246,7 +253,7 @@ const LeagueDetails: React.FC = () => {
 
       const response = await leaguesAPI.calculateLeagueScores(
         leagueId,
-        selectedGameweek
+        selectedGameweek,
       );
       console.log("Calculate scores response:", response);
 
@@ -315,7 +322,12 @@ const LeagueDetails: React.FC = () => {
               style={[styles.tab, activeTab === "table" && styles.activeTab]}
               onPress={() => setActiveTab("table")}
             >
-              <Text style={[styles.tabText, activeTab === "table" && styles.activeTabText]}>
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === "table" && styles.activeTabText,
+                ]}
+              >
                 Table
               </Text>
             </TouchableOpacity>
@@ -325,7 +337,12 @@ const LeagueDetails: React.FC = () => {
               style={[styles.tab, activeTab === "h2h" && styles.activeTab]}
               onPress={() => setActiveTab("h2h")}
             >
-              <Text style={[styles.tabText, activeTab === "h2h" && styles.activeTabText]}>
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === "h2h" && styles.activeTabText,
+                ]}
+              >
                 ⚔ H2H Table
               </Text>
             </TouchableOpacity>
@@ -336,133 +353,141 @@ const LeagueDetails: React.FC = () => {
         {/* {activeTab === "table" && ( */}
         {/* Removed tab condition since we only show table content now */}
         {activeTab === "table" && (
-        <>
-          {/* Gameweek Selector */}}
-          <LeagueGameweekSelector
-            selectedGameweek={selectedGameweek}
-            currentGameweek={currentGameweek}
-            availableGameweeks={availableGameweeks}
-            onGameweekChange={handleGameweekChange}
-            minGameweek={leagueData?.createdAtGameweek || 1}
-          />
-
-          {/* Action Buttons */}
-          <View style={styles.actionButtons}>
-            <TouchableOpacity
-              style={styles.calculateButton}
-              onPress={() => {
-                console.log("Button pressed - calling handleCalculateScores");
-                handleCalculateScores();
-              }}
-              disabled={tableLoading}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="calculator" size={16} color="#fff" />
-              <Text style={styles.calculateButtonText}>
-                Calculate GW{selectedGameweek}
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* League Table */}
-          <View style={styles.tableContainer}>
-            <LeagueTable
-              members={leagueTable}
-              gameweek={selectedGameweek}
-              onMemberPress={handleMemberPress}
-              loading={tableLoading}
-              emptyMessage={`No data available for gameweek ${selectedGameweek}`}
-              currentUserEntry={currentUserEntry}
+          <>
+            {/* Gameweek Selector */}
+            <LeagueGameweekSelector
+              selectedGameweek={selectedGameweek}
+              currentGameweek={currentGameweek}
+              availableGameweeks={availableGameweeks}
+              onGameweekChange={handleGameweekChange}
+              minGameweek={leagueData?.createdAtGameweek || 1}
             />
 
-            {/* Pagination Controls */}
-            {pagination && pagination.totalPages > 1 && (
-              <View style={styles.paginationContainer}>
-                <TouchableOpacity
-                  style={[
-                    styles.pageButton,
-                    !pagination.hasPrevPage && styles.pageButtonDisabled,
-                  ]}
-                  onPress={() => handlePageChange(currentPage - 1)}
-                  disabled={!pagination.hasPrevPage || tableLoading}
-                >
-                  <Ionicons
-                    name="chevron-back"
-                    size={20}
-                    color={pagination.hasPrevPage ? "#007bff" : "#ccc"}
-                  />
-                </TouchableOpacity>
+            {/* Action Buttons */}
+            <View style={styles.actionButtons}>
+              <TouchableOpacity
+                style={styles.calculateButton}
+                onPress={() => {
+                  console.log("Button pressed - calling handleCalculateScores");
+                  handleCalculateScores();
+                }}
+                disabled={tableLoading}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="calculator" size={16} color="#fff" />
+                <Text style={styles.calculateButtonText}>
+                  Calculate GW{selectedGameweek}
+                </Text>
+              </TouchableOpacity>
+            </View>
 
-                <View style={styles.pageInfo}>
-                  <Text style={styles.pageInfoText}>
-                    {pagination.startRank}-{pagination.endRank} of{" "}
-                    {pagination.totalMembers}
-                  </Text>
-                  <Text style={styles.pageNumberText}>
-                    Page {currentPage} of {pagination.totalPages}
-                  </Text>
+            {/* League Table */}
+            <View style={styles.tableContainer}>
+              <LeagueTable
+                members={leagueTable}
+                gameweek={selectedGameweek}
+                onMemberPress={handleMemberPress}
+                loading={tableLoading}
+                emptyMessage={`No data available for gameweek ${selectedGameweek}`}
+                currentUserEntry={currentUserEntry}
+              />
+
+              {/* Pagination Controls */}
+              {pagination && pagination.totalPages > 1 && (
+                <View style={styles.paginationContainer}>
+                  <TouchableOpacity
+                    style={[
+                      styles.pageButton,
+                      !pagination.hasPrevPage && styles.pageButtonDisabled,
+                    ]}
+                    onPress={() => handlePageChange(currentPage - 1)}
+                    disabled={!pagination.hasPrevPage || tableLoading}
+                  >
+                    <Ionicons
+                      name="chevron-back"
+                      size={20}
+                      color={pagination.hasPrevPage ? "#007bff" : "#ccc"}
+                    />
+                  </TouchableOpacity>
+
+                  <View style={styles.pageInfo}>
+                    <Text style={styles.pageInfoText}>
+                      {pagination.startRank}-{pagination.endRank} of{" "}
+                      {pagination.totalMembers}
+                    </Text>
+                    <Text style={styles.pageNumberText}>
+                      Page {currentPage} of {pagination.totalPages}
+                    </Text>
+                  </View>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.pageButton,
+                      !pagination.hasNextPage && styles.pageButtonDisabled,
+                    ]}
+                    onPress={() => handlePageChange(currentPage + 1)}
+                    disabled={!pagination.hasNextPage || tableLoading}
+                  >
+                    <Ionicons
+                      name="chevron-forward"
+                      size={20}
+                      color={pagination.hasNextPage ? "#007bff" : "#ccc"}
+                    />
+                  </TouchableOpacity>
                 </View>
-
-                <TouchableOpacity
-                  style={[
-                    styles.pageButton,
-                    !pagination.hasNextPage && styles.pageButtonDisabled,
-                  ]}
-                  onPress={() => handlePageChange(currentPage + 1)}
-                  disabled={!pagination.hasNextPage || tableLoading}
-                >
-                  <Ionicons
-                    name="chevron-forward"
-                    size={20}
-                    color={pagination.hasNextPage ? "#007bff" : "#ccc"}
-                  />
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        </>
+              )}
+            </View>
+          </>
         )}
 
         {/* H2H League Table */}
-        {activeTab === "h2h" && (
-          <View style={styles.h2hTableContainer}>
-            <TouchableOpacity
-              style={styles.calculateButton}
-              onPress={fetchH2HTable}
-              disabled={h2hTableLoading}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="refresh" size={16} color="#fff" />
-              <Text style={styles.calculateButtonText}>Refresh</Text>
-            </TouchableOpacity>
+        {activeTab === "h2h" &&
+          (() => {
+            const h2hMembers = [...h2hTable]
+              .map((entry) => ({
+                ...entry,
+                gwScore: (entry.gameweekScores?.[selectedGameweek] ??
+                  0) as number,
+              }))
+              .sort(
+                (a, b) => b.gwScore - a.gwScore || b.totalScore - a.totalScore,
+              )
+              .map((entry, idx) => ({
+                userId: entry.userId,
+                userName: entry.userName,
+                userEmail: `W${entry.wagersWon} / L${entry.wagersLost}${entry.wagersVoided > 0 ? ` / V${entry.wagersVoided}` : ""}`,
+                rank: idx + 1,
+                previousRank: null,
+                rankChange: 0,
+                gameweekScore: entry.gwScore,
+                totalScore: entry.totalScore,
+                isNewMember: false,
+                joinedGameweek: entry.joinedGameweek,
+              }));
 
-            {h2hTableLoading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#fd7e14" />
-                <Text style={styles.loadingText}>Loading H2H table...</Text>
-              </View>
-            ) : h2hTable.length === 0 ? (
-              <View style={styles.loadingContainer}>
-                <Text style={styles.noDataText}>No H2H data yet. Place wagers to see standings.</Text>
-              </View>
-            ) : (
-              h2hTable.map((entry: any, index: number) => (
-                <View key={entry.userId} style={styles.h2hRow}>
-                  <Text style={styles.h2hRank}>{entry.rank}</Text>
-                  <View style={styles.h2hUserInfo}>
-                    <Text style={styles.h2hUserName}>{entry.userName}</Text>
-                    <Text style={styles.h2hUserStats}>
-                      W{entry.wagersWon} / L{entry.wagersLost}
-                    </Text>
-                  </View>
-                  <Text style={styles.h2hScore}>
-                    {entry.totalScore > 0 ? "+" : ""}{entry.totalScore} pts
-                  </Text>
+            return (
+              <>
+                <LeagueGameweekSelector
+                  selectedGameweek={selectedGameweek}
+                  currentGameweek={currentGameweek}
+                  availableGameweeks={availableGameweeks}
+                  onGameweekChange={handleGameweekChange}
+                  loading={h2hTableLoading}
+                  minGameweek={leagueData?.createdAtGameweek || 1}
+                />
+                <View style={styles.tableContainer}>
+                  <LeagueTable
+                    members={h2hMembers}
+                    gameweek={selectedGameweek}
+                    onMemberPress={handleMemberPress}
+                    loading={h2hTableLoading}
+                    emptyMessage="No H2H data yet. Place wagers to see standings."
+                    currentUserId={currentUserId ?? undefined}
+                  />
                 </View>
-              ))
-            )}
-          </View>
-        )}
+              </>
+            );
+          })()}
       </ScrollView>
     </SafeAreaView>
   );
@@ -652,54 +677,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#fff",
     fontWeight: "500",
-  },
-  h2hTableContainer: {
-    padding: 12,
-  },
-  h2hRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  h2hRank: {
-    width: 30,
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#fd7e14",
-    textAlign: "center",
-  },
-  h2hUserInfo: {
-    flex: 1,
-    marginLeft: 10,
-  },
-  h2hUserName: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#212529",
-  },
-  h2hUserStats: {
-    fontSize: 12,
-    color: "#6c757d",
-    marginTop: 2,
-  },
-  h2hScore: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#212529",
-  },
-  noDataText: {
-    textAlign: "center",
-    color: "#6c757d",
-    fontSize: 14,
-    marginTop: 20,
-    fontStyle: "italic",
   },
 });
 

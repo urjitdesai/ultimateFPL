@@ -3,6 +3,7 @@ import fixtureService from "../fixtures/fixtures.service.js";
 import leagueScores2Service from "../leagueScores/leagueScores2.service.js";
 import { h2hWagersService } from "../h2hWagers/h2hWagers.service.js";
 import TEAMS from "../constants/teams.js";
+import { randomInt } from "node:crypto";
 
 // Helper function to generate a unique 6-digit alphanumeric code
 const generateUniqueLeagueCode = async () => {
@@ -16,7 +17,7 @@ const generateUniqueLeagueCode = async () => {
     // Generate a 6-digit code
     code = "";
     for (let i = 0; i < 6; i++) {
-      code += chars.charAt(Math.floor(Math.random() * chars.length));
+      code += chars.charAt(randomInt(chars.length));
     }
 
     // Check if code already exists in database
@@ -57,7 +58,13 @@ const createLeague = async ({
   const currentGameweekData = await fixtureService.getCurrentGameweek();
   const currentGameweek = currentGameweekData.gameweek;
 
-  await newLeagueRef.set({
+  const membershipRef = db
+    .collection("users_leagues")
+    .doc(`${newLeagueRef.id}_${creatorUserId}`);
+  const joiningGameweek = currentGameweek;
+  const batch = db.batch();
+
+  batch.set(newLeagueRef, {
     name,
     description,
     creatorUserId,
@@ -69,16 +76,13 @@ const createLeague = async ({
   });
 
   // Automatically add creator as a member
-  const joiningGameweek = currentGameweek;
-  await db
-    .collection("users_leagues")
-    .doc(`${newLeagueRef.id}_${creatorUserId}`)
-    .set({
-      userId: creatorUserId,
-      league_id: newLeagueRef.id,
-      joined_at: new Date(),
-      joining_gameweek: joiningGameweek,
-    });
+  batch.set(membershipRef, {
+    userId: creatorUserId,
+    league_id: newLeagueRef.id,
+    joined_at: new Date(),
+    joining_gameweek: joiningGameweek,
+  });
+  await batch.commit();
 
   // Initialize league score document for the creator
   try {

@@ -91,7 +91,12 @@ router.post(
 );
 
 // Public routes
-router.get("/:id", authenticateToken, leaguesController.getLeagueById);
-router.get("/", authenticateToken, leaguesController.getAllLeagues);
+router.get(
+  "/:id",
+  authenticateToken,
+  verifyLeagueMembership("id"),
+  leaguesController.getLeagueById,
+);
+router.get("/", authenticateToken, requireAdmin, leaguesController.getAllLeagues);
 
 export default router;

@@ -12,14 +12,9 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { StackNavigationProp } from "@react-navigation/stack";
+import type { RootStackParamList } from "../types/navigation";
 import { authAPI } from "../utils/api";
 import { useTeams } from "../hooks/useTeams";
-
-type RootStackParamList = {
-  login: undefined;
-  signup: undefined;
-  main: undefined;
-};
 
 type SignupScreenNavigationProp = StackNavigationProp<
   RootStackParamList,

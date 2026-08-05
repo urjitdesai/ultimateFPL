@@ -1,5 +1,6 @@
 import axios from "axios";
 import { tokenStorage, fixturesCache, currentGameweekCache } from "./storage";
+import type { User } from "../types/user";
 
 // Create axios instance with default configuration
 const api = axios.create({
@@ -27,9 +28,10 @@ const setupAuthInterceptors = () => {
   // Response interceptor to handle token expiration
   api.interceptors.response.use(
     (response) => response,
-    (error) => {
+    async (error) => {
       if (error.response?.status === 401) {
-        console.warn("Unauthorized request - token may be expired");
+        await tokenStorage.remove();
+        await tokenStorage.removeUser();
       }
       return Promise.reject(error);
     },
@@ -104,6 +106,13 @@ export const authAPI = {
     await tokenStorage.initialize();
   },
 
+  getCurrentUser: async (): Promise<User> => {
+    const response = await api.get("/api/users/me");
+    const user: User = response.data.user;
+    await tokenStorage.setUser(user);
+    return user;
+  },
+
   // Set token manually
   setToken: async (token: string) => {
     await tokenStorage.set(token);
@@ -125,7 +134,7 @@ export const authAPI = {
   },
 
   // Set user data
-  setUser: async (user: any) => {
+  setUser: async (user: User) => {
     await tokenStorage.setUser(user);
   },
 

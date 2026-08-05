@@ -9,8 +9,9 @@ import MainApp from "./components/MainApp";
 import LeagueDetails from "./screens/LeagueDetails";
 import UserPredictions from "./screens/UserPredictions";
 import { authAPI } from "./utils/api";
+import type { RootStackParamList } from "./types/navigation";
 
-const Stack = createStackNavigator();
+const Stack = createStackNavigator<RootStackParamList>();
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -27,6 +28,7 @@ export default function App() {
 
       const token = authAPI.getToken();
       if (token && token.trim() !== "") {
+        await authAPI.getCurrentUser();
         setIsAuthenticated(true);
       } else {
         setIsAuthenticated(false);

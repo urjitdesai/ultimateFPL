@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import type { User } from "../types/user";
 
 // Storage keys
 const KEYS = {
@@ -26,7 +27,7 @@ interface CacheEntry<T> {
 
 // In-memory token for synchronous access (needed for axios interceptors)
 let memoryToken: string | null = null;
-let memoryUser: any = null;
+let memoryUser: User | null = null;
 
 export const tokenStorage = {
   // Async get - use for initial load
@@ -67,10 +68,10 @@ export const tokenStorage = {
   },
 
   // User data
-  getUserAsync: async (): Promise<any> => {
+  getUserAsync: async (): Promise<User | null> => {
     try {
       const user = await AsyncStorage.getItem(KEYS.USER);
-      const parsed = user ? JSON.parse(user) : null;
+      const parsed: User | null = user ? JSON.parse(user) : null;
       memoryUser = parsed;
       return parsed;
     } catch (error) {
@@ -79,11 +80,11 @@ export const tokenStorage = {
     }
   },
 
-  getUser: (): any => {
+  getUser: (): User | null => {
     return memoryUser;
   },
 
-  setUser: async (user: any): Promise<void> => {
+  setUser: async (user: User): Promise<void> => {
     try {
       await AsyncStorage.setItem(KEYS.USER, JSON.stringify(user));
       memoryUser = user;

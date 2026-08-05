@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -9,16 +9,10 @@ import {
   Alert,
   Image,
 } from "react-native";
-import fulltimepl2 from "../assets/fulltimepl-2.png";
 import { useNavigation } from "@react-navigation/native";
 import type { StackNavigationProp } from "@react-navigation/stack";
 import { authAPI } from "../utils/api";
-
-type RootStackParamList = {
-  login: undefined;
-  signup: undefined;
-  main: undefined;
-};
+import type { RootStackParamList } from "../types/navigation";
 
 type LoginScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -29,10 +23,6 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const navigation = useNavigation<LoginScreenNavigationProp>();
-
-  useEffect(() => {
-    console.log("backend url= ", process.env.EXPO_PUBLIC_BACKEND_URL);
-  }, []);
 
   const handleLogin = async () => {
     try {
@@ -54,7 +44,11 @@ const Login = () => {
 
   return (
     <View style={styles.container}>
-      <Image source={fulltimepl2} style={styles.logo} resizeMode="contain" />
+      <Image
+        source={require("../assets/fulltimepl-2.png")}
+        style={styles.logo}
+        resizeMode="contain"
+      />
       <Text style={styles.title}>Welcome Back!</Text>
       <TextInput
         style={styles.input}

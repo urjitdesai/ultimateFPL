@@ -1,14 +1,11 @@
 import jwt from "jsonwebtoken";
 import { db } from "../../firestore.js";
 import axios from "axios";
-import admin from "firebase-admin";
 import bcrypt from "bcrypt";
 import { leaguesService } from "../leagues/leagues.service.js";
 import fixtureService from "../fixtures/fixtures.service.js";
 
 const createUserInDb = async (email, password, displayName, favoriteTeamId) => {
-  if (!admin) throw new Error("Firebase admin not initialized");
-
   const passwordHash = await bcrypt.hash(password, 10);
   const doesUserExist = await db
     .collection("users")

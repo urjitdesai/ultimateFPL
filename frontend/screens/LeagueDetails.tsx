@@ -377,6 +377,11 @@ const LeagueDetails: React.FC = () => {
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollViewContent}
+        nestedScrollEnabled
+        directionalLockEnabled
+        showsVerticalScrollIndicator
+        keyboardShouldPersistTaps="handled"
+        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }
@@ -574,6 +579,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollViewContent: {
+    flexGrow: 1,
     paddingBottom: 40,
   },
   loadingContainer: {

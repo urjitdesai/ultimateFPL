@@ -3,7 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
+  FlatList,
   TouchableOpacity,
   Alert,
   RefreshControl,
@@ -355,7 +355,7 @@ const LeagueDetails: React.FC = () => {
         </View>
       )}
 
-      {/* Gameweek selector — always OUTSIDE the ScrollView so it never nests */}
+      {/* Keep the gameweek selector outside the vertical list. */}
       <LeagueGameweekSelector
         selectedGameweek={selectedGameweek}
         currentGameweek={currentGameweek}
@@ -365,7 +365,7 @@ const LeagueDetails: React.FC = () => {
         minGameweek={leagueData?.createdAtGameweek || 1}
       />
 
-      {/* H2H tab: wager cap bar outside ScrollView */}
+      {/* Keep the H2H wager cap visible above the vertical list. */}
       {activeTab === "h2h" && wagerSummary && (
         <View style={styles.wagerCapBar}>
           <Text style={styles.wagerCapBarText}>
@@ -374,7 +374,9 @@ const LeagueDetails: React.FC = () => {
         </View>
       )}
 
-      <ScrollView
+      <FlatList
+        data={[activeTab]}
+        keyExtractor={(tab) => tab}
         style={styles.scrollView}
         contentContainerStyle={styles.scrollViewContent}
         nestedScrollEnabled
@@ -382,10 +384,12 @@ const LeagueDetails: React.FC = () => {
         showsVerticalScrollIndicator
         keyboardShouldPersistTaps="handled"
         scrollEventThrottle={16}
+        removeClippedSubviews={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }
-      >
+        renderItem={() => (
+          <View collapsable={false}>
         {/* Standard League Table */}
         {activeTab === "table" && (
           <View style={styles.tableContainer}>
@@ -565,7 +569,9 @@ const LeagueDetails: React.FC = () => {
             </>
           );
         })()}
-      </ScrollView>
+          </View>
+        )}
+      />
     </SafeAreaView>
   );
 };

@@ -44,12 +44,22 @@ app.get("/", (req, res) => {
 });
 
 // Database health check endpoint
-app.get("/health/database", (req, res) => {
-  res.json({
-    status: "Database connection healthy",
-    timestamp: new Date().toISOString(),
-    database: "Firestore",
-  });
+app.get("/health/database", async (req, res) => {
+  try {
+    await db.collection("fixtures").limit(1).get();
+    return res.json({
+      status: "Database connection healthy",
+      timestamp: new Date().toISOString(),
+      database: "Firestore",
+    });
+  } catch (error) {
+    console.error("Database readiness check failed:", error);
+    return res.status(503).json({
+      status: "Database connection unavailable",
+      timestamp: new Date().toISOString(),
+      database: "Firestore",
+    });
+  }
 });
 
 // Sample route that reads from a `players` collection (expects documents)

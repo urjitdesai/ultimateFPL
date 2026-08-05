@@ -7,8 +7,10 @@ dotenv.config({ path: path.resolve(__dirname, "./.env") });
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import helmet from "helmet";
+import { validateEnvironment, getAllowedOrigins } from "./config.js";
 
-console.log("DB_ID in index.js=", process.env.FIREBASE_DATABASE_ID);
+validateEnvironment();
 
 const { db } = await import("./firestore.js");
 import { checkDatabaseConnection } from "./middleware/dbConnection.js";
@@ -25,45 +27,20 @@ const app = express();
 
 app.use(
   cors({
-    origin: [
-      "http://localhost:8081", // React Native/Expo dev server
-      "http://localhost:3000", // Backend server (for testing)
-      "http://localhost:19006", // Expo web port
-      "http://127.0.0.1:8081",
-      "http://127.0.0.1:3000",
-      "http://127.0.0.1:19006",
-    ],
+    origin: getAllowedOrigins(),
     credentials: true, // Allow cookies to be sent
   }),
 );
-app.use(express.json());
+app.use(helmet());
+app.use(express.json({ limit: "1mb" }));
 app.use(cookieParser());
 
 // Global database connection check middleware for all API routes
 app.use("/api", checkDatabaseConnection);
 
-// Simple test route for cookies
-app.get("/test-cookie", (req, res) => {
-  console.log("Received cookies:", req.cookies);
-
-  // Set a simple test cookie
-  res.cookie("test", "hello", {
-    httpOnly: false, // Make it visible in browser for testing
-    secure: false,
-    sameSite: "lax",
-    maxAge: 60000, // 1 minute
-    path: "/",
-  });
-
-  res.json({
-    message: "Test cookie set",
-    receivedCookies: req.cookies,
-  });
-});
-
 // simple health route
 app.get("/", (req, res) => {
-  res.json({ status: "Backend in running", uptime: process.uptime() });
+  res.json({ status: "Backend is running", uptime: process.uptime() });
 });
 
 // Database health check endpoint

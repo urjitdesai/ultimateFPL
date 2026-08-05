@@ -1,4 +1,9 @@
 import { userService } from "./users.service.js";
+import {
+  AUTH_COOKIE_NAME,
+  getAuthCookieOptions,
+  getClearAuthCookieOptions,
+} from "../../utils/authCookie.js";
 
 const loginUser = async (req, res) => {
   try {
@@ -10,13 +15,7 @@ const loginUser = async (req, res) => {
     const result = await userService.authenticateUser(email, password);
 
     // Set JWT token as HTTP-only cookie
-    res.cookie("token", result.token, {
-      httpOnly: true, // Prevents XSS attacks
-      secure: false, // Allow HTTP in development
-      sameSite: "lax", // Use 'lax' for cross-origin requests in development
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
-      path: "/", // Ensure cookie is available for all paths
-    });
+    res.cookie(AUTH_COOKIE_NAME, result.token, getAuthCookieOptions());
 
     res.json({
       success: true,
@@ -37,12 +36,7 @@ const loginUser = async (req, res) => {
 const logoutUser = async (req, res) => {
   try {
     // Clear the JWT cookie
-    res.clearCookie("token", {
-      httpOnly: true,
-      secure: false,
-      sameSite: "lax",
-      path: "/",
-    });
+    res.clearCookie(AUTH_COOKIE_NAME, getClearAuthCookieOptions());
 
     res.json({
       success: true,
@@ -89,13 +83,7 @@ const createUser = async (req, res) => {
     );
 
     // Set JWT token as HTTP-only cookie
-    res.cookie("token", result.token, {
-      httpOnly: true, // Prevents XSS attacks
-      secure: false, // Allow HTTP in development
-      sameSite: "lax", // Use 'lax' for cross-origin requests in development
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
-      path: "/", // Ensure cookie is available for all paths
-    });
+    res.cookie(AUTH_COOKIE_NAME, result.token, getAuthCookieOptions());
 
     res.status(201).json({
       success: true,
@@ -127,6 +115,12 @@ const getAllUsers = async (req, res) => {
   }
 };
 
+const getCurrentUser = async (req, res) => {
+  const user = await userService.getUserById(req.user.id);
+  if (!user) return res.status(404).json({ error: "User not found" });
+  return res.json({ success: true, user });
+};
+
 const deleteUserWithEmail = async (req, res) => {
   try {
     const { email } = req.body;
@@ -154,5 +148,6 @@ export const userController = {
   populateUsers,
   createUser,
   getAllUsers,
+  getCurrentUser,
   deleteUserWithEmail,
 };

@@ -111,7 +111,7 @@ const authenticateUser = async (email, password) => {
   // Verify password using bcrypt
   const isPasswordValid = await bcrypt.compare(password, userData.password);
   if (!isPasswordValid) {
-    throw new Error("Invalid password");
+    throw new Error("Invalid email or password");
   }
 
   // Create user object for JWT (exclude password)
@@ -203,10 +203,18 @@ const fetchAndPopulateUsers = async () => {
 
 const getAllUsersFromDb = async () => {
   const usersSnapshot = await db.collection("users").get();
-  return usersSnapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-  }));
+  return usersSnapshot.docs.map((doc) => {
+    const { password, ...userData } = doc.data();
+    return { id: doc.id, ...userData };
+  });
+};
+
+const getUserById = async (userId) => {
+  const snapshot = await db.collection("users").doc(userId).get();
+  if (!snapshot.exists) return null;
+
+  const { password, ...userData } = snapshot.data();
+  return { id: snapshot.id, ...userData };
 };
 
 const deleteUserWithEmail = async (email) => {
@@ -230,5 +238,6 @@ export const userService = {
   deleteUsersFromDb,
   fetchAndPopulateUsers,
   getAllUsersFromDb,
+  getUserById,
   deleteUserWithEmail,
 };

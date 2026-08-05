@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import { AUTH_COOKIE_NAME } from "../utils/authCookie.js";
 
 // Helper function to generate JWT token
 export const generateToken = (userId, email, displayName) => {
@@ -21,12 +22,13 @@ export const verifyJWT = (token) => {
 // Middleware to verify JWT token and attach user to request
 export const authenticateToken = (req, res, next) => {
   // Check for token in cookies first (primary method)
-  let token = req.cookies && req.cookies.token;
+  let token = req.cookies && req.cookies[AUTH_COOKIE_NAME];
 
   // If no token in cookies, check authorization header as fallback
   if (!token) {
-    const authHeader = req.headers["authorization"];
-    token = authHeader && authHeader.split(" ")[1]; // Bearer TOKEN
+    const authHeader = req.headers.authorization;
+    const [scheme, credentials] = authHeader?.split(" ") || [];
+    token = scheme === "Bearer" ? credentials : null;
   }
 
   if (!token) {
@@ -70,12 +72,13 @@ export const authenticateToken = (req, res, next) => {
 // Optional middleware for routes that can work with or without authentication
 export const optionalAuth = (req, res, next) => {
   // Check for token in cookies first (primary method)
-  let token = req.cookies && req.cookies.token;
+  let token = req.cookies && req.cookies[AUTH_COOKIE_NAME];
 
   // If no token in cookies, check authorization header as fallback
   if (!token) {
-    const authHeader = req.headers["authorization"];
-    token = authHeader && authHeader.split(" ")[1];
+    const authHeader = req.headers.authorization;
+    const [scheme, credentials] = authHeader?.split(" ") || [];
+    token = scheme === "Bearer" ? credentials : null;
   }
 
   if (!token) {

@@ -2,6 +2,7 @@ import express from "express";
 import userPredController from "./userPrediction.controller.js";
 import { authenticateToken } from "../../middleware/auth.js";
 import { verifySharedLeagueMembership } from "../../middleware/leagueAccess.js";
+import { requireAdmin } from "../../middleware/admin.js";
 const router = express.Router();
 
 // DELETE /api/user-predictions
@@ -26,20 +27,23 @@ router.get(
 router.post(
   "/populate-predictions",
   authenticateToken,
+  requireAdmin,
   userPredController.populate
 );
 
 // POST /api/user-predictions/calculate-scores
 router.post(
   "/calculate-scores",
-  // authenticateToken,
+  authenticateToken,
+  requireAdmin,
   userPredController.calculate
 );
 
 // POST /api/user-predictions/calculate-all-scores
 router.post(
   "/calculate-all-scores",
-  //   authenticateToken,
+  authenticateToken,
+  requireAdmin,
   userPredController.calculateAllUsersScores
 );
 

@@ -1,7 +1,10 @@
 import express from "express";
 import { db } from "../firestore.js";
+import { authenticateToken } from "../middleware/auth.js";
+import { requireAdmin } from "../middleware/admin.js";
 
 const router = express.Router();
+router.use(authenticateToken, requireAdmin);
 
 // Get first document from fixtures collection
 router.get("/fixtures", async (req, res) => {

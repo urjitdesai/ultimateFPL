@@ -54,7 +54,7 @@ export const verifySharedLeagueMembership = async (req, res, next) => {
 
     // Get all league IDs the requesting user is in
     const requestingUserLeagueIds = requestingUserLeaguesSnapshot.docs.map(
-      (doc) => doc.data().leagueId
+      (doc) => doc.data().league_id
     );
 
     // Get all leagues the target user is a member of
@@ -75,7 +75,7 @@ export const verifySharedLeagueMembership = async (req, res, next) => {
 
     // Get all league IDs the target user is in
     const targetUserLeagueIds = targetUserLeaguesSnapshot.docs.map(
-      (doc) => doc.data().leagueId
+      (doc) => doc.data().league_id
     );
 
     // Check if there's any common league between the two users
@@ -135,7 +135,7 @@ export const verifyLeagueMembership = (leagueIdParam = "leagueId") => {
       const membershipSnapshot = await db
         .collection("users_leagues")
         .where("userId", "==", userId)
-        .where("leagueId", "==", leagueId)
+        .where("league_id", "==", leagueId)
         .limit(1)
         .get();
 

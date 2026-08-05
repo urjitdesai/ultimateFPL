@@ -1,6 +1,7 @@
 import express from "express";
 import { simulateController } from "./simulate.controller.js";
-// import { authenticateToken } from "../../middleware/auth.js";
+import { authenticateToken } from "../../middleware/auth.js";
+import { requireAdmin } from "../../middleware/admin.js";
 
 const router = express.Router();
 
@@ -8,6 +9,7 @@ const router = express.Router();
 // Note: In production, add proper admin authentication middleware
 // router.post("/simulate", authenticateToken, isAdmin, simulateController.simulateGameweek);
 
+router.use(authenticateToken, requireAdmin);
 router.post("/gameweek", simulateController.simulateGameweek);
 router.post("/gameweek-range", simulateController.simulateGameweekRange);
 

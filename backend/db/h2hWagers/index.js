@@ -1,11 +1,14 @@
 import express from "express";
 import { h2hWagersController } from "./h2hWagers.controller.js";
 import { authenticateToken } from "../../middleware/auth.js";
+import { requireAdmin } from "../../middleware/admin.js";
+import { verifyLeagueMembership } from "../../middleware/leagueAccess.js";
 
 const router = express.Router();
 
 // All routes require authentication
 router.use(authenticateToken);
+router.use("/:leagueId", verifyLeagueMembership());
 
 // Place or update a wager on a fixture
 // POST /api/h2h/:leagueId/wager
@@ -33,6 +36,7 @@ router.get("/:leagueId/table", h2hWagersController.getH2HLeagueTable);
 // POST /api/h2h/:leagueId/resolve/:gameweek
 router.post(
   "/:leagueId/resolve/:gameweek",
+  requireAdmin,
   h2hWagersController.resolveGameweekWagers,
 );
 
@@ -40,6 +44,7 @@ router.post(
 // POST /api/h2h/:leagueId/void-unmatched/:fixtureId/:gameweek
 router.post(
   "/:leagueId/void-unmatched/:fixtureId/:gameweek",
+  requireAdmin,
   h2hWagersController.voidUnmatchedWagers,
 );
 

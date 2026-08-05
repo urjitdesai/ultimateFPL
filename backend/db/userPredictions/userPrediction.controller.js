@@ -134,18 +134,57 @@ const createOrUpdatePredictions = async (req, res) => {
       return res.status(400).json({ error: "Predictions array is required" });
     }
 
-    if (!gameweek) {
-      return res.status(400).json({ error: "Gameweek is required" });
+    const parsedGameweek = Number(gameweek);
+    if (
+      !Number.isInteger(parsedGameweek) ||
+      parsedGameweek < 1 ||
+      parsedGameweek > 38
+    ) {
+      return res
+        .status(400)
+        .json({ error: "Gameweek must be an integer from 1 to 38" });
+    }
+
+    if (predictions.length > 20) {
+      return res.status(400).json({
+        error: "A gameweek cannot contain more than 20 predictions",
+      });
+    }
+
+    const fixtureIds = new Set();
+    for (const prediction of predictions) {
+      const fixtureId = prediction.fixtureId ?? prediction.id;
+      const homeScore = prediction.homeScore ?? prediction.team_h_score;
+      const awayScore = prediction.awayScore ?? prediction.team_a_score;
+
+      if (fixtureId === undefined || fixtureId === null || fixtureId === "") {
+        return res.status(400).json({ error: "Every prediction requires a fixture ID" });
+      }
+      if (fixtureIds.has(String(fixtureId))) {
+        return res
+          .status(400)
+          .json({ error: `Duplicate fixture ID: ${fixtureId}` });
+      }
+      fixtureIds.add(String(fixtureId));
+
+      if (
+        !Number.isInteger(Number(homeScore)) ||
+        !Number.isInteger(Number(awayScore)) ||
+        Number(homeScore) < 0 ||
+        Number(awayScore) < 0 ||
+        Number(homeScore) > 20 ||
+        Number(awayScore) > 20
+      ) {
+        return res.status(400).json({
+          error: "Prediction scores must be whole numbers from 0 to 20",
+        });
+      }
     }
 
     // Validate captain selection: only one captain allowed per gameweek
     const captainPredictions = predictions.filter(
       (pred) => pred.captain === true
     );
-
-    if (captainPredictions.length > 0) {
-      console.log("Captain prediction details:", captainPredictions);
-    }
 
     if (captainPredictions.length > 1) {
       return res.status(400).json({
@@ -156,17 +195,22 @@ const createOrUpdatePredictions = async (req, res) => {
 
     const result = await userPredService.createOrUpdatePredictions(
       userId,
-      gameweek,
+      parsedGameweek,
       predictions
     );
 
-    res.status(201).json(result);
+    return res.status(201).json(result);
   } catch (err) {
     console.error("Error in createOrUpdatePredictions controller:", err);
-    res.status(500).json({
-      error: "Failed to create or update predictions",
-      details: err.message,
-    });
+    if (err.message.includes("deadline")) {
+      return res.status(409).json({ error: err.message });
+    }
+    if (err.message.includes("No scheduled fixtures")) {
+      return res.status(400).json({ error: err.message });
+    }
+    return res
+      .status(500)
+      .json({ error: "Failed to create or update predictions" });
   }
 };
 

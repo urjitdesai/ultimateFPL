@@ -386,6 +386,25 @@ const createOrUpdatePredictions = async (userId, gameweek, predictions) => {
   const docId = `${userId}_${gameweek}`;
   const docRef = db.collection("userPredictions").doc(docId);
 
+  const fixturesSnapshot = await db
+    .collection("fixtures")
+    .where("event", "==", Number(gameweek))
+    .get();
+  const kickoffTimes = fixturesSnapshot.docs
+    .map((fixture) => fixture.data().kickoff_time)
+    .filter(Boolean)
+    .map((kickoffTime) => new Date(kickoffTime).getTime())
+    .filter(Number.isFinite);
+
+  if (kickoffTimes.length === 0) {
+    throw new Error(`No scheduled fixtures found for gameweek ${gameweek}`);
+  }
+
+  const predictionDeadline = Math.min(...kickoffTimes) - 2 * 60 * 60 * 1000;
+  if (Date.now() >= predictionDeadline) {
+    throw new Error(`The prediction deadline for gameweek ${gameweek} has passed`);
+  }
+
   try {
     await db.runTransaction(async (transaction) => {
       const doc = await transaction.get(docRef);
@@ -398,8 +417,8 @@ const createOrUpdatePredictions = async (userId, gameweek, predictions) => {
           predictions: predictions.map((pred) => ({
             id: pred.fixtureId || pred.id,
             fixture_id: pred.fixtureId || pred.id,
-            team_a_score: parseInt(pred.awayScore || pred.team_a_score) || 0,
-            team_h_score: parseInt(pred.homeScore || pred.team_h_score) || 0,
+            team_a_score: Number(pred.awayScore ?? pred.team_a_score),
+            team_h_score: Number(pred.homeScore ?? pred.team_h_score),
             captain: pred.captain === true,
             stats: Array.isArray(pred.stats) ? pred.stats : [],
             created_at: new Date(),
@@ -453,9 +472,9 @@ const createOrUpdatePredictions = async (userId, gameweek, predictions) => {
             updatedPredictions[existingIndex] = {
               ...existing,
               team_a_score:
-                parseInt(newPred.awayScore || newPred.team_a_score) || 0,
+                Number(newPred.awayScore ?? newPred.team_a_score),
               team_h_score:
-                parseInt(newPred.homeScore || newPred.team_h_score) || 0,
+                Number(newPred.homeScore ?? newPred.team_h_score),
               captain: newPred.captain === true,
               stats: Array.isArray(newPred.stats)
                 ? newPred.stats
@@ -469,9 +488,9 @@ const createOrUpdatePredictions = async (userId, gameweek, predictions) => {
               id: newPredId,
               fixture_id: newPredId,
               team_a_score:
-                parseInt(newPred.awayScore || newPred.team_a_score) || 0,
+                Number(newPred.awayScore ?? newPred.team_a_score),
               team_h_score:
-                parseInt(newPred.homeScore || newPred.team_h_score) || 0,
+                Number(newPred.homeScore ?? newPred.team_h_score),
               captain: newPred.captain === true,
               stats: Array.isArray(newPred.stats) ? newPred.stats : [],
               created_at: new Date(),

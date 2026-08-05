@@ -31,6 +31,7 @@ interface LeagueTableProps {
   emptyMessage?: string;
   currentUserEntry?: LeagueMember | null;
   currentUserId?: string;
+  scrollEnabled?: boolean;
 }
 
 const LeagueTable: React.FC<LeagueTableProps> = ({
@@ -41,6 +42,7 @@ const LeagueTable: React.FC<LeagueTableProps> = ({
   emptyMessage = "No league data available",
   currentUserEntry = null,
   currentUserId,
+  scrollEnabled = true,
 }) => {
   const renderPositionChange = (member: LeagueMember) => {
     // If user hasn't started participating yet, show nothing
@@ -228,29 +230,50 @@ const LeagueTable: React.FC<LeagueTableProps> = ({
         </>
       )}
 
-      {/* Table Body */}
-      <ScrollView style={styles.tableBody} showsVerticalScrollIndicator={false}>
-        {members.map((member, index) =>
-          renderMemberRow(
-            member,
-            index,
-            currentUserId ? member.userId === currentUserId : false,
-            index === members.length - 1 && !currentUserEntry?.position,
-          ),
-        )}
-
-        {/* Current User Entry - Below (if ranked lower than current page) */}
-        {currentUserEntry && currentUserEntry.position === "below" && (
-          <>
-            <View style={styles.separatorContainer}>
-              <View style={styles.separatorLine} />
-              <Text style={styles.separatorText}>···</Text>
-              <View style={styles.separatorLine} />
-            </View>
-            {renderMemberRow(currentUserEntry, members.length, true, true)}
-          </>
-        )}
-      </ScrollView>
+      {/* Table Body — ScrollView when standalone, plain View when nested inside a parent ScrollView */}
+      {scrollEnabled ? (
+        <ScrollView style={styles.tableBody} showsVerticalScrollIndicator={false}>
+          {members.map((member, index) =>
+            renderMemberRow(
+              member,
+              index,
+              currentUserId ? member.userId === currentUserId : false,
+              index === members.length - 1 && !currentUserEntry?.position,
+            ),
+          )}
+          {currentUserEntry && currentUserEntry.position === "below" && (
+            <>
+              <View style={styles.separatorContainer}>
+                <View style={styles.separatorLine} />
+                <Text style={styles.separatorText}>···</Text>
+                <View style={styles.separatorLine} />
+              </View>
+              {renderMemberRow(currentUserEntry, members.length, true, true)}
+            </>
+          )}
+        </ScrollView>
+      ) : (
+        <View>
+          {members.map((member, index) =>
+            renderMemberRow(
+              member,
+              index,
+              currentUserId ? member.userId === currentUserId : false,
+              index === members.length - 1 && !currentUserEntry?.position,
+            ),
+          )}
+          {currentUserEntry && currentUserEntry.position === "below" && (
+            <>
+              <View style={styles.separatorContainer}>
+                <View style={styles.separatorLine} />
+                <Text style={styles.separatorText}>···</Text>
+                <View style={styles.separatorLine} />
+              </View>
+              {renderMemberRow(currentUserEntry, members.length, true, true)}
+            </>
+          )}
+        </View>
+      )}
     </View>
   );
 };

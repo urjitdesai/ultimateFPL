@@ -76,6 +76,7 @@ const LeagueGameweekSelector: React.FC<LeagueGameweekSelectorProps> = ({
         showsHorizontalScrollIndicator={false}
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
+        nestedScrollEnabled={true}
       >
         {availableGameweeks.map((gw) => {
           const isDisabled = gw < minGameweek;

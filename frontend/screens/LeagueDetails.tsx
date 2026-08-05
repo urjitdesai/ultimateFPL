@@ -8,6 +8,7 @@ import {
   Alert,
   RefreshControl,
   ActivityIndicator,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -16,6 +17,7 @@ import { StackNavigationProp } from "@react-navigation/stack";
 import { RootStackParamList } from "../types/navigation";
 import { leaguesAPI, fixturesAPI, h2hAPI } from "../utils/api";
 import { tokenStorage } from "../utils/storage";
+import { useTeams } from "../hooks/useTeams";
 import LeagueTable from "../components/LeagueTable";
 import LeagueGameweekSelector from "../components/LeagueGameweekSelector";
 
@@ -63,7 +65,7 @@ interface Pagination {
 const LeagueDetails: React.FC = () => {
   const route = useRoute();
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
-  const { leagueId, leagueName } = route.params as LeagueDetailsParams;
+  const { leagueId } = route.params as LeagueDetailsParams;
 
   const [leagueData, setLeagueData] = useState<LeagueData | null>(null);
   const [leagueTable, setLeagueTable] = useState<LeagueMember[]>([]);
@@ -85,11 +87,21 @@ const LeagueDetails: React.FC = () => {
   const [h2hTableLoading, setH2HTableLoading] = useState(false);
   const [isH2HLeague, setIsH2HLeague] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  // H2H wager state
+  const [h2hFixtures, setH2HFixtures] = useState<any[]>([]);
+  const [wagers, setWagers] = useState<{ [fixtureId: string]: any }>({});
+  const [wagerSummary, setWagerSummary] = useState<{ totalWagered: number; remainingCap: number } | null>(null);
+  const [wagerForm, setWagerForm] = useState<{
+    [fixtureId: string]: { outcome: "home" | "draw" | "away" | null; amount: number; open: boolean };
+  }>({});
+  const [wagerSubmitting, setWagerSubmitting] = useState<{ [fixtureId: string]: boolean }>({});
+
+  const { getTeamById, getTeamLogo, loading: teamsLoading } = useTeams();
 
   useEffect(() => {
     fetchLeagueDetails();
     fetchCurrentGameweek();
-    tokenStorage.getUser().then((user: any) => {
+    tokenStorage.getUserAsync().then((user: any) => {
       if (user?.id) setCurrentUserId(user.id);
     });
   }, [leagueId]);
@@ -203,7 +215,7 @@ const LeagueDetails: React.FC = () => {
     await Promise.all([
       fetchLeagueDetails(),
       isH2HLeague
-        ? fetchH2HTable()
+        ? Promise.all([fetchH2HTable(), fetchH2HFixtures(), fetchWagersForGameweek()])
         : fetchLeagueTable(selectedGameweek, currentPage),
     ]);
     setRefreshing(false);
@@ -220,6 +232,69 @@ const LeagueDetails: React.FC = () => {
       console.error("Error fetching H2H table:", error);
     } finally {
       setH2HTableLoading(false);
+    }
+  };
+
+  const fetchH2HFixtures = async () => {
+    try {
+      const response = await fixturesAPI.getFixturesForGameweek(currentGameweek);
+      const raw: any[] = response.fixtures || [];
+      const mapped = raw
+        .filter((f: any) => !f.finished)
+        .map((f: any) => {
+          const home = getTeamById(f.team_h);
+          const away = getTeamById(f.team_a);
+          const kickoff = f.kickoff_time || f.date;
+          const d = kickoff ? new Date(kickoff) : new Date();
+          return {
+            id: String(f.id || f._id),
+            homeTeam: home?.displayName || "Home",
+            awayTeam: away?.displayName || "Away",
+            homeTeamId: f.team_h,
+            awayTeamId: f.team_a,
+            time: d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }),
+            date: d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }),
+          };
+        });
+      setH2HFixtures(mapped);
+    } catch (err) {
+      console.error("Error fetching H2H fixtures:", err);
+    }
+  };
+
+  const fetchWagersForGameweek = async () => {
+    try {
+      const data = await h2hAPI.getMyWagersForGameweek(leagueId, currentGameweek);
+      setWagerSummary({ totalWagered: data.totalWagered || 0, remainingCap: data.remainingCap ?? 100 });
+      const byFixture: { [id: string]: any } = {};
+      (data.wagers || []).forEach((w: any) => { byFixture[String(w.fixtureId)] = w; });
+      setWagers(byFixture);
+    } catch {
+      // no wagers yet
+    }
+  };
+
+  const toggleWagerPanel = (fixtureId: string) => {
+    setWagerForm((prev) => ({
+      ...prev,
+      [fixtureId]: prev[fixtureId]
+        ? { ...prev[fixtureId], open: !prev[fixtureId].open }
+        : { outcome: null, amount: 10, open: true },
+    }));
+  };
+
+  const submitWager = async (fixtureId: string) => {
+    const form = wagerForm[fixtureId];
+    if (!form?.outcome) { Alert.alert("Select an outcome first."); return; }
+    setWagerSubmitting((prev) => ({ ...prev, [fixtureId]: true }));
+    try {
+      await h2hAPI.placeWager(leagueId, Number(fixtureId), currentGameweek, form.outcome, form.amount);
+      await fetchWagersForGameweek();
+      setWagerForm((prev) => ({ ...prev, [fixtureId]: { ...prev[fixtureId], open: false } }));
+    } catch (err: any) {
+      Alert.alert("Error", err?.response?.data?.error || "Failed to place wager.");
+    } finally {
+      setWagerSubmitting((prev) => ({ ...prev, [fixtureId]: false }));
     }
   };
 
@@ -242,30 +317,13 @@ const LeagueDetails: React.FC = () => {
     });
   };
 
-  const handleCalculateScores = async () => {
-    console.log("Calculate GW button pressed");
-    console.log("Selected gameweek:", selectedGameweek);
-    console.log("League ID:", leagueId);
-
-    try {
-      console.log("Starting score calculation...");
-      setTableLoading(true);
-
-      const response = await leaguesAPI.calculateLeagueScores(
-        leagueId,
-        selectedGameweek,
-      );
-      console.log("Calculate scores response:", response);
-
-      // Refresh the league table to show updated scores
-      await fetchLeagueTable(selectedGameweek);
-      console.log("League table refreshed");
-    } catch (error) {
-      console.error("Error calculating scores:", error);
-    } finally {
-      setTableLoading(false);
+  // Fetch fixtures and wagers when currentGameweek becomes known and it's an H2H league
+  useEffect(() => {
+    if (isH2HLeague && currentGameweek > 0 && !teamsLoading) {
+      fetchH2HFixtures();
+      fetchWagersForGameweek();
     }
-  };
+  }, [isH2HLeague, currentGameweek, teamsLoading]);
 
   useEffect(() => {
     setLoading(false);
@@ -282,212 +340,226 @@ const LeagueDetails: React.FC = () => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["bottom"]}>
+      {/* Tabs — only shown for standard leagues */}
+      {!isH2HLeague && (
+        <View style={styles.tabContainer}>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === "table" && styles.activeTab]}
+            onPress={() => setActiveTab("table")}
+          >
+            <Text style={[styles.tabText, activeTab === "table" && styles.activeTabText]}>
+              Table
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Gameweek selector — always OUTSIDE the ScrollView so it never nests */}
+      <LeagueGameweekSelector
+        selectedGameweek={selectedGameweek}
+        currentGameweek={currentGameweek}
+        availableGameweeks={availableGameweeks}
+        onGameweekChange={handleGameweekChange}
+        loading={isH2HLeague ? h2hTableLoading : false}
+        minGameweek={leagueData?.createdAtGameweek || 1}
+      />
+
+      {/* H2H tab: wager cap bar outside ScrollView */}
+      {activeTab === "h2h" && wagerSummary && (
+        <View style={styles.wagerCapBar}>
+          <Text style={styles.wagerCapBarText}>
+            ⚔ GW{currentGameweek} cap: {wagerSummary.totalWagered}/100 pts used · {wagerSummary.remainingCap} remaining
+          </Text>
+        </View>
+      )}
+
       <ScrollView
         style={styles.scrollView}
+        contentContainerStyle={styles.scrollViewContent}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }
       >
-        {/* League Header - moved to navigation bar */}
-        {/* {leagueData && (
-          <View style={styles.leagueHeader}>
-            <View style={styles.leagueInfo}>
-              <Text style={styles.leagueName}>{leagueData.name}</Text>
-              {leagueData.description && (
-                <Text style={styles.leagueDescription}>
-                  {leagueData.description}
-                </Text>
-              )}
-              <View style={styles.leagueStats}>
-                <View style={styles.statItem}>
-                  <Ionicons name="people" size={16} color="#6c757d" />
-                  <Text style={styles.statText}>
-                    {leagueData.memberCount} members
-                  </Text>
-                </View>
-                <View style={styles.statItem}>
-                  <Ionicons name="key" size={16} color="#6c757d" />
-                  <Text style={styles.statText}>{leagueData.leagueCode}</Text>
-                </View>
-              </View>
-            </View>
-          </View>
-        )} */}
-
-        {/* Tabs */}
-        <View style={styles.tabContainer}>
-          {!isH2HLeague && (
-            <TouchableOpacity
-              style={[styles.tab, activeTab === "table" && styles.activeTab]}
-              onPress={() => setActiveTab("table")}
-            >
-              <Text
-                style={[
-                  styles.tabText,
-                  activeTab === "table" && styles.activeTabText,
-                ]}
-              >
-                Table
-              </Text>
-            </TouchableOpacity>
-          )}
-          {isH2HLeague && (
-            <TouchableOpacity
-              style={[styles.tab, activeTab === "h2h" && styles.activeTab]}
-              onPress={() => setActiveTab("h2h")}
-            >
-              <Text
-                style={[
-                  styles.tabText,
-                  activeTab === "h2h" && styles.activeTabText,
-                ]}
-              >
-                ⚔ H2H Table
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
         {/* Standard League Table */}
-        {/* {activeTab === "table" && ( */}
-        {/* Removed tab condition since we only show table content now */}
         {activeTab === "table" && (
-          <>
-            {/* Gameweek Selector */}
-            <LeagueGameweekSelector
-              selectedGameweek={selectedGameweek}
-              currentGameweek={currentGameweek}
-              availableGameweeks={availableGameweeks}
-              onGameweekChange={handleGameweekChange}
-              minGameweek={leagueData?.createdAtGameweek || 1}
+          <View style={styles.tableContainer}>
+            <LeagueTable
+              members={leagueTable}
+              gameweek={selectedGameweek}
+              onMemberPress={handleMemberPress}
+              loading={tableLoading}
+              emptyMessage={`No data available for gameweek ${selectedGameweek}`}
+              currentUserEntry={currentUserEntry}
+              scrollEnabled={false}
             />
 
-            {/* Action Buttons */}
-            <View style={styles.actionButtons}>
-              <TouchableOpacity
-                style={styles.calculateButton}
-                onPress={() => {
-                  console.log("Button pressed - calling handleCalculateScores");
-                  handleCalculateScores();
-                }}
-                disabled={tableLoading}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="calculator" size={16} color="#fff" />
-                <Text style={styles.calculateButtonText}>
-                  Calculate GW{selectedGameweek}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* League Table */}
-            <View style={styles.tableContainer}>
-              <LeagueTable
-                members={leagueTable}
-                gameweek={selectedGameweek}
-                onMemberPress={handleMemberPress}
-                loading={tableLoading}
-                emptyMessage={`No data available for gameweek ${selectedGameweek}`}
-                currentUserEntry={currentUserEntry}
-              />
-
-              {/* Pagination Controls */}
-              {pagination && pagination.totalPages > 1 && (
-                <View style={styles.paginationContainer}>
-                  <TouchableOpacity
-                    style={[
-                      styles.pageButton,
-                      !pagination.hasPrevPage && styles.pageButtonDisabled,
-                    ]}
-                    onPress={() => handlePageChange(currentPage - 1)}
-                    disabled={!pagination.hasPrevPage || tableLoading}
-                  >
-                    <Ionicons
-                      name="chevron-back"
-                      size={20}
-                      color={pagination.hasPrevPage ? "#007bff" : "#ccc"}
-                    />
-                  </TouchableOpacity>
-
-                  <View style={styles.pageInfo}>
-                    <Text style={styles.pageInfoText}>
-                      {pagination.startRank}-{pagination.endRank} of{" "}
-                      {pagination.totalMembers}
-                    </Text>
-                    <Text style={styles.pageNumberText}>
-                      Page {currentPage} of {pagination.totalPages}
-                    </Text>
-                  </View>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.pageButton,
-                      !pagination.hasNextPage && styles.pageButtonDisabled,
-                    ]}
-                    onPress={() => handlePageChange(currentPage + 1)}
-                    disabled={!pagination.hasNextPage || tableLoading}
-                  >
-                    <Ionicons
-                      name="chevron-forward"
-                      size={20}
-                      color={pagination.hasNextPage ? "#007bff" : "#ccc"}
-                    />
-                  </TouchableOpacity>
+            {/* Pagination Controls */}
+            {pagination && pagination.totalPages > 1 && (
+              <View style={styles.paginationContainer}>
+                <TouchableOpacity
+                  style={[styles.pageButton, !pagination.hasPrevPage && styles.pageButtonDisabled]}
+                  onPress={() => handlePageChange(currentPage - 1)}
+                  disabled={!pagination.hasPrevPage || tableLoading}
+                >
+                  <Ionicons name="chevron-back" size={20} color={pagination.hasPrevPage ? "#007bff" : "#ccc"} />
+                </TouchableOpacity>
+                <View style={styles.pageInfo}>
+                  <Text style={styles.pageInfoText}>
+                    {pagination.startRank}-{pagination.endRank} of {pagination.totalMembers}
+                  </Text>
+                  <Text style={styles.pageNumberText}>
+                    Page {currentPage} of {pagination.totalPages}
+                  </Text>
                 </View>
-              )}
-            </View>
-          </>
+                <TouchableOpacity
+                  style={[styles.pageButton, !pagination.hasNextPage && styles.pageButtonDisabled]}
+                  onPress={() => handlePageChange(currentPage + 1)}
+                  disabled={!pagination.hasNextPage || tableLoading}
+                >
+                  <Ionicons name="chevron-forward" size={20} color={pagination.hasNextPage ? "#007bff" : "#ccc"} />
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
         )}
 
-        {/* H2H League Table */}
-        {activeTab === "h2h" &&
-          (() => {
-            const h2hMembers = [...h2hTable]
-              .map((entry) => ({
-                ...entry,
-                gwScore: (entry.gameweekScores?.[selectedGameweek] ??
-                  0) as number,
-              }))
-              .sort(
-                (a, b) => b.gwScore - a.gwScore || b.totalScore - a.totalScore,
-              )
-              .map((entry, idx) => ({
-                userId: entry.userId,
-                userName: entry.userName,
-                userEmail: `W${entry.wagersWon} / L${entry.wagersLost}${entry.wagersVoided > 0 ? ` / V${entry.wagersVoided}` : ""}`,
-                rank: idx + 1,
-                previousRank: null,
-                rankChange: 0,
-                gameweekScore: entry.gwScore,
-                totalScore: entry.totalScore,
-                isNewMember: false,
-                joinedGameweek: entry.joinedGameweek,
-              }));
+        {/* H2H Tab */}
+        {activeTab === "h2h" && (() => {
+          const h2hMembers = [...h2hTable]
+            .map((entry) => ({
+              ...entry,
+              gwScore: (entry.gameweekScores?.[selectedGameweek] ?? 0) as number,
+            }))
+            .sort((a, b) => b.gwScore - a.gwScore || b.totalScore - a.totalScore)
+            .map((entry, idx) => ({
+              userId: entry.userId,
+              userName: entry.userName,
+              userEmail: `W${entry.wagersWon} / L${entry.wagersLost}${entry.wagersVoided > 0 ? ` / V${entry.wagersVoided}` : ""}`,
+              rank: idx + 1,
+              previousRank: null,
+              rankChange: 0,
+              gameweekScore: entry.gwScore,
+              totalScore: entry.totalScore,
+              isNewMember: false,
+              joinedGameweek: entry.joinedGameweek,
+            }));
 
-            return (
-              <>
-                <LeagueGameweekSelector
-                  selectedGameweek={selectedGameweek}
-                  currentGameweek={currentGameweek}
-                  availableGameweeks={availableGameweeks}
-                  onGameweekChange={handleGameweekChange}
-                  loading={h2hTableLoading}
-                  minGameweek={leagueData?.createdAtGameweek || 1}
-                />
-                <View style={styles.tableContainer}>
-                  <LeagueTable
-                    members={h2hMembers}
-                    gameweek={selectedGameweek}
-                    onMemberPress={handleMemberPress}
-                    loading={h2hTableLoading}
-                    emptyMessage="No H2H data yet. Place wagers to see standings."
-                    currentUserId={currentUserId ?? undefined}
-                  />
+          return (
+            <>
+              {/* Place Wagers section */}
+              {h2hFixtures.length > 0 && (
+                <View style={styles.wagerSection}>
+                  <Text style={styles.wagerSectionTitle}>Place Wagers — GW{currentGameweek}</Text>
+                  {h2hFixtures.map((fixture) => {
+                    const form = wagerForm[fixture.id];
+                    const existing = wagers[fixture.id];
+                    return (
+                      <View key={fixture.id} style={styles.wagerFixtureCard}>
+                        <View style={styles.wagerFixtureRow}>
+                          <View style={styles.wagerTeamSide}>
+                            {fixture.homeTeamId && getTeamLogo(fixture.homeTeamId) && (
+                              <Image source={getTeamLogo(fixture.homeTeamId)} style={styles.wagerTeamLogo} resizeMode="contain" />
+                            )}
+                            <Text style={styles.wagerTeamName} numberOfLines={1}>{fixture.homeTeam}</Text>
+                          </View>
+                          <View style={styles.wagerVsBox}>
+                            <Text style={styles.wagerVs}>vs</Text>
+                            <Text style={styles.wagerTime}>{fixture.time}</Text>
+                          </View>
+                          <View style={[styles.wagerTeamSide, styles.wagerAwayTeam]}>
+                            <Text style={styles.wagerTeamName} numberOfLines={1}>{fixture.awayTeam}</Text>
+                            {fixture.awayTeamId && getTeamLogo(fixture.awayTeamId) && (
+                              <Image source={getTeamLogo(fixture.awayTeamId)} style={styles.wagerTeamLogo} resizeMode="contain" />
+                            )}
+                          </View>
+                        </View>
+
+                        <TouchableOpacity
+                          style={styles.wagerToggleBtn}
+                          onPress={() => toggleWagerPanel(fixture.id)}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={styles.wagerToggleText}>
+                            {existing
+                              ? `Wager placed: ${existing.totalAmount} pts (${existing.outcome}, ${existing.status})`
+                              : "+ Place Wager"}
+                          </Text>
+                          <Text style={styles.wagerToggleArrow}>{form?.open ? "▲" : "▼"}</Text>
+                        </TouchableOpacity>
+
+                        {form?.open && (
+                          <View style={styles.wagerPanel}>
+                            <Text style={styles.wagerLabel}>Predict outcome:</Text>
+                            <View style={styles.wagerOutcomeRow}>
+                              {(["home", "draw", "away"] as const).map((o) => (
+                                <TouchableOpacity
+                                  key={o}
+                                  style={[styles.wagerOutcomeBtn, form.outcome === o && styles.wagerOutcomeBtnActive]}
+                                  onPress={() => setWagerForm((prev) => ({ ...prev, [fixture.id]: { ...prev[fixture.id], outcome: o } }))}
+                                >
+                                  <Text style={[styles.wagerOutcomeText, form.outcome === o && styles.wagerOutcomeTextActive]}>
+                                    {o === "home" ? fixture.homeTeam : o === "away" ? fixture.awayTeam : "Draw"}
+                                  </Text>
+                                </TouchableOpacity>
+                              ))}
+                            </View>
+
+                            <Text style={styles.wagerLabel}>Amount (10–100 pts):</Text>
+                            <View style={styles.wagerAmountRow}>
+                              <TouchableOpacity
+                                style={styles.wagerStepBtn}
+                                onPress={() => setWagerForm((prev) => ({ ...prev, [fixture.id]: { ...prev[fixture.id], amount: Math.max(10, (prev[fixture.id]?.amount || 10) - 10) } }))}
+                              >
+                                <Text style={styles.wagerStepText}>−</Text>
+                              </TouchableOpacity>
+                              <Text style={styles.wagerAmountText}>{form.amount} pts</Text>
+                              <TouchableOpacity
+                                style={styles.wagerStepBtn}
+                                onPress={() => {
+                                  const cap = wagerSummary?.remainingCap ?? 100;
+                                  const cur = form.amount || 10;
+                                  setWagerForm((prev) => ({ ...prev, [fixture.id]: { ...prev[fixture.id], amount: Math.min(Math.min(100, cur + cap), cur + 10) } }));
+                                }}
+                              >
+                                <Text style={styles.wagerStepText}>+</Text>
+                              </TouchableOpacity>
+                            </View>
+
+                            <TouchableOpacity
+                              style={[styles.wagerSubmitBtn, (!form.outcome || wagerSubmitting[fixture.id]) && styles.wagerSubmitBtnDisabled]}
+                              onPress={() => submitWager(fixture.id)}
+                              disabled={!form.outcome || !!wagerSubmitting[fixture.id]}
+                            >
+                              {wagerSubmitting[fixture.id] ? (
+                                <ActivityIndicator size="small" color="#fff" />
+                              ) : (
+                                <Text style={styles.wagerSubmitText}>{existing ? "Update Wager" : "Place Wager"}</Text>
+                              )}
+                            </TouchableOpacity>
+                          </View>
+                        )}
+                      </View>
+                    );
+                  })}
                 </View>
-              </>
-            );
-          })()}
+              )}
+
+              {/* Standings */}
+              <View style={styles.tableContainer}>
+                <LeagueTable
+                  members={h2hMembers}
+                  gameweek={selectedGameweek}
+                  onMemberPress={handleMemberPress}
+                  loading={h2hTableLoading}
+                  emptyMessage="No H2H data yet. Place wagers to see standings."
+                  currentUserId={currentUserId ?? undefined}
+                  scrollEnabled={false}
+                />
+              </View>
+            </>
+          );
+        })()}
       </ScrollView>
     </SafeAreaView>
   );
@@ -500,6 +572,9 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  scrollViewContent: {
+    paddingBottom: 40,
   },
   loadingContainer: {
     flex: 1,
@@ -572,27 +647,6 @@ const styles = StyleSheet.create({
   },
   activeTabText: {
     color: "#007bff",
-    fontWeight: "600",
-  },
-  actionButtons: {
-    backgroundColor: "#fff",
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e9ecef",
-    alignItems: "flex-end",
-  },
-  calculateButton: {
-    backgroundColor: "#007bff",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    gap: 8,
-  },
-  calculateButtonText: {
-    color: "#fff",
-    fontSize: 14,
     fontWeight: "600",
   },
   tableContainer: {
@@ -677,6 +731,193 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#fff",
     fontWeight: "500",
+  },
+  wagerSection: {
+    marginHorizontal: 12,
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  wagerCapBar: {
+    backgroundColor: "#fff3e0",
+    borderBottomWidth: 1,
+    borderBottomColor: "#ffe0b2",
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  wagerCapBarText: {
+    fontSize: 12,
+    color: "#e65100",
+    fontWeight: "600",
+  },
+  wagerSectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+    paddingHorizontal: 4,
+  },
+  wagerSectionTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#e65100",
+  },
+  wagerCapText: {
+    fontSize: 11,
+    color: "#6c757d",
+  },
+  wagerFixtureCard: {
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    marginBottom: 10,
+    padding: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  wagerFixtureRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  wagerTeamSide: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  wagerAwayTeam: {
+    justifyContent: "flex-end",
+  },
+  wagerTeamLogo: {
+    width: 22,
+    height: 22,
+  },
+  wagerTeamName: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#212529",
+    flexShrink: 1,
+  },
+  wagerVsBox: {
+    alignItems: "center",
+    paddingHorizontal: 8,
+  },
+  wagerVs: {
+    fontSize: 12,
+    color: "#6c757d",
+    fontWeight: "500",
+  },
+  wagerTime: {
+    fontSize: 11,
+    color: "#adb5bd",
+  },
+  wagerToggleBtn: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#fff3e0",
+    borderWidth: 1,
+    borderColor: "#fd7e14",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  wagerToggleText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#e65100",
+    flex: 1,
+  },
+  wagerToggleArrow: {
+    fontSize: 11,
+    color: "#e65100",
+    marginLeft: 8,
+  },
+  wagerPanel: {
+    marginTop: 10,
+    padding: 12,
+    backgroundColor: "#fffbf5",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#ffe0b2",
+  },
+  wagerLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#6c757d",
+    marginBottom: 6,
+    marginTop: 4,
+  },
+  wagerOutcomeRow: {
+    flexDirection: "row",
+    gap: 6,
+    marginBottom: 10,
+  },
+  wagerOutcomeBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "#dee2e6",
+    borderRadius: 8,
+    paddingVertical: 8,
+    alignItems: "center",
+    backgroundColor: "#f8f9fa",
+  },
+  wagerOutcomeBtnActive: {
+    borderColor: "#fd7e14",
+    backgroundColor: "#fd7e14",
+  },
+  wagerOutcomeText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#6c757d",
+    textAlign: "center",
+  },
+  wagerOutcomeTextActive: {
+    color: "#fff",
+  },
+  wagerAmountRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 16,
+    marginBottom: 8,
+  },
+  wagerStepBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#fd7e14",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  wagerStepText: {
+    fontSize: 20,
+    color: "#fff",
+    fontWeight: "bold",
+    lineHeight: 22,
+  },
+  wagerAmountText: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#212529",
+    minWidth: 70,
+    textAlign: "center",
+  },
+  wagerSubmitBtn: {
+    backgroundColor: "#fd7e14",
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: "center",
+    marginTop: 4,
+  },
+  wagerSubmitBtnDisabled: {
+    backgroundColor: "#adb5bd",
+  },
+  wagerSubmitText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 14,
   },
 });
 

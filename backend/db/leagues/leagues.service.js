@@ -197,7 +197,7 @@ const getUserLeagues = async (userId) => {
             }
 
             return {
-              oderId: data.oderId,
+              userId: data.userId,
               totalScore,
             };
           });
@@ -206,7 +206,7 @@ const getUserLeagues = async (userId) => {
           userScores.sort((a, b) => b.totalScore - a.totalScore);
 
           // Find user's rank
-          const userIndex = userScores.findIndex((s) => s.oderId === userId);
+          const userIndex = userScores.findIndex((score) => score.userId === userId);
           if (userIndex !== -1) {
             userRank = userIndex + 1;
           }

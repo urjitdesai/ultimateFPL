@@ -66,16 +66,16 @@ router.get("/users", async (req, res) => {
   }
 });
 
-// Get first document from user_predictions collection
+// Get first document from userPredictions collection
 router.get("/user-predictions", async (req, res) => {
   try {
-    const snapshot = await db.collection("user_predictions").limit(1).get();
+    const snapshot = await db.collection("userPredictions").limit(1).get();
 
     if (snapshot.empty) {
       return res.json({
         success: true,
         data: null,
-        message: "No documents found in user_predictions collection",
+        message: "No documents found in userPredictions collection",
       });
     }
 
@@ -126,16 +126,16 @@ router.get("/leagues", async (req, res) => {
   }
 });
 
-// Get first document from league_members collection
+// Get first document from users_leagues collection
 router.get("/league-members", async (req, res) => {
   try {
-    const snapshot = await db.collection("league_members").limit(1).get();
+    const snapshot = await db.collection("users_leagues").limit(1).get();
 
     if (snapshot.empty) {
       return res.json({
         success: true,
         data: null,
-        message: "No documents found in league_members collection",
+        message: "No documents found in users_leagues collection",
       });
     }
 

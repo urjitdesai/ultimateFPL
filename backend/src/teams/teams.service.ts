@@ -1,5 +1,6 @@
 import { firestore } from "../firebase/admin.js";
 import { ensureFixturesCached } from "../fixtures/fixtures.service.js";
+import { decodeHtmlEntities } from "../utils/html.js";
 
 export type Team = { id: string; name: string; shortName: string };
 
@@ -9,7 +10,7 @@ export async function getTeams(): Promise<Team[]> {
   return snapshot.docs
     .map((doc) => ({
       id: doc.id,
-      name: doc.data().name as string,
+      name: decodeHtmlEntities(doc.data().name as string),
       shortName: doc.data().shortName as string,
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
@@ -21,7 +22,7 @@ export async function getTeamById(id: string): Promise<Team | undefined> {
   if (!snapshot.exists || snapshot.data()?.isActive !== true) return undefined;
   return {
     id: snapshot.id,
-    name: snapshot.data()!.name as string,
+    name: decodeHtmlEntities(snapshot.data()!.name as string),
     shortName: snapshot.data()!.shortName as string,
   };
 }

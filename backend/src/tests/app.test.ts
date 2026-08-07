@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { app } from "../app.js";
 import { getDefaultLeagues } from "../leagues/leagues.service.js";
 import { assignGameweeks, selectSeasonByYear } from "../fixtures/fixtures.service.js";
+import { decodeHtmlEntities } from "../utils/html.js";
 
 describe("foundation API", () => {
   it("reports health", async () => {
@@ -63,5 +64,10 @@ describe("foundation API", () => {
     expect(() => selectSeasonByYear(seasons, 20302031)).toThrow(
       "The Premier League 20302031 season was not returned by the provider.",
     );
+  });
+
+  it("decodes provider team names for display", () => {
+    expect(decodeHtmlEntities("Brighton &amp; Hove Albion")).toBe("Brighton & Hove Albion");
+    expect(decodeHtmlEntities("A&#39; Team &#x26; Co")).toBe("A' Team & Co");
   });
 });

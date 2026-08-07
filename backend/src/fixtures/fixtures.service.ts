@@ -2,6 +2,7 @@ import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { z } from "zod";
 import { env } from "../config/env.js";
 import { firestore } from "../firebase/admin.js";
+import { decodeHtmlEntities } from "../utils/html.js";
 
 const teamSchema = z.object({
   team_id: z.number(),
@@ -169,11 +170,12 @@ async function syncFixtures() {
   }, { merge: true });
 
   for (const [providerTeamId, team] of teams) {
+    const teamName = decodeHtmlEntities(team.team_name);
     batch.set(firestore.collection("teams").doc(`footballdataIo_${providerTeamId}`), {
       provider: "FOOTBALLDATA_IO",
       providerTeamId,
-      name: team.team_name,
-      shortName: team.team_name.split(/\s+/).map((part) => part[0]).join("").slice(0, 3).toUpperCase(),
+      name: teamName,
+      shortName: teamName.split(/\s+/).map((part) => part[0]).join("").slice(0, 3).toUpperCase(),
       logoUrl: team.team_logo ?? null,
       activeSeasonIds: [seasonId],
       isActive: true,
@@ -202,8 +204,8 @@ async function syncFixtures() {
         seasonId,
         gameweekId,
         roundNumber,
-        homeTeam: { id: `footballdataIo_${match.home_team.team_id}`, name: match.home_team.team_name },
-        awayTeam: { id: `footballdataIo_${match.away_team.team_id}`, name: match.away_team.team_name },
+        homeTeam: { id: `footballdataIo_${match.home_team.team_id}`, name: decodeHtmlEntities(match.home_team.team_name) },
+        awayTeam: { id: `footballdataIo_${match.away_team.team_id}`, name: decodeHtmlEntities(match.away_team.team_name) },
         kickoffAt: Timestamp.fromMillis(match.date_unix * 1000),
         providerStatus: match.status,
         normalizedStatus: normalizeStatus(match.status),
@@ -253,6 +255,15 @@ export async function getFixturesForGameweek(gameweekId: string) {
   await ensureFixturesCached();
   const snapshot = await firestore.collection("fixtures").where("gameweekId", "==", gameweekId).get();
   return snapshot.docs
-    .map((doc) => ({ id: doc.id, ...doc.data(), kickoffAt: iso(doc.data().kickoffAt) }))
+    .map((doc) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        homeTeam: { ...data.homeTeam, name: decodeHtmlEntities(data.homeTeam.name) },
+        awayTeam: { ...data.awayTeam, name: decodeHtmlEntities(data.awayTeam.name) },
+        kickoffAt: iso(data.kickoffAt),
+      };
+    })
     .sort((a, b) => String(a.kickoffAt).localeCompare(String(b.kickoffAt)));
 }

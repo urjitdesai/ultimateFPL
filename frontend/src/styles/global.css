@@ -92,7 +92,7 @@ input:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 4px rgb
 .gameweek-rail button.selected { background: var(--lime); color: var(--navy); }
 .gameweek-rail button.selected span { color: #334200; }
 
-.home-content { width: min(100%, 1440px); margin: 0 auto; display: grid; grid-template-columns: minmax(0,1fr) 340px; }
+.home-content { width: min(100%, 1440px); margin: 0 auto; display: grid; grid-template-columns: minmax(0,1fr) minmax(280px,320px); }
 .fixtures-section { padding: 36px clamp(24px,4vw,58px) 70px; min-width: 0; }
 .fixtures-section > header { display: flex; justify-content: space-between; align-items: end; margin-bottom: 28px; }
 .fixtures-section h2, .league-rail h2 { margin: 0; font: 800 31px 'Manrope'; letter-spacing: -.05em; }
@@ -104,7 +104,7 @@ input:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 4px rgb
 .save-predictions:disabled { opacity: .45; cursor: not-allowed; }
 .save-predictions.is-saved { background: #e8f7db; color: #287213; }
 .fixture-list { border-top: 1px solid var(--line); }
-.fixture-head, .fixture-row { display: grid; grid-template-columns: 125px minmax(165px,1fr) 200px minmax(165px,1fr); align-items: center; }
+.fixture-head, .fixture-row { display: grid; grid-template-columns: 125px minmax(0,1fr) 200px minmax(0,1fr); align-items: center; }
 .fixture-head { min-height: 35px; color: #72829a; font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
 .fixture-head span:nth-child(3) { text-align: center; }
 .fixture-head span:last-child { text-align: right; }
@@ -174,9 +174,14 @@ input:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 4px rgb
   .home-nav { grid-template-columns: 1fr auto; }
   .home-links { display: none; }
   .home-account > span { display: none; }
-  .home-content { grid-template-columns: minmax(0,1fr) 290px; }
-  .score-summary { min-width: 270px; }
-  .fixture-head, .fixture-row { grid-template-columns: 95px minmax(130px,1fr) 170px minmax(130px,1fr); }
+  .matchday-overview { display: block; }
+  .score-summary { width: min(100%,420px); min-width: 270px; margin: 0 0 24px 19px; }
+}
+@media (max-width: 1180px) {
+  .home-content { grid-template-columns: minmax(0,1fr); }
+  .league-rail { border-left: 0; border-top: 1px solid #e1e6ec; }
+  .matchday-overview { align-items: center; }
+  .matchday-title h1 { font-size: clamp(34px,4.6vw,48px); }
 }
 @media (max-width: 700px) {
   .auth-shell { display: block; background: white; }
@@ -198,7 +203,7 @@ input:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 4px rgb
   .matchday-title h1 { font-size: 32px; line-height: 1.05; }
   .matchday-title h1::before { width: 4px; margin-right: 9px; }
   .matchday-title p { margin-left: 13px; }
-  .score-summary { min-width: 0; margin: 0 20px 24px; }
+  .score-summary { width: auto; min-width: 0; margin: 0 20px 24px; }
   .score-summary > div { min-height: 72px; padding: 11px 14px; }
   .score-summary strong { font-size: 28px; }
   .gameweek-navigation { grid-template-columns: minmax(0,1fr); gap: 0; }
@@ -213,15 +218,16 @@ input:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 4px rgb
   .save-predictions { min-width: 132px; padding: 0 10px; font-size: 11px; }
   .fixture-head { display: none; }
   .fixture-list { border-top: 1px solid var(--line); }
-  .fixture-row { min-height: 118px; grid-template-columns: 52px minmax(0,1fr) 116px minmax(0,1fr); gap: 5px; }
-  .fixture-row time { font-size: 10px; }
+  .fixture-row { min-height: 148px; grid-template-columns: minmax(0,1fr) 116px minmax(0,1fr); grid-template-areas: "time time time" "home prediction away"; gap: 8px 5px; padding: 12px 0; }
+  .fixture-row time { grid-area: time; display: flex; justify-content: center; gap: 6px; font-size: 10px; }
   .fixture-row time strong { font-size: 11px; }
-  .team { gap: 7px; }
-  .team strong { font-size: 11px; white-space: normal; line-height: 1.25; }
+  .team { min-width: 0; flex-direction: column; justify-content: flex-start; gap: 6px; text-align: center; }
+  .home-team { grid-area: home; }
+  .away-team { grid-area: away; flex-direction: column-reverse; }
+  .team strong { width: 100%; min-height: 28px; display: grid; place-items: center; font-size: 11px; white-space: normal; line-height: 1.25; }
   .team-crest { flex-basis: 31px; width: 31px; height: 31px; font-size: 8px; }
   .team-crest img { width: 29px; height: 29px; }
-  .away-team .team-crest { display: none; }
-  .prediction-cell { min-height: 117px; border-inline: 0; }
+  .prediction-cell { grid-area: prediction; min-height: 91px; border-inline: 0; }
   .score-entry { gap: 4px; }
   .score-entry input { width: 39px; height: 41px; font-size: 16px; }
   .saved-tick { display: none; }

@@ -8,8 +8,8 @@ export type Gameweek = { id: string; seasonId: string; roundNumber: number; star
 export type FixtureTeam = Pick<Team, "id" | "name" | "logoUrl">;
 export type Fixture = { id: string; providerMatchId: number; gameweekId: string; roundNumber: number; kickoffAt: string; normalizedStatus: string; homeTeam: FixtureTeam; awayTeam: FixtureTeam; homeScore: number | null; awayScore: number | null };
 export type Prediction = { predictedHomeScore: number; predictedAwayScore: number; awardedPoints: number | null; scoringReason: string | null; submittedAt: string | null; updatedAt: string | null };
-export type PredictionFixture = Fixture & { prediction: Prediction | null; predictionLocked: boolean };
-export type PredictionView = { fixtures: PredictionFixture[]; summary: { totalPoints: number; gameweekPoints: number; submittedCount: number; fixtureCount: number } };
+export type PredictionFixture = Fixture & { prediction: Prediction | null; predictionLocked: boolean; predictionLockReason: "NOT_CURRENT_GAMEWEEK" | "KICKOFF" | null };
+export type PredictionView = { fixtures: PredictionFixture[]; predictionsOpen: boolean; summary: { totalPoints: number; gameweekPoints: number; submittedCount: number; fixtureCount: number } };
 
 async function request<T>(path: string, init?: RequestInit, user?: User): Promise<T> {
   const token = user ? await user.getIdToken() : null;

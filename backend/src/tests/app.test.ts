@@ -5,7 +5,7 @@ import { getDefaultLeagues } from "../leagues/leagues.service.js";
 import { assignGameweeks, selectSeasonByYear } from "../fixtures/fixtures.service.js";
 import { decodeHtmlEntities } from "../utils/html.js";
 import { scorePrediction } from "../predictions/predictions.scoring.js";
-import { predictionIsLocked } from "../predictions/predictions.service.js";
+import { isCurrentPredictionGameweek, predictionIsLocked } from "../predictions/predictions.service.js";
 import { Timestamp } from "firebase-admin/firestore";
 
 describe("foundation API", () => {
@@ -96,5 +96,11 @@ describe("foundation API", () => {
     const kickoff = Timestamp.fromMillis(10_000);
     expect(predictionIsLocked(kickoff, Timestamp.fromMillis(9_999))).toBe(false);
     expect(predictionIsLocked(kickoff, Timestamp.fromMillis(10_000))).toBe(true);
+  });
+
+  it("opens predictions only for the current gameweek", () => {
+    expect(isCurrentPredictionGameweek("gw-4", "gw-4")).toBe(true);
+    expect(isCurrentPredictionGameweek("gw-5", "gw-4")).toBe(false);
+    expect(isCurrentPredictionGameweek("gw-4", null)).toBe(false);
   });
 });

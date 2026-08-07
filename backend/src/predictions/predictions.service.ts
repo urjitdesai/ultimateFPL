@@ -2,6 +2,7 @@ import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { z } from "zod";
 import { firestore } from "../firebase/admin.js";
 import { getFixturesForGameweek } from "../fixtures/fixtures.service.js";
+import { getCurrentGameweek } from "../gameweeks/gameweeks.service.js";
 import { scorePrediction } from "./predictions.scoring.js";
 
 export const predictionBatchSchema = z.object({
@@ -20,6 +21,10 @@ export function predictionIsLocked(kickoffAt: Timestamp, now = Timestamp.now()) 
   return now.toMillis() >= kickoffAt.toMillis();
 }
 
+export function isCurrentPredictionGameweek(requestedGameweekId: string, currentGameweekId: string | null) {
+  return requestedGameweekId === currentGameweekId;
+}
+
 function serializePrediction(data: FirebaseFirestore.DocumentData) {
   return {
     predictedHomeScore: data.predictedHomeScore as number,
@@ -36,6 +41,14 @@ export async function saveGameweekPredictions(
   gameweekId: string,
   input: z.infer<typeof predictionBatchSchema>,
 ) {
+  const currentGameweek = await getCurrentGameweek();
+  if (!isCurrentPredictionGameweek(gameweekId, currentGameweek?.id ?? null)) {
+    throw Object.assign(new Error("Predictions are only open for the current gameweek."), {
+      code: "PREDICTION_LOCKED",
+      status: 409,
+    });
+  }
+
   const uniqueFixtureIds = new Set(input.predictions.map((prediction) => prediction.fixtureId));
   if (uniqueFixtureIds.size !== input.predictions.length) {
     throw Object.assign(new Error("Each fixture can appear only once."), { code: "INVALID_SCORE", status: 400 });
@@ -142,7 +155,11 @@ async function rebuildUserStats(userId: string, seasonId: string) {
 }
 
 export async function getGameweekPredictions(userId: string, gameweekId: string) {
-  const fixtures = await getFixturesForGameweek(gameweekId);
+  const [fixtures, currentGameweek] = await Promise.all([
+    getFixturesForGameweek(gameweekId),
+    getCurrentGameweek(),
+  ]);
+  const predictionsOpen = isCurrentPredictionGameweek(gameweekId, currentGameweek?.id ?? null);
   await Promise.all(fixtures.filter((fixture) => fixture.normalizedStatus === "COMPLETED")
     .map((fixture) => settleFixturePredictions(fixture.id)));
 
@@ -161,8 +178,10 @@ export async function getGameweekPredictions(userId: string, gameweekId: string)
     fixtures: fixtures.map((fixture) => ({
       ...fixture,
       prediction: predictions.get(fixture.id) ?? null,
-      predictionLocked: now >= new Date(fixture.kickoffAt).getTime(),
+      predictionLocked: !predictionsOpen || now >= new Date(fixture.kickoffAt).getTime(),
+      predictionLockReason: !predictionsOpen ? "NOT_CURRENT_GAMEWEEK" : now >= new Date(fixture.kickoffAt).getTime() ? "KICKOFF" : null,
     })),
+    predictionsOpen,
     summary: {
       totalPoints: Number(seasonStats?.data()?.points ?? 0),
       gameweekPoints: Number(gameweekStats.data()?.points ?? 0),

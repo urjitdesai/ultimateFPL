@@ -14,7 +14,7 @@ const schema = z.object({
   BACKEND_API: z.string().url(),
   BACKEND_API_TOKEN: z.string().min(1),
   FOOTBALLDATA_IO_LEAGUE_ID: z.coerce.number().int().positive(),
-  FOOTBALLDATA_IO_SEASON_ID: z.coerce.number().int().positive().optional()
+  FOOTBALLDATA_IO_SEASON_YEAR: z.coerce.number().int().positive()
 });
 
 export const env = schema.parse(process.env);

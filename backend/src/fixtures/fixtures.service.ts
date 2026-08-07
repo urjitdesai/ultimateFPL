@@ -32,6 +32,16 @@ type ProviderPage = {
 
 let fixtureSync: Promise<void> | null = null;
 
+type ProviderSeason = { season_id: number; year: number; is_current?: boolean };
+
+export function selectSeasonByYear(seasons: ProviderSeason[], year: number) {
+  const season = seasons.find((candidate) => candidate.year === year);
+  if (!season) {
+    throw new Error(`The Premier League ${year} season was not returned by the provider.`);
+  }
+  return season;
+}
+
 async function providerRequest<T>(path: string): Promise<T> {
   const response = await fetch(`${env.BACKEND_API.replace(/\/$/, "")}${path}`, {
     headers: { authorization: `Bearer ${env.BACKEND_API_TOKEN}` },
@@ -49,19 +59,12 @@ async function providerRequest<T>(path: string): Promise<T> {
 
 async function discoverCompetition() {
   const leagueId = env.FOOTBALLDATA_IO_LEAGUE_ID;
-
-  if (env.FOOTBALLDATA_IO_SEASON_ID) {
-    return {
-      leagueId,
-      seasonId: env.FOOTBALLDATA_IO_SEASON_ID,
-      seasonYear: null,
-    };
-  }
+  const seasonYear = env.FOOTBALLDATA_IO_SEASON_YEAR;
 
   const seasons = await providerRequest<{
     data: {
       league: { league_id: number; competition_name?: string; league_name?: string };
-      seasons: Array<{ season_id: number; year: number; is_current?: boolean }>;
+      seasons: ProviderSeason[];
     };
   }>(`/leagues/${leagueId}/seasons`);
 
@@ -70,8 +73,7 @@ async function discoverCompetition() {
     throw new Error("Configured league ID is not the English Premier League.");
   }
 
-  const season = [...seasons.data.seasons].sort((a, b) => b.year - a.year)[0];
-  if (!season) throw new Error("No Premier League season was returned by the provider.");
+  const season = selectSeasonByYear(seasons.data.seasons, seasonYear);
 
   return { leagueId, seasonId: season.season_id, seasonYear: season.year };
 }
@@ -139,7 +141,10 @@ function normalizeStatus(status: string) {
 async function syncFixtures() {
   const competition = await discoverCompetition();
   const rawMatches = await fetchAllMatches(competition.leagueId, competition.seasonId);
-  const matches = assignGameweeks(rawMatches).filter((match) => match.resolvedGameweek != null);
+  const seasonMatches = rawMatches.filter(
+    (match) => match.season.year === env.FOOTBALLDATA_IO_SEASON_YEAR,
+  );
+  const matches = assignGameweeks(seasonMatches).filter((match) => match.resolvedGameweek != null);
   if (matches.length === 0) throw new Error("The provider returned no gameweek fixtures.");
 
   const seasonId = `footballdataIo_${competition.seasonId}`;
@@ -211,6 +216,7 @@ async function syncFixtures() {
 
   batch.set(firestore.collection("syncMetadata").doc("fixtures"), {
     seasonId,
+    seasonYear: competition.seasonYear,
     fixtureCount: matches.length,
     gameweekCount: gameweekGroups.size,
     synchronizedAt: FieldValue.serverTimestamp(),
@@ -224,7 +230,11 @@ export async function refreshFixturesCache() {
 
 export async function ensureFixturesCached() {
   const metadata = await firestore.collection("syncMetadata").doc("fixtures").get();
-  if (metadata.exists && Number(metadata.data()?.fixtureCount ?? 0) > 0) {
+  if (
+    metadata.exists
+    && metadata.data()?.seasonYear === env.FOOTBALLDATA_IO_SEASON_YEAR
+    && Number(metadata.data()?.fixtureCount ?? 0) > 0
+  ) {
     const cachedFixture = await firestore.collection("fixtures")
       .where("seasonId", "==", metadata.data()!.seasonId)
       .limit(1)

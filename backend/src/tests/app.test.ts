@@ -2,7 +2,7 @@ import request from "supertest";
 import { describe, expect, it } from "vitest";
 import { app } from "../app.js";
 import { getDefaultLeagues } from "../leagues/leagues.service.js";
-import { assignGameweeks } from "../fixtures/fixtures.service.js";
+import { assignGameweeks, selectSeasonByYear } from "../fixtures/fixtures.service.js";
 
 describe("foundation API", () => {
   it("reports health", async () => {
@@ -47,5 +47,21 @@ describe("foundation API", () => {
       { ...base, match_id: 4, match_date: "2026-10-17 15:00:00", date_unix: 4, game_week: 7 },
     ]);
     expect(result.map((match) => match.resolvedGameweek)).toEqual([1, 1, 2, 7]);
+  });
+
+  it("selects only the configured Premier League season year", () => {
+    const seasons = [
+      { season_id: 10, year: 20252026 },
+      { season_id: 11, year: 20262027 },
+      { season_id: 12, year: 20272028 },
+    ];
+
+    expect(selectSeasonByYear(seasons, 20262027)).toEqual({
+      season_id: 11,
+      year: 20262027,
+    });
+    expect(() => selectSeasonByYear(seasons, 20302031)).toThrow(
+      "The Premier League 20302031 season was not returned by the provider.",
+    );
   });
 });

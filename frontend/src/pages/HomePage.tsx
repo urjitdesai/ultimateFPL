@@ -60,7 +60,7 @@ export function HomePage() {
   }, [selectedId, user]);
 
   const selected = useMemo(() => gameweeks.find((gameweek) => gameweek.id === selectedId), [gameweeks, selectedId]);
-  const visibleLeagues = leagues.filter((league) => league.type === "OVERALL" || league.type === "GAMEWEEK_DEFAULT");
+  const visibleLeagues = leagues;
   const savableCount = view.fixtures.filter((fixture) => !fixture.predictionLocked && drafts[fixture.id]?.home !== "" && drafts[fixture.id]?.away !== "").length;
 
   if (authLoading) return <div className="loading-screen">Preparing matchday…</div>;

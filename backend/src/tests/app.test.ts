@@ -4,6 +4,9 @@ import { app } from "../app.js";
 import { getDefaultLeagues } from "../leagues/leagues.service.js";
 import { assignGameweeks, selectSeasonByYear } from "../fixtures/fixtures.service.js";
 import { decodeHtmlEntities } from "../utils/html.js";
+import { scorePrediction } from "../predictions/predictions.scoring.js";
+import { predictionIsLocked } from "../predictions/predictions.service.js";
+import { Timestamp } from "firebase-admin/firestore";
 
 describe("foundation API", () => {
   it("reports health", async () => {
@@ -69,5 +72,29 @@ describe("foundation API", () => {
   it("decodes provider team names for display", () => {
     expect(decodeHtmlEntities("Brighton &amp; Hove Albion")).toBe("Brighton & Hove Albion");
     expect(decodeHtmlEntities("A&#39; Team &#x26; Co")).toBe("A' Team & Co");
+  });
+
+  it("scores predictions using exact-score precedence", () => {
+    expect(scorePrediction({ predictedHome: 3, predictedAway: 1, actualHome: 3, actualAway: 1 })).toMatchObject({ points: 5, reason: "EXACT_SCORE" });
+    expect(scorePrediction({ predictedHome: 2, predictedAway: 0, actualHome: 3, actualAway: 1 })).toMatchObject({ points: 3, reason: "CORRECT_GOAL_DIFFERENCE" });
+    expect(scorePrediction({ predictedHome: 2, predictedAway: 1, actualHome: 3, actualAway: 1 })).toMatchObject({ points: 2, reason: "CORRECT_RESULT" });
+    expect(scorePrediction({ predictedHome: 1, predictedAway: 1, actualHome: 3, actualAway: 1 })).toMatchObject({ points: 0, reason: "INCORRECT" });
+  });
+
+  it("awards three points for the correct non-exact draw", () => {
+    expect(scorePrediction({ predictedHome: 0, predictedAway: 0, actualHome: 1, actualAway: 1 })).toMatchObject({ points: 3, reason: "CORRECT_GOAL_DIFFERENCE" });
+  });
+
+  it("protects prediction reads and writes", async () => {
+    const read = await request(app).get("/api/v1/gameweeks/gameweek-1/predictions/me");
+    const write = await request(app).put("/api/v1/gameweeks/gameweek-1/predictions").send({ predictions: [] });
+    expect(read.status).toBe(401);
+    expect(write.status).toBe(401);
+  });
+
+  it("locks a prediction exactly at kickoff", () => {
+    const kickoff = Timestamp.fromMillis(10_000);
+    expect(predictionIsLocked(kickoff, Timestamp.fromMillis(9_999))).toBe(false);
+    expect(predictionIsLocked(kickoff, Timestamp.fromMillis(10_000))).toBe(true);
   });
 });

@@ -32,7 +32,22 @@ type ProviderPage = {
   meta?: { pagination?: { total_pages?: number } };
 };
 
+export type FixtureView = {
+  id: string;
+  seasonId: string;
+  gameweekId: string;
+  roundNumber: number;
+  kickoffAt: string;
+  normalizedStatus: string;
+  homeScore: number | null;
+  awayScore: number | null;
+  homeTeam: { id: string; name: string; logoUrl: string };
+  awayTeam: { id: string; name: string; logoUrl: string };
+  [key: string]: unknown;
+};
+
 let fixtureSync: Promise<void> | null = null;
+const FIXTURE_CACHE_TTL_MS = 15 * 60 * 1000;
 
 type ProviderSeason = { season_id: number; year: number; is_current?: boolean };
 
@@ -233,6 +248,15 @@ async function syncFixtures() {
     synchronizedAt: FieldValue.serverTimestamp(),
   });
   await batch.commit();
+
+  const completedFixtureIds = matches
+    .filter((match) => normalizeStatus(match.status) === "COMPLETED"
+      && match.score?.home != null && match.score.away != null)
+    .map((match) => `footballdataIo_${match.match_id}`);
+  if (completedFixtureIds.length > 0) {
+    const { settleFixturePredictions } = await import("../predictions/predictions.service.js");
+    await Promise.all(completedFixtureIds.map((fixtureId) => settleFixturePredictions(fixtureId)));
+  }
 }
 
 export async function refreshFixturesCache() {
@@ -245,6 +269,8 @@ export async function ensureFixturesCached() {
     metadata.exists
     && metadata.data()?.seasonYear === env.FOOTBALLDATA_IO_SEASON_YEAR
     && Number(metadata.data()?.fixtureCount ?? 0) > 0
+    && metadata.data()?.synchronizedAt instanceof Timestamp
+    && Date.now() - metadata.data()!.synchronizedAt.toMillis() < FIXTURE_CACHE_TTL_MS
   ) {
     const cachedFixture = await firestore.collection("fixtures")
       .where("seasonId", "==", metadata.data()!.seasonId)
@@ -260,7 +286,7 @@ function iso(value: unknown) {
   return value instanceof Timestamp ? value.toDate().toISOString() : null;
 }
 
-export async function getFixturesForGameweek(gameweekId: string) {
+export async function getFixturesForGameweek(gameweekId: string): Promise<FixtureView[]> {
   await ensureFixturesCached();
   const snapshot = await firestore.collection("fixtures").where("gameweekId", "==", gameweekId).get();
   return snapshot.docs
@@ -279,8 +305,8 @@ export async function getFixturesForGameweek(gameweekId: string) {
           name: decodeHtmlEntities(data.awayTeam.name),
           logoUrl: teamLogoUrl(data.awayTeam.id),
         },
-        kickoffAt: iso(data.kickoffAt),
-      };
+        kickoffAt: iso(data.kickoffAt)!,
+      } as FixtureView;
     })
     .sort((a, b) => String(a.kickoffAt).localeCompare(String(b.kickoffAt)));
 }

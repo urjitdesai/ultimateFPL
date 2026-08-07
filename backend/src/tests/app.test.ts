@@ -5,10 +5,11 @@ import { getDefaultLeagues } from "../leagues/leagues.service.js";
 import { assignGameweeks, selectSeasonByYear } from "../fixtures/fixtures.service.js";
 import { decodeHtmlEntities } from "../utils/html.js";
 import { scorePrediction } from "../predictions/predictions.scoring.js";
-import { isCurrentPredictionGameweek, predictionIsLocked } from "../predictions/predictions.service.js";
+import { gameweekLockDeadline, isCurrentPredictionGameweek, predictionIsLocked } from "../predictions/predictions.service.js";
 import { Timestamp } from "firebase-admin/firestore";
 import { getGameweekStatus } from "../gameweeks/gameweeks.service.js";
 import { generateInviteCode, getMembershipStartRound, normalizeInviteCode, rankLeagueStandings } from "../leagues/leagues.service.js";
+import { getWagerOutcome } from "../wagers/wagers.service.js";
 
 describe("foundation API", () => {
   it("reports health", async () => {
@@ -106,6 +107,10 @@ describe("foundation API", () => {
     expect(predictionIsLocked(kickoff, Timestamp.fromMillis(10_000))).toBe(true);
   });
 
+  it("sets the gameweek deadline one hour before its first fixture", () => {
+    expect(gameweekLockDeadline("2026-08-10T15:00:00.000Z")).toBe(Date.parse("2026-08-10T14:00:00.000Z"));
+  });
+
   it("opens predictions only for the current gameweek", () => {
     expect(isCurrentPredictionGameweek("gw-4", "gw-4")).toBe(true);
     expect(isCurrentPredictionGameweek("gw-5", "gw-4")).toBe(false);
@@ -171,5 +176,27 @@ describe("foundation API", () => {
     ];
     expect(getMembershipStartRound(3, null, gameweeks)).toBe(3);
     expect(getMembershipStartRound(undefined, Date.parse("2026-08-12T12:00:00.000Z"), gameweeks)).toBe(2);
+  });
+
+  it("settles wagers using base points and refunds ties", () => {
+    expect(getWagerOutcome(
+      { predictedHomeScore: 2, predictedAwayScore: 1 },
+      { predictedHomeScore: 1, predictedAwayScore: 0 },
+      2, 1,
+    )).toMatchObject({ winner: "CREATOR", creatorPoints: 5, opponentPoints: 3 });
+    expect(getWagerOutcome(
+      { predictedHomeScore: 0, predictedAwayScore: 0 },
+      { predictedHomeScore: 1, predictedAwayScore: 1 },
+      2, 2,
+    ).winner).toBe("TIE");
+  });
+
+  it("protects wager routes", async () => {
+    const [board, create] = await Promise.all([
+      request(app).get("/api/v1/leagues/league-1/wagers"),
+      request(app).post("/api/v1/leagues/league-1/wagers").send({ fixtureId: "fixture-1", stake: 5 }),
+    ]);
+    expect(board.status).toBe(401);
+    expect(create.status).toBe(401);
   });
 });

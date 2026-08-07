@@ -22,6 +22,10 @@ export function predictionIsLocked(kickoffAt: Timestamp, now = Timestamp.now()) 
   return now.toMillis() >= kickoffAt.toMillis();
 }
 
+export function gameweekLockDeadline(startsAt: string | Date) {
+  return new Date(startsAt).getTime() - 60 * 60 * 1000;
+}
+
 export function isCurrentPredictionGameweek(requestedGameweekId: string, currentGameweekId: string | null) {
   return requestedGameweekId === currentGameweekId;
 }
@@ -87,8 +91,8 @@ export async function saveGameweekPredictions(
       if (currentGameweek?.seasonId !== fixture.data()!.seasonId) {
         throw Object.assign(new Error("This fixture is not in the current season."), { code: "FIXTURE_NOT_FOUND", status: 404 });
       }
-      if (predictionIsLocked(fixture.data()!.kickoffAt as Timestamp, now)) {
-        throw Object.assign(new Error("Predictions lock when each fixture kicks off."), { code: "PREDICTION_LOCKED", status: 409 });
+      if (now.toMillis() >= gameweekLockDeadline(currentGameweek!.startsAt)) {
+        throw Object.assign(new Error("Predictions lock one hour before the gameweek starts."), { code: "PREDICTION_LOCKED", status: 409 });
       }
 
       const reference = predictionRefs[index]!;
@@ -187,6 +191,8 @@ export async function settleFixturePredictions(fixtureId: string) {
   }
   await batch.commit();
   await Promise.all([...userIds].map((userId) => rebuildUserStats(userId, fixtureData.seasonId)));
+  const { settleFixtureWagers } = await import("../wagers/wagers.service.js");
+  await settleFixtureWagers(fixtureId);
 }
 
 async function rebuildUserStats(userId: string, seasonId: string) {
@@ -219,7 +225,8 @@ export async function getGameweekPredictions(userId: string, gameweekId: string)
     getFixturesForGameweek(gameweekId),
     getCurrentGameweek(),
   ]);
-  const predictionsOpen = isCurrentPredictionGameweek(gameweekId, currentGameweek?.id ?? null);
+  const deadline = currentGameweek?.id === gameweekId ? gameweekLockDeadline(currentGameweek.startsAt) : 0;
+  const predictionsOpen = isCurrentPredictionGameweek(gameweekId, currentGameweek?.id ?? null) && Date.now() < deadline;
   await Promise.all(fixtures.filter((fixture) => fixture.normalizedStatus === "COMPLETED")
     .map((fixture) => settleFixturePredictions(fixture.id)));
 
@@ -238,8 +245,8 @@ export async function getGameweekPredictions(userId: string, gameweekId: string)
     fixtures: fixtures.map((fixture) => ({
       ...fixture,
       prediction: predictions.get(fixture.id) ?? null,
-      predictionLocked: !predictionsOpen || now >= new Date(fixture.kickoffAt).getTime(),
-      predictionLockReason: !predictionsOpen ? "NOT_CURRENT_GAMEWEEK" : now >= new Date(fixture.kickoffAt).getTime() ? "KICKOFF" : null,
+      predictionLocked: !predictionsOpen,
+      predictionLockReason: !predictionsOpen ? "GAMEWEEK_DEADLINE" : null,
     })),
     captainedFixtureId: [...predictions.entries()].find(([, prediction]) => prediction.isCaptain)?.[0] ?? null,
     predictionsOpen,

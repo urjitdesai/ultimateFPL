@@ -15,7 +15,10 @@ type DefaultLeague = {
   roundNumber?: number;
 };
 
-export const createLeagueSchema = z.object({ name: z.string().trim().min(3).max(50) });
+export const createLeagueSchema = z.object({
+  name: z.string().trim().min(3).max(50),
+  scoringType: z.enum(["CLASSIC", "WAGER"]).default("CLASSIC"),
+});
 export const joinLeagueSchema = z.object({ inviteCode: z.string().trim().min(6).max(12) });
 const INVITE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
@@ -48,7 +51,7 @@ export function getMembershipStartRound(
   return fallbackRound;
 }
 
-export async function createLeague(userId: string, name: string) {
+export async function createLeague(userId: string, name: string, scoringType: "CLASSIC" | "WAGER") {
   const userRef = firestore.collection("users").doc(userId);
   const joinGameweek = await getJoinGameweek();
   if (!joinGameweek) throw new Error("No Premier League gameweek is available.");
@@ -64,6 +67,7 @@ export async function createLeague(userId: string, name: string) {
       transaction.create(leagueRef, {
         seasonId,
         type: "CUSTOM",
+        scoringType,
         name,
         normalizedName: name.toLowerCase(),
         ownerUserId: userId,
@@ -86,7 +90,7 @@ export async function createLeague(userId: string, name: string) {
       });
       return true;
     });
-    if (created) return { id: leagueRef.id, name, type: "CUSTOM" as const, inviteCode, memberCount: 1 };
+    if (created) return { id: leagueRef.id, name, type: "CUSTOM" as const, scoringType, inviteCode, memberCount: 1 };
   }
   throw Object.assign(new Error("We couldn't generate an invite code. Try again."), { code: "INVITE_CODE_UNAVAILABLE", status: 503 });
 }
@@ -168,6 +172,7 @@ export async function joinDefaultLeagues(
       transaction.create(leagueRef, {
         seasonId,
         type: league.type,
+        scoringType: "CLASSIC",
         name: league.name,
         normalizedName: league.name.toLowerCase(),
         favoriteTeamId: league.favoriteTeamId ?? null,
@@ -261,10 +266,11 @@ export async function getLeagueStandings(userId: string, leagueId: string) {
     throw Object.assign(new Error("You are not a member of this league."), { code: "LEAGUE_PERMISSION_DENIED", status: 403 });
   }
 
-  const [league, memberships, gameweeks] = await Promise.all([
+  const [league, memberships, gameweeks, wagers] = await Promise.all([
     firestore.collection("leagues").doc(leagueId).get(),
     firestore.collection("leagueMemberships").where("leagueId", "==", leagueId).get(),
     getGameweeks(),
+    firestore.collection("wagers").where("leagueId", "==", leagueId).get(),
   ]);
   if (!league.exists || league.data()?.isActive !== true) {
     throw Object.assign(new Error("League not found."), { code: "LEAGUE_NOT_FOUND", status: 404 });
@@ -300,6 +306,14 @@ export async function getLeagueStandings(userId: string, leagueId: string) {
     const throughCurrent = scored.filter((prediction) => roundByGameweekId.get(prediction.gameweekId)! <= currentRound);
     const throughPrevious = scored.filter((prediction) => roundByGameweekId.get(prediction.gameweekId)! < currentRound);
     const correctReasons = new Set(["EXACT_SCORE", "CORRECT_GOAL_DIFFERENCE", "CORRECT_RESULT"]);
+    const settledWagers = wagers.docs.map((wager) => wager.data()).filter((wager) => wager.status === "SETTLED");
+    const wagerNetThrough = (round: number) => settledWagers.reduce((total, wager) => {
+      if ((roundByGameweekId.get(wager.gameweekId) ?? 0) > round) return total;
+      if (wager.winnerUserId === memberUserId) return total + Number(wager.stake);
+      if (wager.loserUserId === memberUserId) return total - Number(wager.stake);
+      return total;
+    }, 0);
+    const currentWagerNet = wagerNetThrough(currentRound) - wagerNetThrough(currentRound - 1);
 
     return {
       userId: memberUserId,
@@ -309,10 +323,10 @@ export async function getLeagueStandings(userId: string, leagueId: string) {
         name: team.data()!.name as string,
         logoUrl: teamLogoUrl(team.id),
       } : null,
-      points: throughCurrent.reduce((total, prediction) => total + Number(prediction.awardedPoints), 0),
-      previousPoints: throughPrevious.reduce((total, prediction) => total + Number(prediction.awardedPoints), 0),
+      points: throughCurrent.reduce((total, prediction) => total + Number(prediction.awardedPoints), 0) + wagerNetThrough(currentRound),
+      previousPoints: throughPrevious.reduce((total, prediction) => total + Number(prediction.awardedPoints), 0) + wagerNetThrough(currentRound - 1),
       gameweekPoints: scored.filter((prediction) => roundByGameweekId.get(prediction.gameweekId) === currentRound)
-        .reduce((total, prediction) => total + Number(prediction.awardedPoints), 0),
+        .reduce((total, prediction) => total + Number(prediction.awardedPoints), 0) + currentWagerNet,
       exactScores: throughCurrent.filter((prediction) => prediction.scoringReason === "EXACT_SCORE").length,
       previousExactScores: throughPrevious.filter((prediction) => prediction.scoringReason === "EXACT_SCORE").length,
       correctResults: throughCurrent.filter((prediction) => correctReasons.has(prediction.scoringReason)).length,
@@ -326,6 +340,7 @@ export async function getLeagueStandings(userId: string, leagueId: string) {
       id: league.id,
       name: league.data()!.name as string,
       type: league.data()!.type as string,
+      scoringType: (league.data()!.scoringType as string | undefined) ?? "CLASSIC",
       memberCount: activeMemberships.length,
       inviteCode: league.data()!.type === "CUSTOM" ? league.data()!.inviteCode as string : null,
     },

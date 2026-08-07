@@ -20,6 +20,10 @@ function formatKickoff(kickoffAt: string) {
   return { date: new Intl.DateTimeFormat(undefined, { weekday: "short", day: "numeric", month: "short" }).format(kickoff), time: new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(kickoff) };
 }
 
+function formatPredictionDeadline(startsAt: string) {
+  return formatKickoff(new Date(new Date(startsAt).getTime() - 3_600_000).toISOString());
+}
+
 export function HomePage() {
   const { user, profile, loading: authLoading } = useAuth();
   const [gameweeks, setGameweeks] = useState<Gameweek[]>([]);
@@ -85,12 +89,13 @@ export function HomePage() {
     catch (saveError) { setError(saveError instanceof Error ? saveError.message : "We couldn't save your predictions."); }
     finally { setSaving(false); }
   };
+  const predictionDeadline = selected ? formatPredictionDeadline(selected.startsAt) : null;
 
   return <main className="home-page">
     <AppNav active="home" />
 
     <section className="matchday-band" id="gameweeks">
-      <div className="matchday-overview"><div className="matchday-title"><h1>{selected?.status === "COMPLETE" ? `Gameweek ${selected.roundNumber} results` : view.predictionsOpen ? `Make your calls for Gameweek ${selected?.roundNumber ?? "—"}` : `Gameweek ${selected?.roundNumber ?? "—"} preview`}</h1><p><Clock3 /> {selected ? view.predictionsOpen ? `First kickoff ${formatKickoff(selected.startsAt).date} at ${formatKickoff(selected.startsAt).time}` : "Predictions open when this becomes the current gameweek" : "Loading the next round"}</p></div><div className="score-summary"><div><Trophy /><span>Total points</span><strong>{view.summary.totalPoints}</strong></div><div><span>Gameweek points</span><strong>{view.summary.gameweekPoints}</strong></div></div></div>
+      <div className="matchday-overview"><div className="matchday-title"><h1>{selected?.status === "COMPLETE" ? `Gameweek ${selected.roundNumber} results` : view.predictionsOpen ? `Make your calls for Gameweek ${selected?.roundNumber ?? "—"}` : `Gameweek ${selected?.roundNumber ?? "—"} preview`}</h1><p><Clock3 /> {selected ? view.predictionsOpen && predictionDeadline ? `Predictions lock ${predictionDeadline.date} at ${predictionDeadline.time}` : "Predictions are locked for this gameweek" : "Loading the next round"}</p></div><div className="score-summary"><div><Trophy /><span>Total points</span><strong>{view.summary.totalPoints}</strong></div><div><span>Gameweek points</span><strong>{view.summary.gameweekPoints}</strong></div></div></div>
       <div className="gameweek-navigation"><button className="rail-arrow" aria-label="Earlier gameweeks" onClick={() => railRef.current?.scrollBy({ left: -420, behavior: "smooth" })}><ChevronLeft /></button><div className="gameweek-rail" ref={railRef}>{gameweeks.map((gameweek) => <button key={gameweek.id} className={gameweek.id === selectedId ? "selected" : ""} onClick={() => setSelectedId(gameweek.id)}><strong>Gameweek {gameweek.roundNumber}</strong><span>{formatRange(gameweek)}</span></button>)}</div><button className="rail-arrow" aria-label="Later gameweeks" onClick={() => railRef.current?.scrollBy({ left: 420, behavior: "smooth" })}><ChevronRight /></button></div>
     </section>
 

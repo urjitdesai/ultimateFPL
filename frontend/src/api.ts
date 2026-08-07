@@ -5,6 +5,8 @@ export type Team = { id: string; name: string; shortName: string; logoUrl: strin
 export type League = { id: string; name: string; type: "OVERALL" | "TEAM_DEFAULT" | "GAMEWEEK_DEFAULT"; memberCount: number; roundNumber?: number | null };
 export type StandingEntry = { rank: number; previousRank: number; rankChange: number; userId: string; displayName: string; favoriteTeam: Team | null; totalPoints: number; gameweekPoints: number; exactScores: number; correctResults: number; isCurrentUser: boolean };
 export type LeagueStandings = { league: League; currentGameweek: number; previousGameweek: number | null; standings: StandingEntry[] };
+export type PlayerPredictionFixture = Fixture & { prediction: Pick<Prediction, "predictedHomeScore" | "predictedAwayScore" | "awardedPoints" | "scoringReason" | "isCaptain"> & { isDefault: boolean } };
+export type LeaguePlayerPredictions = { league: Pick<League, "id" | "name">; player: { userId: string; displayName: string; favoriteTeam: Team | null }; gameweeks: Array<{ id: string; roundNumber: number }>; selectedGameweek: { id: string; roundNumber: number } | null; fixtures: PlayerPredictionFixture[] };
 export type Profile = { uid: string; email: string; displayName: string; favoriteTeam: Team; leagues: League[]; activeSeasonId: string; joinedGameweek: number };
 export type Gameweek = { id: string; seasonId: string; roundNumber: number; startsAt: string; endsAt: string; fixtureCount: number; status: "UPCOMING" | "ACTIVE" | "COMPLETE" };
 export type FixtureTeam = Pick<Team, "id" | "name" | "logoUrl">;
@@ -30,5 +32,6 @@ export const api = {
   predictions: (user: User, gameweekId: string) => request<PredictionView>(`/gameweeks/${gameweekId}/predictions/me`, undefined, user),
   savePredictions: (user: User, gameweekId: string, predictions: Array<{ fixtureId: string; predictedHomeScore: number; predictedAwayScore: number }>, captainedFixtureId: string | null) => request<PredictionView>(`/gameweeks/${gameweekId}/predictions`, { method: "PUT", body: JSON.stringify({ predictions, captainedFixtureId }) }, user),
   leagues: (user: User) => request<League[]>("/leagues", undefined, user),
-  leagueStandings: (user: User, leagueId: string) => request<LeagueStandings>(`/leagues/${encodeURIComponent(leagueId)}/standings`, undefined, user)
+  leagueStandings: (user: User, leagueId: string) => request<LeagueStandings>(`/leagues/${encodeURIComponent(leagueId)}/standings`, undefined, user),
+  leaguePlayerPredictions: (user: User, leagueId: string, memberUserId: string, gameweekId?: string) => request<LeaguePlayerPredictions>(`/leagues/${encodeURIComponent(leagueId)}/members/${encodeURIComponent(memberUserId)}/predictions${gameweekId ? `?gameweekId=${encodeURIComponent(gameweekId)}` : ""}`, undefined, user)
 };

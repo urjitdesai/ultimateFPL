@@ -129,11 +129,44 @@ export async function settleFixturePredictions(fixtureId: string) {
   if (!fixture.exists || fixtureData?.normalizedStatus !== "COMPLETED"
     || fixtureData.homeScore == null || fixtureData.awayScore == null) return;
 
-  const predictions = await firestore.collection("predictions").where("fixtureId", "==", fixtureId).get();
-  if (predictions.empty) return;
+  const [predictions, users] = await Promise.all([
+    firestore.collection("predictions").where("fixtureId", "==", fixtureId).get(),
+    firestore.collection("users").get(),
+  ]);
+  const existingUserIds = new Set(predictions.docs.map((prediction) => prediction.data().userId as string));
+  const missingUsers = users.docs.filter((user) => !existingUserIds.has(user.id));
+  if (missingUsers.length > 0) {
+    const defaultBatch = firestore.batch();
+    for (const user of missingUsers) {
+      defaultBatch.create(firestore.collection("predictions").doc(predictionId(user.id, fixtureId)), {
+        userId: user.id,
+        fixtureId,
+        seasonId: fixtureData.seasonId,
+        gameweekId: fixtureData.gameweekId,
+        predictedHomeScore: 0,
+        predictedAwayScore: 0,
+        submittedAt: null,
+        updatedAt: null,
+        lockedAt: fixtureData.kickoffAt,
+        awardedPoints: null,
+        scoringReason: null,
+        scoredAt: null,
+        scoringRuleVersion: null,
+        basePoints: null,
+        isCaptain: false,
+        isDefault: true,
+      });
+    }
+    await defaultBatch.commit();
+  }
+
+  const allPredictions = missingUsers.length > 0
+    ? await firestore.collection("predictions").where("fixtureId", "==", fixtureId).get()
+    : predictions;
+  if (allPredictions.empty) return;
   const batch = firestore.batch();
   const userIds = new Set<string>();
-  for (const prediction of predictions.docs) {
+  for (const prediction of allPredictions.docs) {
     const data = prediction.data();
     const result = scorePrediction({
       predictedHome: data.predictedHomeScore,

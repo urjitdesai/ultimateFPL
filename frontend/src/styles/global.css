@@ -217,6 +217,8 @@ input:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 4px rgb
 .standings-head { min-height: 43px; padding: 0 18px; color: #758399; font: 800 10px 'Manrope'; letter-spacing: .09em; text-transform: uppercase; }
 .standings-head span:nth-last-child(-n+2) { text-align: right; }
 .standing-row { min-height: 83px; padding: 11px 18px; border-top: 1px solid #dde4ec; }
+.standing-row-button { width: 100%; border-right: 0; border-bottom: 0; border-left: 0; background: #fff; color: var(--ink); text-align: left; cursor: pointer; }
+.standing-row-button:hover, .standing-row-button:focus-visible { background: #f7fadf; }
 .standing-row.is-you { background: #f1f8c9; border-left: 4px solid var(--lime); padding-left: 14px; }
 .rank-number { font: 800 24px 'Manrope'; }
 .standing-player { display: flex; align-items: center; gap: 14px; min-width: 0; }
@@ -230,6 +232,23 @@ input:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 4px rgb
 .rank-movement.steady { color: #8794a6; }
 .gw-points, .total-points { text-align: right; font: 800 15px 'Manrope'; }
 .total-points { font-size: 20px; }
+.player-predictions-content { width: min(100%, 1120px); margin: 0 auto; padding: 34px clamp(20px, 5vw, 64px) 80px; }
+.gameweek-picker { width: fit-content; display: flex; align-items: center; gap: 10px; margin: 0 0 28px auto; color: #65758b; font: 800 11px 'Manrope'; letter-spacing: .06em; text-transform: uppercase; }
+.gameweek-picker svg { width: 17px; color: #638000; }
+.gameweek-picker select { height: 38px; padding: 0 34px 0 12px; border: 1px solid #cbd4df; background: #fff; color: var(--ink); font: 700 12px 'Manrope'; }
+.player-prediction-list { border-top: 1px solid #cbd4df; }
+.player-prediction-head, .player-prediction-row { display: grid; grid-template-columns: minmax(280px, 1fr) 130px 130px 150px; align-items: center; gap: 24px; }
+.player-prediction-head { min-height: 40px; padding: 0 18px; color: #758399; font: 800 10px 'Manrope'; letter-spacing: .09em; text-transform: uppercase; }
+.player-prediction-row { min-height: 94px; padding: 12px 18px; border-top: 1px solid #dde4ec; }
+.player-prediction-row > strong { display: flex; align-items: center; gap: 8px; font: 800 20px 'Manrope'; }
+.player-prediction-row > strong svg { width: 16px; color: #799900; }
+.player-fixture { display: grid; gap: 10px; }
+.player-fixture span { display: flex; align-items: center; gap: 10px; font: 700 13px 'Manrope'; }
+.player-fixture img { width: 25px; height: 25px; object-fit: contain; }
+.player-points { display: grid; gap: 4px; }
+.player-points strong { font: 800 18px 'Manrope'; }
+.player-points small { color: #78869a; font-size: 10px; }
+.player-points.earned strong { color: #4e7800; }
 
 @media (max-width: 920px) {
   .auth-shell { grid-template-columns: minmax(300px, 36%) 1fr; }
@@ -326,5 +345,13 @@ input:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 4px rgb
   .rank-number { font-size: 18px; }
   .rank-movement { font-size: 10px; }
   .total-points { font-size: 16px; }
+  .player-predictions-content { padding: 24px 14px 55px; }
+  .gameweek-picker { margin-left: 0; }
+  .player-prediction-head { display: none; }
+  .player-prediction-row { grid-template-columns: minmax(0,1fr) 65px 65px 75px; gap: 8px; padding-inline: 5px; }
+  .player-fixture span { gap: 6px; font-size: 11px; }
+  .player-fixture img { width: 21px; height: 21px; }
+  .player-prediction-row > strong, .player-points strong { font-size: 15px; }
+  .player-points small { font-size: 9px; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; } }

@@ -1,6 +1,7 @@
 import { FieldValue, Timestamp, type Transaction } from "firebase-admin/firestore";
 import { firestore } from "../firebase/admin.js";
 import { getGameweeks } from "../gameweeks/gameweeks.service.js";
+import { getFixturesForGameweek } from "../fixtures/fixtures.service.js";
 import type { Team } from "../teams/teams.service.js";
 import { teamLogoUrl } from "../utils/team-logo.js";
 
@@ -202,7 +203,73 @@ export async function getLeagueStandings(userId: string, leagueId: string) {
     previousGameweek: currentRound > 1 ? currentRound - 1 : null,
     standings: rankLeagueStandings(candidates).map((entry) => ({
       ...entry,
+      totalPoints: entry.points,
       isCurrentUser: entry.userId === userId,
     })),
+  };
+}
+
+export async function getLeagueMemberPredictions(
+  userId: string,
+  leagueId: string,
+  memberUserId: string,
+  requestedGameweekId?: string,
+) {
+  const [viewerMembership, memberMembership, league, gameweeks, profile] = await Promise.all([
+    firestore.collection("leagueMemberships").doc(membershipId(leagueId, userId)).get(),
+    firestore.collection("leagueMemberships").doc(membershipId(leagueId, memberUserId)).get(),
+    firestore.collection("leagues").doc(leagueId).get(),
+    getGameweeks(),
+    firestore.collection("users").doc(memberUserId).get(),
+  ]);
+  if (!viewerMembership.exists || viewerMembership.data()?.isActive !== true
+    || !memberMembership.exists || memberMembership.data()?.isActive !== true) {
+    throw Object.assign(new Error("Both players must be active members of this league."), { code: "LEAGUE_PERMISSION_DENIED", status: 403 });
+  }
+  if (!league.exists || league.data()?.isActive !== true || !profile.exists) {
+    throw Object.assign(new Error("League player not found."), { code: "LEAGUE_PLAYER_NOT_FOUND", status: 404 });
+  }
+
+  const availableGameweeks = gameweeks.filter((gameweek) => gameweek.status === "COMPLETE");
+  const selectedGameweek = requestedGameweekId
+    ? availableGameweeks.find((gameweek) => gameweek.id === requestedGameweekId)
+    : availableGameweeks.at(-1);
+  if (requestedGameweekId && !selectedGameweek) {
+    throw Object.assign(new Error("Only completed gameweeks can be viewed."), { code: "GAMEWEEK_NOT_COMPLETE", status: 409 });
+  }
+  const profileData = profile.data()!;
+  const favoriteTeamId = profileData.favoriteTeamId as string | undefined;
+  const [fixtures, team] = await Promise.all([
+    selectedGameweek ? getFixturesForGameweek(selectedGameweek.id) : Promise.resolve([]),
+    favoriteTeamId ? firestore.collection("teams").doc(favoriteTeamId).get() : null,
+  ]);
+  const predictionSnapshots = await Promise.all(fixtures.map((fixture) =>
+    firestore.collection("predictions").doc(`${memberUserId}_${fixture.id}`).get()));
+  const predictions = new Map(predictionSnapshots.filter((snapshot) => snapshot.exists)
+    .map((snapshot) => [snapshot.data()!.fixtureId as string, snapshot.data()!]));
+
+  return {
+    league: { id: league.id, name: league.data()!.name as string },
+    player: {
+      userId: memberUserId,
+      displayName: (profileData.displayName as string | undefined) ?? "UFL Player",
+      favoriteTeam: team?.exists ? { id: team.id, name: team.data()!.name as string, logoUrl: teamLogoUrl(team.id) } : null,
+    },
+    gameweeks: availableGameweeks.map(({ id, roundNumber }) => ({ id, roundNumber })),
+    selectedGameweek: selectedGameweek ? { id: selectedGameweek.id, roundNumber: selectedGameweek.roundNumber } : null,
+    fixtures: fixtures.map((fixture) => {
+      const prediction = predictions.get(fixture.id);
+      return {
+        ...fixture,
+        prediction: {
+          predictedHomeScore: Number(prediction?.predictedHomeScore ?? 0),
+          predictedAwayScore: Number(prediction?.predictedAwayScore ?? 0),
+          awardedPoints: Number(prediction?.awardedPoints ?? 0),
+          scoringReason: (prediction?.scoringReason as string | null) ?? null,
+          isCaptain: prediction?.isCaptain === true,
+          isDefault: prediction?.isDefault === true || !prediction,
+        },
+      };
+    }),
   };
 }

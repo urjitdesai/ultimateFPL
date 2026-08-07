@@ -143,4 +143,9 @@ describe("foundation API", () => {
     const response = await request(app).get("/api/v1/leagues/league-1/standings");
     expect(response.status).toBe(401);
   });
+
+  it("protects league member prediction history", async () => {
+    const response = await request(app).get("/api/v1/leagues/league-1/members/user-2/predictions");
+    expect(response.status).toBe(401);
+  });
 });

@@ -8,7 +8,7 @@ import { scorePrediction } from "../predictions/predictions.scoring.js";
 import { isCurrentPredictionGameweek, predictionIsLocked } from "../predictions/predictions.service.js";
 import { Timestamp } from "firebase-admin/firestore";
 import { getGameweekStatus } from "../gameweeks/gameweeks.service.js";
-import { generateInviteCode, normalizeInviteCode, rankLeagueStandings } from "../leagues/leagues.service.js";
+import { generateInviteCode, getMembershipStartRound, normalizeInviteCode, rankLeagueStandings } from "../leagues/leagues.service.js";
 
 describe("foundation API", () => {
   it("reports health", async () => {
@@ -161,5 +161,15 @@ describe("foundation API", () => {
     ]);
     expect(createResponse.status).toBe(401);
     expect(joinResponse.status).toBe(401);
+  });
+
+  it("uses the league joining gameweek as the scoring boundary", () => {
+    const gameweeks = [
+      { roundNumber: 1, endsAt: "2026-08-10T20:00:00.000Z" },
+      { roundNumber: 2, endsAt: "2026-08-17T20:00:00.000Z" },
+      { roundNumber: 3, endsAt: "2026-08-24T20:00:00.000Z" },
+    ];
+    expect(getMembershipStartRound(3, null, gameweeks)).toBe(3);
+    expect(getMembershipStartRound(undefined, Date.parse("2026-08-12T12:00:00.000Z"), gameweeks)).toBe(2);
   });
 });

@@ -1,8 +1,10 @@
 import { Router } from "express";
 import { authenticate } from "../middleware/authenticate.js";
-import { listUserLeagues, showLeagueMemberPredictions, showLeagueStandings } from "./leagues.controller.js";
+import { createUserLeague, joinUserLeague, listUserLeagues, showLeagueMemberPredictions, showLeagueStandings } from "./leagues.controller.js";
 
 export const leaguesRouter = Router();
 leaguesRouter.get("/", authenticate, listUserLeagues);
+leaguesRouter.post("/", authenticate, createUserLeague);
+leaguesRouter.post("/join", authenticate, joinUserLeague);
 leaguesRouter.get("/:leagueId/standings", authenticate, showLeagueStandings);
 leaguesRouter.get("/:leagueId/members/:memberUserId/predictions", authenticate, showLeagueMemberPredictions);

@@ -1,4 +1,6 @@
+import crypto from "node:crypto";
 import { FieldValue, Timestamp, type Transaction } from "firebase-admin/firestore";
+import { z } from "zod";
 import { firestore } from "../firebase/admin.js";
 import { getGameweeks } from "../gameweeks/gameweeks.service.js";
 import { getFixturesForGameweek } from "../fixtures/fixtures.service.js";
@@ -13,8 +15,102 @@ type DefaultLeague = {
   roundNumber?: number;
 };
 
+export const createLeagueSchema = z.object({ name: z.string().trim().min(3).max(50) });
+export const joinLeagueSchema = z.object({ inviteCode: z.string().trim().min(6).max(12) });
+const INVITE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
 function membershipId(leagueId: string, userId: string) {
   return `${leagueId}_${userId}`;
+}
+
+export function normalizeInviteCode(value: string) {
+  return value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+export function generateInviteCode() {
+  return Array.from(crypto.randomBytes(8), (byte) => INVITE_ALPHABET[byte % INVITE_ALPHABET.length]).join("");
+}
+
+export async function createLeague(userId: string, name: string) {
+  const userRef = firestore.collection("users").doc(userId);
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const leagueRef = firestore.collection("leagues").doc();
+    const inviteCode = generateInviteCode();
+    const inviteRef = firestore.collection("leagueInvites").doc(inviteCode);
+    const created = await firestore.runTransaction(async (transaction) => {
+      const [user, invite] = await Promise.all([transaction.get(userRef), transaction.get(inviteRef)]);
+      if (!user.exists) throw Object.assign(new Error("Complete your profile first."), { code: "PROFILE_REQUIRED", status: 409 });
+      if (invite.exists) return false;
+      const seasonId = user.data()!.activeSeasonId as string;
+      transaction.create(leagueRef, {
+        seasonId,
+        type: "CUSTOM",
+        name,
+        normalizedName: name.toLowerCase(),
+        ownerUserId: userId,
+        inviteCode,
+        memberCount: 1,
+        isActive: true,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      transaction.create(inviteRef, { leagueId: leagueRef.id, isActive: true, createdAt: FieldValue.serverTimestamp() });
+      transaction.create(firestore.collection("leagueMemberships").doc(membershipId(leagueRef.id, userId)), {
+        leagueId: leagueRef.id,
+        userId,
+        seasonId,
+        role: "OWNER",
+        leagueType: "CUSTOM",
+        joinedAt: FieldValue.serverTimestamp(),
+        isActive: true,
+      });
+      return true;
+    });
+    if (created) return { id: leagueRef.id, name, type: "CUSTOM" as const, inviteCode, memberCount: 1 };
+  }
+  throw Object.assign(new Error("We couldn't generate an invite code. Try again."), { code: "INVITE_CODE_UNAVAILABLE", status: 503 });
+}
+
+export async function joinLeague(userId: string, rawInviteCode: string) {
+  const inviteCode = normalizeInviteCode(rawInviteCode);
+  if (inviteCode.length !== 8) {
+    throw Object.assign(new Error("That league key isn't valid."), { code: "INVITE_CODE_INVALID", status: 404 });
+  }
+  const inviteRef = firestore.collection("leagueInvites").doc(inviteCode);
+  return firestore.runTransaction(async (transaction) => {
+    const invite = await transaction.get(inviteRef);
+    if (!invite.exists || invite.data()?.isActive !== true) {
+      throw Object.assign(new Error("That league key isn't valid."), { code: "INVITE_CODE_INVALID", status: 404 });
+    }
+    const leagueId = invite.data()!.leagueId as string;
+    const leagueRef = firestore.collection("leagues").doc(leagueId);
+    const membershipRef = firestore.collection("leagueMemberships").doc(membershipId(leagueId, userId));
+    const userRef = firestore.collection("users").doc(userId);
+    const [league, membership, user] = await Promise.all([
+      transaction.get(leagueRef), transaction.get(membershipRef), transaction.get(userRef),
+    ]);
+    if (!user.exists) throw Object.assign(new Error("Complete your profile first."), { code: "PROFILE_REQUIRED", status: 409 });
+    if (!league.exists || league.data()?.isActive !== true || league.data()?.type !== "CUSTOM") {
+      throw Object.assign(new Error("That league is no longer available."), { code: "LEAGUE_NOT_FOUND", status: 404 });
+    }
+    if (league.data()!.seasonId !== user.data()!.activeSeasonId) {
+      throw Object.assign(new Error("That league belongs to a different season."), { code: "LEAGUE_SEASON_MISMATCH", status: 409 });
+    }
+    if (membership.exists && membership.data()?.isActive === true) {
+      return { id: league.id, ...league.data() };
+    }
+    transaction.set(membershipRef, {
+      leagueId,
+      userId,
+      seasonId: league.data()!.seasonId,
+      role: "MEMBER",
+      leagueType: "CUSTOM",
+      joinedAt: FieldValue.serverTimestamp(),
+      isActive: true,
+    });
+    transaction.update(leagueRef, { memberCount: FieldValue.increment(1), updatedAt: FieldValue.serverTimestamp() });
+    return { id: league.id, ...league.data(), memberCount: Number(league.data()!.memberCount ?? 0) + 1 };
+  });
 }
 
 export function getDefaultLeagues(seasonId: string, team: Team, roundNumber: number): DefaultLeague[] {
@@ -198,6 +294,7 @@ export async function getLeagueStandings(userId: string, leagueId: string) {
       name: league.data()!.name as string,
       type: league.data()!.type as string,
       memberCount: activeMemberships.length,
+      inviteCode: league.data()!.type === "CUSTOM" ? league.data()!.inviteCode as string : null,
     },
     currentGameweek: currentRound,
     previousGameweek: currentRound > 1 ? currentRound - 1 : null,

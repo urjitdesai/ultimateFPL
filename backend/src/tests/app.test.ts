@@ -8,7 +8,7 @@ import { scorePrediction } from "../predictions/predictions.scoring.js";
 import { isCurrentPredictionGameweek, predictionIsLocked } from "../predictions/predictions.service.js";
 import { Timestamp } from "firebase-admin/firestore";
 import { getGameweekStatus } from "../gameweeks/gameweeks.service.js";
-import { rankLeagueStandings } from "../leagues/leagues.service.js";
+import { generateInviteCode, normalizeInviteCode, rankLeagueStandings } from "../leagues/leagues.service.js";
 
 describe("foundation API", () => {
   it("reports health", async () => {
@@ -147,5 +147,19 @@ describe("foundation API", () => {
   it("protects league member prediction history", async () => {
     const response = await request(app).get("/api/v1/leagues/league-1/members/user-2/predictions");
     expect(response.status).toBe(401);
+  });
+
+  it("normalizes shareable league keys", () => {
+    expect(normalizeInviteCode(" abcd-2345 ")).toBe("ABCD2345");
+    expect(generateInviteCode()).toMatch(/^[A-HJ-NP-Z2-9]{8}$/);
+  });
+
+  it("protects league creation and joining", async () => {
+    const [createResponse, joinResponse] = await Promise.all([
+      request(app).post("/api/v1/leagues").send({ name: "Office League" }),
+      request(app).post("/api/v1/leagues/join").send({ inviteCode: "ABCD2345" }),
+    ]);
+    expect(createResponse.status).toBe(401);
+    expect(joinResponse.status).toBe(401);
   });
 });

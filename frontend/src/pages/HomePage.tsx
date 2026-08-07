@@ -1,8 +1,9 @@
-import { ArrowRight, CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, LogOut, Save, Trophy, Users } from "lucide-react";
+import { ArrowRight, CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, Save, Trophy, Users } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type Gameweek, type League, type PredictionView } from "../api";
 import { useAuth } from "../auth/AuthContext";
 import { PredictionFixtureRow } from "../components/PredictionFixtureRow";
+import { AppNav } from "../components/AppNav";
 import { navigate } from "../navigation";
 
 const emptyView: PredictionView = { fixtures: [], predictionsOpen: false, captainedFixtureId: null, summary: { totalPoints: 0, gameweekPoints: 0, submittedCount: 0, fixtureCount: 0 } };
@@ -20,7 +21,7 @@ function formatKickoff(kickoffAt: string) {
 }
 
 export function HomePage() {
-  const { user, profile, loading: authLoading, logout } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const [gameweeks, setGameweeks] = useState<Gameweek[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [view, setView] = useState<PredictionView>(emptyView);
@@ -86,7 +87,7 @@ export function HomePage() {
   };
 
   return <main className="home-page">
-    <nav className="home-nav"><button className="home-brand" onClick={() => navigate("/dashboard")}><span>UF</span> Ultimate Fantasy League</button><div className="home-links"><a className="active" href="/dashboard">Home</a><a href="#gameweeks">Gameweeks</a><a href="#leagues">Leagues</a></div><div className="home-account"><span>Good evening, {profile.displayName}</span><button onClick={logout}><LogOut /> Log out</button></div></nav>
+    <AppNav active="home" />
 
     <section className="matchday-band" id="gameweeks">
       <div className="matchday-overview"><div className="matchday-title"><h1>{selected?.status === "COMPLETE" ? `Gameweek ${selected.roundNumber} results` : view.predictionsOpen ? `Make your calls for Gameweek ${selected?.roundNumber ?? "—"}` : `Gameweek ${selected?.roundNumber ?? "—"} preview`}</h1><p><Clock3 /> {selected ? view.predictionsOpen ? `First kickoff ${formatKickoff(selected.startsAt).date} at ${formatKickoff(selected.startsAt).time}` : "Predictions open when this becomes the current gameweek" : "Loading the next round"}</p></div><div className="score-summary"><div><Trophy /><span>Total points</span><strong>{view.summary.totalPoints}</strong></div><div><span>Gameweek points</span><strong>{view.summary.gameweekPoints}</strong></div></div></div>
@@ -97,6 +98,6 @@ export function HomePage() {
       <header><div><h2>{selected?.status === "COMPLETE" ? "Your results" : view.predictionsOpen ? "Your predictions" : "Fixtures"}</h2><p>{selected?.status === "COMPLETE" ? "Prediction, final score and points" : view.predictionsOpen ? "Predict every match and captain one fixture for double points" : "Future gameweeks are available to preview only"}</p></div><div className="fixture-actions"><span className="fixture-count">{view.fixtures.length} matches</span>{view.predictionsOpen ? <button className={`save-predictions ${saved ? "is-saved" : ""}`} disabled={saving || savableCount === 0} onClick={savePredictions}>{saved ? <Check /> : <Save />}{saving ? "Saving…" : saved ? "Saved" : `Save ${savableCount || ""} predictions`}</button> : null}</div></header>
       {error ? <div className="home-error" role="alert">{error}<button onClick={() => window.location.reload()}>Retry</button></div> : null}
       {loading || fixtureLoading ? <div className="fixture-skeleton" aria-label="Loading fixtures">{Array.from({ length: 5 }, (_, index) => <div key={index} />)}</div> : view.fixtures.length === 0 ? <div className="fixture-empty"><CalendarDays /><h3>No fixtures yet</h3><p>This gameweek has no scheduled Premier League matches.</p></div> : <div className="fixture-list"><div className="fixture-head"><span>Date & time</span><span>Home</span><span>Prediction</span><span>Away</span></div>{view.fixtures.map((fixture) => <PredictionFixtureRow key={fixture.id} fixture={fixture} draft={drafts[fixture.id] ?? { home: "", away: "" }} kickoff={formatKickoff(fixture.kickoffAt)} isCaptain={captainedFixtureId === fixture.id} onChange={updateDraft} onCaptain={(fixtureId) => { setCaptainedFixtureId((current) => current === fixtureId ? null : fixtureId); setSaved(false); }} />)}</div>}
-    </div><aside className="league-rail" id="leagues"><h2>Your leagues</h2>{visibleLeagues.map((league) => <div className="league-row" key={league.id}><span className="league-icon"><Users /></span><div><strong>{league.name}</strong><p>{league.memberCount} {league.memberCount === 1 ? "member" : "members"}</p></div><ArrowRight /></div>)}<div className="season-note"><CalendarDays /><div><strong>Premier League only</strong><p>Your fixtures and leagues follow the active season.</p></div></div></aside></section>
+    </div><aside className="league-rail" id="leagues"><h2>Your leagues</h2>{visibleLeagues.map((league) => <button className="league-row league-row-button" key={league.id} onClick={() => navigate(`/leagues/${encodeURIComponent(league.id)}`)}><span className="league-icon"><Users /></span><span><strong>{league.name}</strong><small>{league.memberCount} {league.memberCount === 1 ? "member" : "members"}</small></span><ArrowRight /></button>)}<button className="view-all-leagues" onClick={() => navigate("/leagues")}>View all leagues <ArrowRight /></button><div className="season-note"><CalendarDays /><div><strong>Premier League only</strong><p>Your fixtures and leagues follow the active season.</p></div></div></aside></section>
   </main>;
 }

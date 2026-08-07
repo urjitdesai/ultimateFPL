@@ -8,6 +8,7 @@ import { scorePrediction } from "../predictions/predictions.scoring.js";
 import { isCurrentPredictionGameweek, predictionIsLocked } from "../predictions/predictions.service.js";
 import { Timestamp } from "firebase-admin/firestore";
 import { getGameweekStatus } from "../gameweeks/gameweeks.service.js";
+import { rankLeagueStandings } from "../leagues/leagues.service.js";
 
 describe("foundation API", () => {
   it("reports health", async () => {
@@ -126,5 +127,20 @@ describe("foundation API", () => {
       ["SCHEDULED"],
       new Date("2026-08-11T12:00:00Z"),
     )).toBe("UPCOMING");
+  });
+
+  it("calculates league rank movement from the previous gameweek", () => {
+    const base = { favoriteTeam: null, gameweekPoints: 0, exactScores: 0, previousExactScores: 0, correctResults: 0, previousCorrectResults: 0 };
+    const standings = rankLeagueStandings([
+      { ...base, userId: "alex", displayName: "Alex", points: 12, previousPoints: 5, joinedAt: 1 },
+      { ...base, userId: "sam", displayName: "Sam", points: 10, previousPoints: 8, joinedAt: 2 },
+    ]);
+    expect(standings.find((entry) => entry.userId === "alex")).toMatchObject({ rank: 1, previousRank: 2, rankChange: 1 });
+    expect(standings.find((entry) => entry.userId === "sam")).toMatchObject({ rank: 2, previousRank: 1, rankChange: -1 });
+  });
+
+  it("protects league standings", async () => {
+    const response = await request(app).get("/api/v1/leagues/league-1/standings");
+    expect(response.status).toBe(401);
   });
 });

@@ -1,6 +1,8 @@
-import { FieldValue, type Transaction } from "firebase-admin/firestore";
+import { FieldValue, Timestamp, type Transaction } from "firebase-admin/firestore";
 import { firestore } from "../firebase/admin.js";
+import { getGameweeks } from "../gameweeks/gameweeks.service.js";
 import type { Team } from "../teams/teams.service.js";
+import { teamLogoUrl } from "../utils/team-logo.js";
 
 type DefaultLeague = {
   id: string;
@@ -90,4 +92,117 @@ export async function getUserLeagues(userId: string) {
       .map((membership) => firestore.collection("leagues").doc(membership.data().leagueId).get()),
   );
   return leagueSnapshots.filter((snapshot) => snapshot.exists).map((snapshot) => ({ id: snapshot.id, ...snapshot.data() }));
+}
+
+type StandingCandidate = {
+  userId: string;
+  displayName: string;
+  favoriteTeam: { id: string; name: string; logoUrl: string } | null;
+  points: number;
+  previousPoints: number;
+  gameweekPoints: number;
+  exactScores: number;
+  previousExactScores: number;
+  correctResults: number;
+  previousCorrectResults: number;
+  joinedAt: number;
+};
+
+function compareStandings(
+  left: StandingCandidate,
+  right: StandingCandidate,
+  previous = false,
+) {
+  const pointsKey = previous ? "previousPoints" : "points";
+  const exactKey = previous ? "previousExactScores" : "exactScores";
+  const correctKey = previous ? "previousCorrectResults" : "correctResults";
+  return right[pointsKey] - left[pointsKey]
+    || right[exactKey] - left[exactKey]
+    || right[correctKey] - left[correctKey]
+    || left.joinedAt - right.joinedAt
+    || left.userId.localeCompare(right.userId);
+}
+
+export function rankLeagueStandings(candidates: StandingCandidate[]) {
+  const current = [...candidates].sort((left, right) => compareStandings(left, right));
+  const previous = [...candidates].sort((left, right) => compareStandings(left, right, true));
+  const previousRanks = new Map(previous.map((candidate, index) => [candidate.userId, index + 1]));
+  return current.map((candidate, index) => {
+    const rank = index + 1;
+    const previousRank = previousRanks.get(candidate.userId) ?? rank;
+    return { ...candidate, rank, previousRank, rankChange: previousRank - rank };
+  });
+}
+
+export async function getLeagueStandings(userId: string, leagueId: string) {
+  const membership = await firestore.collection("leagueMemberships").doc(membershipId(leagueId, userId)).get();
+  if (!membership.exists || membership.data()?.isActive !== true) {
+    throw Object.assign(new Error("You are not a member of this league."), { code: "LEAGUE_PERMISSION_DENIED", status: 403 });
+  }
+
+  const [league, memberships, gameweeks] = await Promise.all([
+    firestore.collection("leagues").doc(leagueId).get(),
+    firestore.collection("leagueMemberships").where("leagueId", "==", leagueId).get(),
+    getGameweeks(),
+  ]);
+  if (!league.exists || league.data()?.isActive !== true) {
+    throw Object.assign(new Error("League not found."), { code: "LEAGUE_NOT_FOUND", status: 404 });
+  }
+
+  const activeMemberships = memberships.docs.filter((document) => document.data().isActive === true);
+  const currentGameweek = gameweeks.find((gameweek) => gameweek.status === "ACTIVE")
+    ?? gameweeks.find((gameweek) => gameweek.status === "UPCOMING")
+    ?? gameweeks.at(-1);
+  const currentRound = currentGameweek?.roundNumber ?? 1;
+  const roundByGameweekId = new Map(gameweeks.map((gameweek) => [gameweek.id, gameweek.roundNumber]));
+
+  const candidates = await Promise.all(activeMemberships.map(async (member) => {
+    const memberUserId = member.data().userId as string;
+    const [profile, predictions] = await Promise.all([
+      firestore.collection("users").doc(memberUserId).get(),
+      firestore.collection("predictions").where("userId", "==", memberUserId).get(),
+    ]);
+    const profileData = profile.data();
+    const favoriteTeamId = profileData?.favoriteTeamId as string | undefined;
+    const team = favoriteTeamId ? await firestore.collection("teams").doc(favoriteTeamId).get() : null;
+    const scored = predictions.docs.map((prediction) => prediction.data())
+      .filter((prediction) => prediction.awardedPoints != null && roundByGameweekId.has(prediction.gameweekId));
+    const throughCurrent = scored.filter((prediction) => roundByGameweekId.get(prediction.gameweekId)! <= currentRound);
+    const throughPrevious = scored.filter((prediction) => roundByGameweekId.get(prediction.gameweekId)! < currentRound);
+    const correctReasons = new Set(["EXACT_SCORE", "CORRECT_GOAL_DIFFERENCE", "CORRECT_RESULT"]);
+
+    return {
+      userId: memberUserId,
+      displayName: (profileData?.displayName as string | undefined) ?? "UFL Player",
+      favoriteTeam: team?.exists ? {
+        id: team.id,
+        name: team.data()!.name as string,
+        logoUrl: teamLogoUrl(team.id),
+      } : null,
+      points: throughCurrent.reduce((total, prediction) => total + Number(prediction.awardedPoints), 0),
+      previousPoints: throughPrevious.reduce((total, prediction) => total + Number(prediction.awardedPoints), 0),
+      gameweekPoints: scored.filter((prediction) => roundByGameweekId.get(prediction.gameweekId) === currentRound)
+        .reduce((total, prediction) => total + Number(prediction.awardedPoints), 0),
+      exactScores: throughCurrent.filter((prediction) => prediction.scoringReason === "EXACT_SCORE").length,
+      previousExactScores: throughPrevious.filter((prediction) => prediction.scoringReason === "EXACT_SCORE").length,
+      correctResults: throughCurrent.filter((prediction) => correctReasons.has(prediction.scoringReason)).length,
+      previousCorrectResults: throughPrevious.filter((prediction) => correctReasons.has(prediction.scoringReason)).length,
+      joinedAt: member.data().joinedAt instanceof Timestamp ? member.data().joinedAt.toMillis() : 0,
+    } satisfies StandingCandidate;
+  }));
+
+  return {
+    league: {
+      id: league.id,
+      name: league.data()!.name as string,
+      type: league.data()!.type as string,
+      memberCount: activeMemberships.length,
+    },
+    currentGameweek: currentRound,
+    previousGameweek: currentRound > 1 ? currentRound - 1 : null,
+    standings: rankLeagueStandings(candidates).map((entry) => ({
+      ...entry,
+      isCurrentUser: entry.userId === userId,
+    })),
+  };
 }

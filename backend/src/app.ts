@@ -6,6 +6,9 @@ import { ZodError } from "zod";
 import { env } from "./config/env.js";
 import { teamsRouter } from "./teams/index.js";
 import { usersRouter } from "./users/index.js";
+import { fixturesRouter } from "./fixtures/index.js";
+import { gameweeksRouter } from "./gameweeks/index.js";
+import { leaguesRouter } from "./leagues/index.js";
 
 export const app = express();
 
@@ -40,6 +43,9 @@ app.get("/ready", (_req, res) => res.json({ status: "ready" }));
 // Feature routes. Each backend noun owns its routes, controller, and service.
 app.use("/api/v1/teams", teamsRouter);
 app.use("/api/v1/auth", usersRouter);
+app.use("/api/v1/fixtures", fixturesRouter);
+app.use("/api/v1/gameweeks", gameweeksRouter);
+app.use("/api/v1/leagues", leaguesRouter);
 
 // Keep this handler last so errors from every route use the same public shape.
 // Unexpected server errors receive a generic message to avoid leaking details.

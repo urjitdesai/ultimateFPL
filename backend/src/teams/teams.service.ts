@@ -1,28 +1,27 @@
+import { firestore } from "../firebase/admin.js";
+import { ensureFixturesCached } from "../fixtures/fixtures.service.js";
+
 export type Team = { id: string; name: string; shortName: string };
 
-// Text-only identities are intentional until club-mark licensing is confirmed.
-const teams: Team[] = [
-  { id: "arsenal", name: "Arsenal", shortName: "ARS" },
-  { id: "aston-villa", name: "Aston Villa", shortName: "AVL" },
-  { id: "bournemouth", name: "Bournemouth", shortName: "BOU" },
-  { id: "brentford", name: "Brentford", shortName: "BRE" },
-  { id: "brighton", name: "Brighton & Hove Albion", shortName: "BHA" },
-  { id: "burnley", name: "Burnley", shortName: "BUR" },
-  { id: "chelsea", name: "Chelsea", shortName: "CHE" },
-  { id: "crystal-palace", name: "Crystal Palace", shortName: "CRY" },
-  { id: "everton", name: "Everton", shortName: "EVE" },
-  { id: "fulham", name: "Fulham", shortName: "FUL" },
-  { id: "leeds", name: "Leeds United", shortName: "LEE" },
-  { id: "liverpool", name: "Liverpool", shortName: "LIV" },
-  { id: "manchester-city", name: "Manchester City", shortName: "MCI" },
-  { id: "manchester-united", name: "Manchester United", shortName: "MUN" },
-  { id: "newcastle", name: "Newcastle United", shortName: "NEW" },
-  { id: "nottingham-forest", name: "Nottingham Forest", shortName: "NFO" },
-  { id: "sunderland", name: "Sunderland", shortName: "SUN" },
-  { id: "tottenham", name: "Tottenham Hotspur", shortName: "TOT" },
-  { id: "west-ham", name: "West Ham United", shortName: "WHU" },
-  { id: "wolves", name: "Wolverhampton Wanderers", shortName: "WOL" }
-];
+export async function getTeams(): Promise<Team[]> {
+  await ensureFixturesCached();
+  const snapshot = await firestore.collection("teams").where("isActive", "==", true).get();
+  return snapshot.docs
+    .map((doc) => ({
+      id: doc.id,
+      name: doc.data().name as string,
+      shortName: doc.data().shortName as string,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
 
-export const getTeams = () => teams;
-export const getTeamById = (id: string) => teams.find((team) => team.id === id);
+export async function getTeamById(id: string): Promise<Team | undefined> {
+  await ensureFixturesCached();
+  const snapshot = await firestore.collection("teams").doc(id).get();
+  if (!snapshot.exists || snapshot.data()?.isActive !== true) return undefined;
+  return {
+    id: snapshot.id,
+    name: snapshot.data()!.name as string,
+    shortName: snapshot.data()!.shortName as string,
+  };
+}

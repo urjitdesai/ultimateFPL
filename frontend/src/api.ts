@@ -2,7 +2,10 @@ import type { User } from "firebase/auth";
 
 const baseUrl = import.meta.env.VITE_API_BASE_URL;
 export type Team = { id: string; name: string; shortName: string };
-export type Profile = { uid: string; email: string; displayName: string; favoriteTeam: Team; league: { id: string; name: string; type: "TEAM_DEFAULT" }; seasonId: string };
+export type League = { id: string; name: string; type: "OVERALL" | "TEAM_DEFAULT" | "GAMEWEEK_DEFAULT"; memberCount: number; roundNumber?: number | null };
+export type Profile = { uid: string; email: string; displayName: string; favoriteTeam: Team; leagues: League[]; activeSeasonId: string; joinedGameweek: number };
+export type Gameweek = { id: string; seasonId: string; roundNumber: number; startsAt: string; endsAt: string; fixtureCount: number; status: "UPCOMING" | "ACTIVE" | "COMPLETE" };
+export type Fixture = { id: string; providerMatchId: number; gameweekId: string; roundNumber: number; kickoffAt: string; normalizedStatus: string; homeTeam: { id: string; name: string }; awayTeam: { id: string; name: string }; homeScore: number | null; awayScore: number | null };
 
 async function request<T>(path: string, init?: RequestInit, user?: User): Promise<T> {
   const token = user ? await user.getIdToken() : null;
@@ -15,5 +18,8 @@ async function request<T>(path: string, init?: RequestInit, user?: User): Promis
 export const api = {
   teams: () => request<Team[]>("/teams"),
   profile: (user: User) => request<Profile>("/auth/me", undefined, user),
-  registerProfile: (user: User, displayName: string, favoriteTeamId: string) => request<Profile>("/auth/register-profile", { method: "POST", body: JSON.stringify({ displayName, favoriteTeamId }) }, user)
+  registerProfile: (user: User, displayName: string, favoriteTeamId: string) => request<Profile>("/auth/register-profile", { method: "POST", body: JSON.stringify({ displayName, favoriteTeamId }) }, user),
+  gameweeks: (user: User) => request<Gameweek[]>("/gameweeks", undefined, user),
+  fixtures: (user: User, gameweekId: string) => request<Fixture[]>(`/fixtures/gameweek/${gameweekId}`, undefined, user),
+  leagues: (user: User) => request<League[]>("/leagues", undefined, user)
 };

@@ -54,18 +54,78 @@ input:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 4px rgb
 .login-card form { gap: 20px; }
 
 .loading-screen { min-height: 100vh; display: grid; place-items: center; background: var(--navy); color: white; font: 700 18px 'Manrope'; }
-.welcome-page { min-height: 100vh; background: linear-gradient(130deg, #03132b 0 56%, #0a2447 100%); color: white; }
-.welcome-page nav { height: 76px; display: flex; justify-content: space-between; align-items: center; padding: 0 clamp(24px,5vw,72px); border-bottom: 1px solid rgba(255,255,255,.1); font: 700 17px 'Manrope'; }
-.welcome-page nav button { display: flex; align-items: center; gap: 8px; border: 0; background: transparent; color: #c7d3e3; cursor: pointer; }
-.welcome-page nav button svg { width: 17px; }
-.welcome-content { width: min(100% - 48px, 860px); margin: 0 auto; padding: 10vh 0; }
-.success-icon { width: 48px; height: 48px; color: var(--lime); }
-.welcome-kicker { margin: 24px 0 8px; color: #b9c6d7; font-weight: 700; }
-.welcome-content h1 { margin: 0; font: 800 clamp(48px,7vw,86px)/1 'Manrope'; letter-spacing: -.065em; }
-.welcome-content h1 span { color: var(--lime); }
-.welcome-lead { max-width: 650px; margin: 26px 0 40px; color: #c4d0df; font-size: 18px; line-height: 1.6; }
-.membership-strip { display: flex; align-items: center; gap: 16px; max-width: 650px; padding: 17px 19px; background: white; color: var(--ink); }
-.membership-strip > svg { margin-left: auto; width: 20px; }
+
+.home-page { min-height: 100vh; background: #fff; color: var(--ink); }
+.home-nav { height: 72px; padding: 0 clamp(24px,4vw,58px); display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 30px; background: #031329; color: white; border-bottom: 1px solid rgba(255,255,255,.12); }
+.home-brand { justify-self: start; display: flex; align-items: center; gap: 11px; border: 0; background: transparent; color: white; font: 800 18px 'Manrope'; letter-spacing: -.04em; cursor: pointer; }
+.home-brand span { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; background: var(--lime); color: var(--navy); font-size: 11px; letter-spacing: -.03em; }
+.home-links { height: 100%; display: flex; align-items: stretch; gap: 32px; }
+.home-links a { display: grid; place-items: center; position: relative; color: #b9c5d5; text-decoration: none; font-size: 13px; font-weight: 600; }
+.home-links a.active { color: white; }
+.home-links a.active::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--lime); }
+.home-account { justify-self: end; display: flex; align-items: center; gap: 22px; font-size: 13px; }
+.home-account > span { color: #c4d0df; }
+.home-account button { display: flex; align-items: center; gap: 7px; padding: 8px 0 8px 20px; border: 0; border-left: 1px solid #3b4a60; background: transparent; color: white; font-weight: 700; cursor: pointer; }
+.home-account svg { width: 16px; }
+
+.matchday-band { padding: 34px clamp(24px,4vw,58px) 0; background: #031329; color: white; }
+.matchday-title h1 { margin: 0; font: 800 clamp(35px,4vw,57px)/1 'Manrope'; letter-spacing: -.055em; text-transform: uppercase; }
+.matchday-title h1::before { content: ''; display: inline-block; width: 5px; height: .78em; margin-right: 14px; background: var(--lime); }
+.matchday-title p { display: flex; align-items: center; gap: 7px; margin: 13px 0 26px 19px; color: #bac7d7; font-size: 13px; }
+.matchday-title p svg { width: 15px; }
+.gameweek-navigation { display: grid; grid-template-columns: 46px minmax(0,1fr) 46px; align-items: stretch; gap: 14px; }
+.rail-arrow { align-self: center; width: 46px; height: 46px; display: grid; place-items: center; border: 1px solid #627087; background: transparent; color: white; cursor: pointer; }
+.rail-arrow:hover, .rail-arrow:focus-visible { border-color: var(--lime); color: var(--lime); }
+.gameweek-rail { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
+.gameweek-rail::-webkit-scrollbar { display: none; }
+.gameweek-rail button { flex: 0 0 160px; min-height: 78px; display: grid; place-content: center; gap: 7px; scroll-snap-align: start; border: 0; border-right: 1px solid #526077; background: transparent; color: white; cursor: pointer; }
+.gameweek-rail button strong { font: 700 13px 'Manrope'; }
+.gameweek-rail button span { color: #aab8ca; font-size: 12px; }
+.gameweek-rail button.selected { background: var(--lime); color: var(--navy); }
+.gameweek-rail button.selected span { color: #334200; }
+
+.home-content { width: min(100%, 1440px); margin: 0 auto; display: grid; grid-template-columns: minmax(0,1fr) 340px; }
+.fixtures-section { padding: 36px clamp(24px,4vw,58px) 70px; min-width: 0; }
+.fixtures-section > header { display: flex; justify-content: space-between; align-items: end; margin-bottom: 28px; }
+.fixtures-section h2, .league-rail h2 { margin: 0; font: 800 31px 'Manrope'; letter-spacing: -.05em; }
+.fixtures-section header p { margin: 6px 0 0; color: #6b7a90; font-size: 13px; }
+.fixture-count { color: #75849a; font-size: 12px; font-weight: 700; }
+.fixture-list { border-top: 1px solid var(--line); }
+.fixture-head, .fixture-row { display: grid; grid-template-columns: 140px minmax(180px,1fr) 70px minmax(180px,1fr); align-items: center; }
+.fixture-head { min-height: 35px; color: #72829a; font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+.fixture-head span:nth-child(3) { text-align: center; }
+.fixture-head span:last-child { text-align: right; }
+.fixture-row { min-height: 80px; border-top: 1px solid #e1e7ee; }
+.fixture-row time { display: grid; gap: 3px; color: #52637a; font-size: 12px; }
+.fixture-row time strong { color: #273a53; font-size: 13px; }
+.team { display: flex; align-items: center; gap: 13px; min-width: 0; }
+.team strong { font: 700 14px 'Manrope'; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.away-team { justify-content: flex-end; text-align: right; }
+.team-initials { flex: 0 0 39px; width: 39px; height: 39px; display: grid; place-items: center; border: 1px solid #bfcbd8; border-radius: 50%; color: #13243d; font: 800 10px 'Manrope'; }
+.versus { text-align: center; color: #8492a5; font: 700 11px 'Manrope'; text-transform: uppercase; }
+.fixture-skeleton { display: grid; }
+.fixture-skeleton div { height: 80px; border-top: 1px solid #e5eaf0; background: linear-gradient(90deg,transparent,#f2f5f8,transparent); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
+.fixture-empty { padding: 80px 20px; text-align: center; color: #64748a; border-top: 1px solid var(--line); }
+.fixture-empty svg { width: 34px; }
+.fixture-empty h3 { margin: 12px 0 5px; color: var(--ink); }
+.fixture-empty p { margin: 0; }
+.home-error { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; color: #9f1c14; background: #fff1f0; border-left: 3px solid #d92d20; }
+.home-error button { border: 0; background: transparent; color: #9f1c14; font-weight: 800; text-decoration: underline; cursor: pointer; }
+
+.league-rail { padding: 36px 36px; border-left: 1px solid #e1e6ec; background: #fbfcfd; }
+.league-rail h2 { margin-bottom: 22px; font-size: 22px; }
+.league-row { min-height: 91px; display: flex; align-items: center; gap: 13px; padding: 15px 0; border-top: 1px solid #dce3eb; }
+.league-row:last-of-type { border-bottom: 1px solid #dce3eb; }
+.league-row > svg { width: 17px; margin-left: auto; color: #728199; }
+.league-icon { flex: 0 0 42px; width: 42px; height: 42px; display: grid; place-items: center; border-radius: 50%; background: var(--navy); color: white; }
+.league-icon svg { width: 20px; }
+.league-row strong { font: 700 14px 'Manrope'; }
+.league-row p { margin: 5px 0 0; color: #748399; font-size: 12px; }
+.season-note { display: flex; gap: 13px; margin-top: 26px; padding: 18px 0; color: #506178; }
+.season-note > svg { flex: 0 0 20px; width: 20px; color: #6f7f94; }
+.season-note strong { color: var(--ink); font: 700 13px 'Manrope'; }
+.season-note p { margin: 6px 0 0; font-size: 12px; line-height: 1.5; }
+@keyframes shimmer { to { background-position: -200% 0; } }
 
 @media (max-width: 920px) {
   .auth-shell { grid-template-columns: minmax(300px, 36%) 1fr; }
@@ -75,6 +135,11 @@ input:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 4px rgb
   .form-stage { padding: 40px 30px; }
   .field-row { grid-template-columns: 1fr; }
   .error-row { display: none; }
+  .home-nav { grid-template-columns: 1fr auto; }
+  .home-links { display: none; }
+  .home-account > span { display: none; }
+  .home-content { grid-template-columns: minmax(0,1fr) 290px; }
+  .fixture-head, .fixture-row { grid-template-columns: 115px minmax(150px,1fr) 45px minmax(150px,1fr); }
 }
 @media (max-width: 700px) {
   .auth-shell { display: block; background: white; }
@@ -86,10 +151,31 @@ input:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 4px rgb
   .secure-note { display: none; }
   .field-row { gap: 17px; }
   .auth-card { max-width: 520px; margin: auto; }
-  .welcome-page nav { height: 66px; }
-  .welcome-page nav strong { font-size: 14px; }
-  .welcome-content { padding: 8vh 0; }
-  .welcome-content h1 { font-size: clamp(42px,13vw,62px); }
-  .membership-strip { align-items: flex-start; }
+  .home-nav { height: 64px; padding: 0 18px; }
+  .home-brand { font-size: 15px; }
+  .home-account button { padding-left: 12px; font-size: 0; }
+  .home-account button svg { width: 19px; }
+  .matchday-band { padding: 25px 0 0; }
+  .matchday-title { padding: 0 20px; }
+  .matchday-title h1 { font-size: 32px; line-height: 1.05; }
+  .matchday-title h1::before { width: 4px; margin-right: 9px; }
+  .matchday-title p { margin-left: 13px; }
+  .gameweek-navigation { grid-template-columns: minmax(0,1fr); gap: 0; }
+  .rail-arrow { display: none; }
+  .gameweek-rail { padding-left: 20px; }
+  .gameweek-rail button { flex-basis: 137px; }
+  .home-content { display: block; }
+  .fixtures-section { padding: 30px 20px 45px; }
+  .fixtures-section h2 { font-size: 28px; }
+  .fixture-head { display: none; }
+  .fixture-list { border-top: 1px solid var(--line); }
+  .fixture-row { min-height: 104px; grid-template-columns: 60px minmax(0,1fr) 26px minmax(0,1fr); gap: 6px; }
+  .fixture-row time { font-size: 10px; }
+  .fixture-row time strong { font-size: 11px; }
+  .team { gap: 7px; }
+  .team strong { font-size: 11px; white-space: normal; line-height: 1.25; }
+  .team-initials { flex-basis: 31px; width: 31px; height: 31px; font-size: 8px; }
+  .away-team .team-initials { display: none; }
+  .league-rail { padding: 31px 20px 45px; border-left: 0; border-top: 1px solid #e1e6ec; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; } }

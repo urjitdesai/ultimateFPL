@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
-import { DashboardPage } from "./pages/DashboardPage";
+import { HomePage } from "./pages/HomePage";
 import { navigate } from "./navigation";
 
 export function App() {
@@ -13,6 +13,6 @@ export function App() {
     return () => window.removeEventListener("popstate", update);
   }, [path]);
   if (path === "/login") return <LoginPage />;
-  if (path === "/dashboard") return <DashboardPage />;
+  if (path === "/dashboard") return <HomePage />;
   return <RegisterPage />;
 }

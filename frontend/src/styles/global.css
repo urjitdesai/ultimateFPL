@@ -121,10 +121,18 @@ input:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 4px rgb
 .team-crest span { position: absolute; inset: 0; display: grid; place-items: center; color: #13243d; font: 800 10px 'Manrope'; }
 .versus { text-align: center; color: #8492a5; font: 700 11px 'Manrope'; text-transform: uppercase; }
 .prediction-cell { display: grid; place-items: center; min-height: 79px; border-inline: 1px solid #edf0f4; }
+.prediction-row { min-height: 98px; }
+.prediction-row .prediction-cell { min-height: 97px; }
+.prediction-editor { display: grid; place-items: center; gap: 7px; }
 .score-entry { display: flex; align-items: center; gap: 8px; }
 .score-entry input { width: 48px; height: 45px; padding: 0; border-radius: 5px; text-align: center; font: 800 18px 'Manrope'; appearance: textfield; }
 .score-entry input::-webkit-inner-spin-button { appearance: none; }
 .score-entry > span { color: #66778d; font-weight: 800; }
+.captain-button { height: 24px; display: flex; align-items: center; gap: 5px; padding: 0 8px; border: 1px solid #cbd5e1; border-radius: 999px; background: #fff; color: #66768b; font: 700 9px 'Manrope'; cursor: pointer; }
+.captain-button svg { width: 12px; height: 12px; }
+.captain-button:hover:not(:disabled), .captain-button:focus-visible { border-color: #91b900; color: #405400; }
+.captain-button.is-captain { border-color: var(--lime); background: var(--lime); color: var(--navy); }
+.captain-button:disabled { opacity: .42; cursor: not-allowed; }
 .locked-prediction { display: grid; grid-template-columns: 18px auto auto; align-items: center; gap: 6px; color: #6f7e92; }
 .locked-prediction svg { width: 14px; }
 .locked-prediction span { font-size: 10px; font-weight: 700; text-transform: uppercase; }
@@ -229,6 +237,8 @@ input:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 4px rgb
   .team-crest { flex-basis: 31px; width: 31px; height: 31px; font-size: 8px; }
   .team-crest img { width: 29px; height: 29px; }
   .prediction-cell { grid-area: prediction; min-height: 91px; border-inline: 0; }
+  .prediction-row .prediction-cell { min-height: 91px; }
+  .captain-button { max-width: 108px; height: auto; min-height: 24px; justify-content: center; padding: 4px 7px; line-height: 1.15; text-align: center; }
   .score-entry { gap: 4px; }
   .score-entry input { width: 39px; height: 41px; font-size: 16px; }
   .result-comparison { grid-template-columns: 1fr 1fr; gap: 5px; padding: 6px; }

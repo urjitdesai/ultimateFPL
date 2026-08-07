@@ -86,6 +86,12 @@ describe("foundation API", () => {
     expect(scorePrediction({ predictedHome: 0, predictedAway: 0, actualHome: 1, actualAway: 1 })).toMatchObject({ points: 3, reason: "CORRECT_GOAL_DIFFERENCE" });
   });
 
+  it("doubles a captain prediction's earned points", () => {
+    expect(scorePrediction({ predictedHome: 3, predictedAway: 1, actualHome: 3, actualAway: 1, isCaptain: true })).toMatchObject({ basePoints: 5, points: 10, reason: "EXACT_SCORE", ruleVersion: "2026.2" });
+    expect(scorePrediction({ predictedHome: 2, predictedAway: 1, actualHome: 3, actualAway: 1, isCaptain: true })).toMatchObject({ basePoints: 2, points: 4, reason: "CORRECT_RESULT" });
+    expect(scorePrediction({ predictedHome: 1, predictedAway: 1, actualHome: 3, actualAway: 1, isCaptain: true })).toMatchObject({ basePoints: 0, points: 0, reason: "INCORRECT" });
+  });
+
   it("protects prediction reads and writes", async () => {
     const read = await request(app).get("/api/v1/gameweeks/gameweek-1/predictions/me");
     const write = await request(app).put("/api/v1/gameweeks/gameweek-1/predictions").send({ predictions: [] });

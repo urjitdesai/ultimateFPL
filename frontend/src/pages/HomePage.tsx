@@ -5,7 +5,7 @@ import { useAuth } from "../auth/AuthContext";
 import { PredictionFixtureRow } from "../components/PredictionFixtureRow";
 import { navigate } from "../navigation";
 
-const emptyView: PredictionView = { fixtures: [], predictionsOpen: false, summary: { totalPoints: 0, gameweekPoints: 0, submittedCount: 0, fixtureCount: 0 } };
+const emptyView: PredictionView = { fixtures: [], predictionsOpen: false, captainedFixtureId: null, summary: { totalPoints: 0, gameweekPoints: 0, submittedCount: 0, fixtureCount: 0 } };
 
 function formatRange(gameweek: Gameweek) {
   const start = new Date(gameweek.startsAt);
@@ -25,6 +25,7 @@ export function HomePage() {
   const [selectedId, setSelectedId] = useState("");
   const [view, setView] = useState<PredictionView>(emptyView);
   const [drafts, setDrafts] = useState<Record<string, { home: string; away: string }>>({});
+  const [captainedFixtureId, setCaptainedFixtureId] = useState<string | null>(null);
   const [leagues, setLeagues] = useState<League[]>([]);
   const [loading, setLoading] = useState(true);
   const [fixtureLoading, setFixtureLoading] = useState(false);
@@ -53,6 +54,7 @@ export function HomePage() {
     api.predictions(user, selectedId).then((nextView) => {
       if (!active) return;
       setView(nextView);
+      setCaptainedFixtureId(nextView.captainedFixtureId);
       setDrafts(Object.fromEntries(nextView.fixtures.map((fixture) => [fixture.id, { home: fixture.prediction ? String(fixture.prediction.predictedHomeScore) : "", away: fixture.prediction ? String(fixture.prediction.predictedAwayScore) : "" }])));
       setSaved(false);
     }).catch(() => active && setError("We couldn't load predictions for that gameweek.")).finally(() => active && setFixtureLoading(false));
@@ -78,7 +80,7 @@ export function HomePage() {
     });
     if (!user || predictions.length === 0) return;
     setSaving(true); setError("");
-    try { setView(await api.savePredictions(user, selectedId, predictions)); setSaved(true); }
+    try { const nextView = await api.savePredictions(user, selectedId, predictions, captainedFixtureId); setView(nextView); setCaptainedFixtureId(nextView.captainedFixtureId); setSaved(true); }
     catch (saveError) { setError(saveError instanceof Error ? saveError.message : "We couldn't save your predictions."); }
     finally { setSaving(false); }
   };
@@ -92,9 +94,9 @@ export function HomePage() {
     </section>
 
     <section className="home-content"><div className="fixtures-section">
-      <header><div><h2>{selected?.status === "COMPLETE" ? "Your results" : view.predictionsOpen ? "Your predictions" : "Fixtures"}</h2><p>{selected?.status === "COMPLETE" ? "Prediction, final score and points" : view.predictionsOpen ? "Every match locks independently at kickoff" : "Future gameweeks are available to preview only"}</p></div><div className="fixture-actions"><span className="fixture-count">{view.fixtures.length} matches</span>{view.predictionsOpen ? <button className={`save-predictions ${saved ? "is-saved" : ""}`} disabled={saving || savableCount === 0} onClick={savePredictions}>{saved ? <Check /> : <Save />}{saving ? "Saving…" : saved ? "Saved" : `Save ${savableCount || ""} predictions`}</button> : null}</div></header>
+      <header><div><h2>{selected?.status === "COMPLETE" ? "Your results" : view.predictionsOpen ? "Your predictions" : "Fixtures"}</h2><p>{selected?.status === "COMPLETE" ? "Prediction, final score and points" : view.predictionsOpen ? "Predict every match and captain one fixture for double points" : "Future gameweeks are available to preview only"}</p></div><div className="fixture-actions"><span className="fixture-count">{view.fixtures.length} matches</span>{view.predictionsOpen ? <button className={`save-predictions ${saved ? "is-saved" : ""}`} disabled={saving || savableCount === 0} onClick={savePredictions}>{saved ? <Check /> : <Save />}{saving ? "Saving…" : saved ? "Saved" : `Save ${savableCount || ""} predictions`}</button> : null}</div></header>
       {error ? <div className="home-error" role="alert">{error}<button onClick={() => window.location.reload()}>Retry</button></div> : null}
-      {loading || fixtureLoading ? <div className="fixture-skeleton" aria-label="Loading fixtures">{Array.from({ length: 5 }, (_, index) => <div key={index} />)}</div> : view.fixtures.length === 0 ? <div className="fixture-empty"><CalendarDays /><h3>No fixtures yet</h3><p>This gameweek has no scheduled Premier League matches.</p></div> : <div className="fixture-list"><div className="fixture-head"><span>Date & time</span><span>Home</span><span>Prediction</span><span>Away</span></div>{view.fixtures.map((fixture) => <PredictionFixtureRow key={fixture.id} fixture={fixture} draft={drafts[fixture.id] ?? { home: "", away: "" }} kickoff={formatKickoff(fixture.kickoffAt)} onChange={updateDraft} />)}</div>}
+      {loading || fixtureLoading ? <div className="fixture-skeleton" aria-label="Loading fixtures">{Array.from({ length: 5 }, (_, index) => <div key={index} />)}</div> : view.fixtures.length === 0 ? <div className="fixture-empty"><CalendarDays /><h3>No fixtures yet</h3><p>This gameweek has no scheduled Premier League matches.</p></div> : <div className="fixture-list"><div className="fixture-head"><span>Date & time</span><span>Home</span><span>Prediction</span><span>Away</span></div>{view.fixtures.map((fixture) => <PredictionFixtureRow key={fixture.id} fixture={fixture} draft={drafts[fixture.id] ?? { home: "", away: "" }} kickoff={formatKickoff(fixture.kickoffAt)} isCaptain={captainedFixtureId === fixture.id} onChange={updateDraft} onCaptain={(fixtureId) => { setCaptainedFixtureId((current) => current === fixtureId ? null : fixtureId); setSaved(false); }} />)}</div>}
     </div><aside className="league-rail" id="leagues"><h2>Your leagues</h2>{visibleLeagues.map((league) => <div className="league-row" key={league.id}><span className="league-icon"><Users /></span><div><strong>{league.name}</strong><p>{league.memberCount} {league.memberCount === 1 ? "member" : "members"}</p></div><ArrowRight /></div>)}<div className="season-note"><CalendarDays /><div><strong>Premier League only</strong><p>Your fixtures and leagues follow the active season.</p></div></div></aside></section>
   </main>;
 }

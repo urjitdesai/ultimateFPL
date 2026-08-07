@@ -11,6 +11,7 @@ export const predictionBatchSchema = z.object({
     predictedHomeScore: z.number().int().min(0).max(20),
     predictedAwayScore: z.number().int().min(0).max(20),
   })).min(1).max(20),
+  captainedFixtureId: z.string().min(1).nullable().optional().default(null),
 });
 
 function predictionId(userId: string, fixtureId: string) {
@@ -31,6 +32,8 @@ function serializePrediction(data: FirebaseFirestore.DocumentData) {
     predictedAwayScore: data.predictedAwayScore as number,
     awardedPoints: data.awardedPoints == null ? null : Number(data.awardedPoints),
     scoringReason: (data.scoringReason as string | null) ?? null,
+    basePoints: data.basePoints == null ? null : Number(data.basePoints),
+    isCaptain: data.isCaptain === true,
     submittedAt: data.submittedAt instanceof Timestamp ? data.submittedAt.toDate().toISOString() : null,
     updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate().toISOString() : null,
   };
@@ -60,7 +63,19 @@ export async function saveGameweekPredictions(
     const user = await transaction.get(firestore.collection("users").doc(userId));
     const fixtures = await Promise.all(fixtureRefs.map((ref) => transaction.get(ref)));
     const existingPredictions = await Promise.all(predictionRefs.map((ref) => transaction.get(ref)));
+    const userPredictions = await transaction.get(
+      firestore.collection("predictions").where("userId", "==", userId),
+    );
     if (!user.exists) throw Object.assign(new Error("Complete your profile first."), { code: "PROFILE_REQUIRED", status: 409 });
+
+    const existingGameweekPredictions = userPredictions.docs
+      .filter((prediction) => prediction.data().gameweekId === gameweekId);
+    const captainExists = input.captainedFixtureId == null
+      || input.predictions.some((prediction) => prediction.fixtureId === input.captainedFixtureId)
+      || existingGameweekPredictions.some((prediction) => prediction.data().fixtureId === input.captainedFixtureId);
+    if (!captainExists) {
+      throw Object.assign(new Error("Captain a fixture with a saved prediction."), { code: "INVALID_CAPTAIN", status: 400 });
+    }
 
     const now = Timestamp.now();
     for (let index = 0; index < input.predictions.length; index += 1) {
@@ -91,7 +106,17 @@ export async function saveGameweekPredictions(
         scoringReason: null,
         scoredAt: null,
         scoringRuleVersion: null,
+        basePoints: null,
+        isCaptain: requested.fixtureId === input.captainedFixtureId,
       }, { merge: true });
+    }
+
+    for (const prediction of existingGameweekPredictions) {
+      if (input.predictions.some((requested) => requested.fixtureId === prediction.data().fixtureId)) continue;
+      transaction.update(prediction.ref, {
+        isCaptain: prediction.data().fixtureId === input.captainedFixtureId,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
     }
   });
 
@@ -115,9 +140,11 @@ export async function settleFixturePredictions(fixtureId: string) {
       predictedAway: data.predictedAwayScore,
       actualHome: fixtureData.homeScore,
       actualAway: fixtureData.awayScore,
+      isCaptain: data.isCaptain === true,
     });
     batch.update(prediction.ref, {
       awardedPoints: result.points,
+      basePoints: result.basePoints,
       scoringReason: result.reason,
       scoringRuleVersion: result.ruleVersion,
       lockedAt: fixtureData.kickoffAt,
@@ -181,6 +208,7 @@ export async function getGameweekPredictions(userId: string, gameweekId: string)
       predictionLocked: !predictionsOpen || now >= new Date(fixture.kickoffAt).getTime(),
       predictionLockReason: !predictionsOpen ? "NOT_CURRENT_GAMEWEEK" : now >= new Date(fixture.kickoffAt).getTime() ? "KICKOFF" : null,
     })),
+    captainedFixtureId: [...predictions.entries()].find(([, prediction]) => prediction.isCaptain)?.[0] ?? null,
     predictionsOpen,
     summary: {
       totalPoints: Number(seasonStats?.data()?.points ?? 0),

@@ -1,8 +1,8 @@
-import { LockKeyhole } from "lucide-react";
+import { Crown, LockKeyhole } from "lucide-react";
 import type { PredictionFixture } from "../api";
 
 type DraftScore = { home: string; away: string };
-type Props = { fixture: PredictionFixture; draft: DraftScore; kickoff: { date: string; time: string }; onChange: (fixtureId: string, side: "home" | "away", value: string) => void };
+type Props = { fixture: PredictionFixture; draft: DraftScore; kickoff: { date: string; time: string }; isCaptain: boolean; onChange: (fixtureId: string, side: "home" | "away", value: string) => void; onCaptain: (fixtureId: string) => void };
 
 function initials(name: string) {
   const words = name.split(/\s+/);
@@ -20,7 +20,7 @@ function pointsCopy(reason: string | null) {
   return "No points";
 }
 
-export function PredictionFixtureRow({ fixture, draft, kickoff, onChange }: Props) {
+export function PredictionFixtureRow({ fixture, draft, kickoff, isCaptain, onChange, onCaptain }: Props) {
   const completed = fixture.normalizedStatus === "COMPLETED" && fixture.homeScore != null && fixture.awayScore != null;
   const prediction = fixture.prediction;
 
@@ -31,11 +31,10 @@ export function PredictionFixtureRow({ fixture, draft, kickoff, onChange }: Prop
       {completed ? <div className="result-comparison">
         <div><span>Final</span><strong>{fixture.homeScore}–{fixture.awayScore}</strong></div>
         <div><span>You</span><strong>{prediction ? `${prediction.predictedHomeScore}–${prediction.predictedAwayScore}` : "—"}</strong></div>
-        <div className={`points-award points-${prediction?.awardedPoints ?? 0}`}><strong>{prediction?.awardedPoints ?? 0} pts</strong><span>{prediction ? pointsCopy(prediction.scoringReason) : "No prediction"}</span></div>
-      </div> : fixture.predictionLocked ? <div className="locked-prediction"><LockKeyhole /><span>{fixture.predictionLockReason === "NOT_CURRENT_GAMEWEEK" ? "Currently closed" : prediction ? "Your pick" : "No prediction"}</span><strong>{fixture.predictionLockReason === "NOT_CURRENT_GAMEWEEK" ? "—" : prediction ? `${prediction.predictedHomeScore}–${prediction.predictedAwayScore}` : "—"}</strong></div> : <div className="score-entry" aria-label={`Prediction for ${fixture.homeTeam.name} against ${fixture.awayTeam.name}`}>
-        <input aria-label={`${fixture.homeTeam.name} predicted score`} inputMode="numeric" min="0" max="20" type="number" value={draft.home} onChange={(event) => onChange(fixture.id, "home", event.target.value)} />
-        <span>–</span>
-        <input aria-label={`${fixture.awayTeam.name} predicted score`} inputMode="numeric" min="0" max="20" type="number" value={draft.away} onChange={(event) => onChange(fixture.id, "away", event.target.value)} />
+        <div className={`points-award points-${prediction?.awardedPoints ?? 0}`}><strong>{prediction?.awardedPoints ?? 0} pts</strong><span>{prediction ? `${prediction.isCaptain ? "Captain · " : ""}${pointsCopy(prediction.scoringReason)}` : "No prediction"}</span></div>
+      </div> : fixture.predictionLocked ? <div className="locked-prediction"><LockKeyhole /><span>{fixture.predictionLockReason === "NOT_CURRENT_GAMEWEEK" ? "Currently closed" : prediction ? prediction.isCaptain ? "Captain pick" : "Your pick" : "No prediction"}</span><strong>{fixture.predictionLockReason === "NOT_CURRENT_GAMEWEEK" ? "—" : prediction ? `${prediction.predictedHomeScore}–${prediction.predictedAwayScore}` : "—"}</strong></div> : <div className="prediction-editor">
+        <div className="score-entry" aria-label={`Prediction for ${fixture.homeTeam.name} against ${fixture.awayTeam.name}`}><input aria-label={`${fixture.homeTeam.name} predicted score`} inputMode="numeric" min="0" max="20" type="number" value={draft.home} onChange={(event) => onChange(fixture.id, "home", event.target.value)} /><span>–</span><input aria-label={`${fixture.awayTeam.name} predicted score`} inputMode="numeric" min="0" max="20" type="number" value={draft.away} onChange={(event) => onChange(fixture.id, "away", event.target.value)} /></div>
+        <button className={`captain-button ${isCaptain ? "is-captain" : ""}`} type="button" disabled={draft.home === "" || draft.away === ""} aria-pressed={isCaptain} onClick={() => onCaptain(fixture.id)}><Crown />Captain</button>
       </div>}
     </div>
     <div className="team away-team"><strong>{fixture.awayTeam.name}</strong><Crest team={fixture.awayTeam} /></div>

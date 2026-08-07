@@ -7,6 +7,7 @@ import { decodeHtmlEntities } from "../utils/html.js";
 import { scorePrediction } from "../predictions/predictions.scoring.js";
 import { isCurrentPredictionGameweek, predictionIsLocked } from "../predictions/predictions.service.js";
 import { Timestamp } from "firebase-admin/firestore";
+import { getGameweekStatus } from "../gameweeks/gameweeks.service.js";
 
 describe("foundation API", () => {
   it("reports health", async () => {
@@ -102,5 +103,22 @@ describe("foundation API", () => {
     expect(isCurrentPredictionGameweek("gw-4", "gw-4")).toBe(true);
     expect(isCurrentPredictionGameweek("gw-5", "gw-4")).toBe(false);
     expect(isCurrentPredictionGameweek("gw-4", null)).toBe(false);
+  });
+
+  it("keeps a gameweek active until every fixture is settled", () => {
+    const startsAt = new Date("2026-08-10T12:00:00Z");
+    const now = new Date("2026-08-11T12:00:00Z");
+
+    expect(getGameweekStatus(startsAt, ["COMPLETED", "LIVE"], now)).toBe("ACTIVE");
+    expect(getGameweekStatus(startsAt, ["COMPLETED", "SCHEDULED"], now)).toBe("ACTIVE");
+    expect(getGameweekStatus(startsAt, ["COMPLETED", "POSTPONED", "CANCELLED"], now)).toBe("COMPLETE");
+  });
+
+  it("does not activate a gameweek before its first kickoff", () => {
+    expect(getGameweekStatus(
+      new Date("2026-08-12T12:00:00Z"),
+      ["SCHEDULED"],
+      new Date("2026-08-11T12:00:00Z"),
+    )).toBe("UPCOMING");
   });
 });

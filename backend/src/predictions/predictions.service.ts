@@ -69,8 +69,8 @@ export async function saveGameweekPredictions(
       if (!fixture.exists || fixture.data()!.gameweekId !== gameweekId) {
         throw Object.assign(new Error("A fixture does not belong to this gameweek."), { code: "FIXTURE_NOT_FOUND", status: 404 });
       }
-      if (user.data()!.activeSeasonId !== fixture.data()!.seasonId) {
-        throw Object.assign(new Error("This fixture is not in your active season."), { code: "FIXTURE_NOT_FOUND", status: 404 });
+      if (currentGameweek?.seasonId !== fixture.data()!.seasonId) {
+        throw Object.assign(new Error("This fixture is not in the current season."), { code: "FIXTURE_NOT_FOUND", status: 404 });
       }
       if (predictionIsLocked(fixture.data()!.kickoffAt as Timestamp, now)) {
         throw Object.assign(new Error("Predictions lock when each fixture kicks off."), { code: "PREDICTION_LOCKED", status: 409 });

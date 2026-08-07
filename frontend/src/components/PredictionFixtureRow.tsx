@@ -1,4 +1,4 @@
-import { Check, LockKeyhole } from "lucide-react";
+import { LockKeyhole } from "lucide-react";
 import type { PredictionFixture } from "../api";
 
 type DraftScore = { home: string; away: string };
@@ -36,7 +36,6 @@ export function PredictionFixtureRow({ fixture, draft, kickoff, onChange }: Prop
         <input aria-label={`${fixture.homeTeam.name} predicted score`} inputMode="numeric" min="0" max="20" type="number" value={draft.home} onChange={(event) => onChange(fixture.id, "home", event.target.value)} />
         <span>–</span>
         <input aria-label={`${fixture.awayTeam.name} predicted score`} inputMode="numeric" min="0" max="20" type="number" value={draft.away} onChange={(event) => onChange(fixture.id, "away", event.target.value)} />
-        {prediction ? <Check className="saved-tick" aria-label="Saved" /> : null}
       </div>}
     </div>
     <div className="team away-team"><strong>{fixture.awayTeam.name}</strong><Crest team={fixture.awayTeam} /></div>

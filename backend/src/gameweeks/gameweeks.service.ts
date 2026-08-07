@@ -12,15 +12,33 @@ export type Gameweek = {
   status: "UPCOMING" | "ACTIVE" | "COMPLETE";
 };
 
-function toGameweek(id: string, data: FirebaseFirestore.DocumentData): Gameweek {
-  const now = Date.now();
+const TERMINAL_FIXTURE_STATUSES = new Set([
+  "COMPLETED",
+  "POSTPONED",
+  "CANCELLED",
+  "ABANDONED",
+]);
+
+export function getGameweekStatus(
+  startsAt: Date,
+  fixtureStatuses: string[],
+  now = new Date(),
+): Gameweek["status"] {
+  if (now.getTime() < startsAt.getTime()) return "UPCOMING";
+  if (fixtureStatuses.length > 0
+    && fixtureStatuses.every((status) => TERMINAL_FIXTURE_STATUSES.has(status))) {
+    return "COMPLETE";
+  }
+  return "ACTIVE";
+}
+
+function toGameweek(
+  id: string,
+  data: FirebaseFirestore.DocumentData,
+  fixtureStatuses: string[],
+): Gameweek {
   const startsAt = (data.startsAt as Timestamp).toDate();
   const endsAt = (data.endsAt as Timestamp).toDate();
-  const status = now < startsAt.getTime()
-    ? "UPCOMING"
-    : now <= endsAt.getTime()
-      ? "ACTIVE"
-      : "COMPLETE";
 
   return {
     id,
@@ -29,7 +47,7 @@ function toGameweek(id: string, data: FirebaseFirestore.DocumentData): Gameweek 
     startsAt: startsAt.toISOString(),
     endsAt: endsAt.toISOString(),
     fixtureCount: data.fixtureCount as number,
-    status,
+    status: getGameweekStatus(startsAt, fixtureStatuses),
   };
 }
 
@@ -37,9 +55,21 @@ export async function getGameweeks() {
   await ensureFixturesCached();
   const metadata = await firestore.collection("syncMetadata").doc("fixtures").get();
   const seasonId = metadata.data()?.seasonId as string;
-  const snapshot = await firestore.collection("gameweeks").where("seasonId", "==", seasonId).get();
-  return snapshot.docs
-    .map((doc) => toGameweek(doc.id, doc.data()))
+  const [gameweeks, fixtures] = await Promise.all([
+    firestore.collection("gameweeks").where("seasonId", "==", seasonId).get(),
+    firestore.collection("fixtures").where("seasonId", "==", seasonId).get(),
+  ]);
+  const statusesByGameweek = new Map<string, string[]>();
+  for (const fixture of fixtures.docs) {
+    const gameweekId = fixture.data().gameweekId as string;
+    statusesByGameweek.set(gameweekId, [
+      ...(statusesByGameweek.get(gameweekId) ?? []),
+      fixture.data().normalizedStatus as string,
+    ]);
+  }
+
+  return gameweeks.docs
+    .map((doc) => toGameweek(doc.id, doc.data(), statusesByGameweek.get(doc.id) ?? []))
     .sort((a, b) => a.roundNumber - b.roundNumber);
 }
 

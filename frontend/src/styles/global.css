@@ -75,11 +75,13 @@ input:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 4px rgb
 .matchday-title p { display: flex; align-items: center; gap: 7px; margin: 13px 0 26px 19px; color: #bac7d7; font-size: 13px; }
 .matchday-title p svg { width: 15px; }
 .score-summary { display: grid; grid-template-columns: repeat(2, minmax(135px, 1fr)); min-width: 300px; border: 1px solid #34445b; }
-.score-summary > div { min-height: 92px; position: relative; display: grid; grid-template-columns: 1fr auto; align-content: center; gap: 3px 14px; padding: 15px 18px; }
+.score-summary > div { min-height: 92px; position: relative; display: grid; grid-template-columns: 1fr; align-content: center; gap: 3px; padding: 15px 18px; }
 .score-summary > div + div { border-left: 1px solid #34445b; }
-.score-summary svg { position: absolute; right: 16px; top: 14px; width: 18px; color: var(--lime); }
+.score-summary svg { position: absolute; left: 18px; top: 17px; width: 16px; color: var(--lime); }
+.score-summary > div:first-child > span { padding-left: 23px; }
+.score-summary > div:first-child > strong { grid-row: 2; grid-column: 1; justify-self: start; padding-left: 23px; }
 .score-summary span { color: #aebdd0; font-size: 11px; font-weight: 700; }
-.score-summary strong { grid-row: 1 / span 2; grid-column: 2; align-self: center; color: var(--lime); font: 800 34px 'Manrope'; }
+.score-summary strong { grid-row: 2; grid-column: 1; justify-self: start; color: var(--lime); font: 800 34px/1 'Manrope'; }
 .score-summary small { color: #7f91a8; font-size: 10px; }
 .gameweek-navigation { display: grid; grid-template-columns: 46px minmax(0,1fr) 46px; align-items: stretch; gap: 14px; }
 .rail-arrow { align-self: center; width: 46px; height: 46px; display: grid; place-items: center; border: 1px solid #627087; background: transparent; color: white; cursor: pointer; }
@@ -123,7 +125,6 @@ input:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 4px rgb
 .score-entry input { width: 48px; height: 45px; padding: 0; border-radius: 5px; text-align: center; font: 800 18px 'Manrope'; appearance: textfield; }
 .score-entry input::-webkit-inner-spin-button { appearance: none; }
 .score-entry > span { color: #66778d; font-weight: 800; }
-.saved-tick { width: 16px; color: #58a700; }
 .locked-prediction { display: grid; grid-template-columns: 18px auto auto; align-items: center; gap: 6px; color: #6f7e92; }
 .locked-prediction svg { width: 14px; }
 .locked-prediction span { font-size: 10px; font-weight: 700; text-transform: uppercase; }
@@ -230,7 +231,6 @@ input:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 4px rgb
   .prediction-cell { grid-area: prediction; min-height: 91px; border-inline: 0; }
   .score-entry { gap: 4px; }
   .score-entry input { width: 39px; height: 41px; font-size: 16px; }
-  .saved-tick { display: none; }
   .result-comparison { grid-template-columns: 1fr 1fr; gap: 5px; padding: 6px; }
   .points-award { grid-column: 1 / -1; min-width: 0; }
   .locked-prediction { grid-template-columns: 14px auto; justify-content: center; }

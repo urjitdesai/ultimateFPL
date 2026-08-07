@@ -1,7 +1,7 @@
 import request from "supertest";
 import { describe, expect, it } from "vitest";
 import { app } from "../app.js";
-import { supporterLeagueIdentity } from "../services/profileService.js";
+import { supporterLeagueIdentity } from "../users/users.service.js";
 
 describe("foundation API", () => {
   it("reports health", async () => {

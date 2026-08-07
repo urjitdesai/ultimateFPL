@@ -1,7 +1,7 @@
 export type Team = { id: string; name: string; shortName: string };
 
 // Text-only identities are intentional until club-mark licensing is confirmed.
-export const teams: Team[] = [
+const teams: Team[] = [
   { id: "arsenal", name: "Arsenal", shortName: "ARS" },
   { id: "aston-villa", name: "Aston Villa", shortName: "AVL" },
   { id: "bournemouth", name: "Bournemouth", shortName: "BOU" },
@@ -24,4 +24,5 @@ export const teams: Team[] = [
   { id: "wolves", name: "Wolverhampton Wanderers", shortName: "WOL" }
 ];
 
-export const findTeam = (id: string) => teams.find((team) => team.id === id);
+export const getTeams = () => teams;
+export const getTeamById = (id: string) => teams.find((team) => team.id === id);

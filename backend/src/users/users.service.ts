@@ -1,7 +1,7 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { env } from "../config/env.js";
-import { findTeam } from "../data/teams.js";
 import { firestore } from "../firebase/admin.js";
+import { getTeamById } from "../teams/teams.service.js";
 
 export type ProfileInput = { uid: string; email: string; displayName: string; favoriteTeamId: string };
 
@@ -18,7 +18,7 @@ export function supporterLeagueIdentity(seasonId: string, teamId: string, uid: s
 }
 
 export async function createProfile(input: ProfileInput) {
-  const team = findTeam(input.favoriteTeamId);
+  const team = getTeamById(input.favoriteTeamId);
   if (!team) throw Object.assign(new Error("Choose a valid team."), { code: "TEAM_NOT_FOUND", status: 404 });
   const seasonId = currentSeasonId();
   const { leagueId, membershipId } = supporterLeagueIdentity(seasonId, team.id, input.uid);
@@ -41,7 +41,7 @@ export async function getProfile(uid: string) {
   const snapshot = await firestore.collection("users").doc(uid).get();
   if (!snapshot.exists) return null;
   const data = snapshot.data()!;
-  const team = findTeam(data.favoriteTeamId as string);
+  const team = getTeamById(data.favoriteTeamId as string);
   const seasonId = data.activeSeasonId as string;
   return { uid, ...data, favoriteTeam: team, league: team ? { id: `${seasonId}_team_${team.id}`, name: `${team.name} Supporters`, type: "TEAM_DEFAULT" } : null };
 }

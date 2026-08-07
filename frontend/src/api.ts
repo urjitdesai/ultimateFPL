@@ -1,11 +1,12 @@
 import type { User } from "firebase/auth";
 
 const baseUrl = import.meta.env.VITE_API_BASE_URL;
-export type Team = { id: string; name: string; shortName: string };
+export type Team = { id: string; name: string; shortName: string; logoUrl: string };
 export type League = { id: string; name: string; type: "OVERALL" | "TEAM_DEFAULT" | "GAMEWEEK_DEFAULT"; memberCount: number; roundNumber?: number | null };
 export type Profile = { uid: string; email: string; displayName: string; favoriteTeam: Team; leagues: League[]; activeSeasonId: string; joinedGameweek: number };
 export type Gameweek = { id: string; seasonId: string; roundNumber: number; startsAt: string; endsAt: string; fixtureCount: number; status: "UPCOMING" | "ACTIVE" | "COMPLETE" };
-export type Fixture = { id: string; providerMatchId: number; gameweekId: string; roundNumber: number; kickoffAt: string; normalizedStatus: string; homeTeam: { id: string; name: string }; awayTeam: { id: string; name: string }; homeScore: number | null; awayScore: number | null };
+export type FixtureTeam = Pick<Team, "id" | "name" | "logoUrl">;
+export type Fixture = { id: string; providerMatchId: number; gameweekId: string; roundNumber: number; kickoffAt: string; normalizedStatus: string; homeTeam: FixtureTeam; awayTeam: FixtureTeam; homeScore: number | null; awayScore: number | null };
 
 async function request<T>(path: string, init?: RequestInit, user?: User): Promise<T> {
   const token = user ? await user.getIdToken() : null;

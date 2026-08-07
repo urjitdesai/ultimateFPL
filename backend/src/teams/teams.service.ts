@@ -1,8 +1,9 @@
 import { firestore } from "../firebase/admin.js";
 import { ensureFixturesCached } from "../fixtures/fixtures.service.js";
 import { decodeHtmlEntities } from "../utils/html.js";
+import { teamLogoUrl } from "../utils/team-logo.js";
 
-export type Team = { id: string; name: string; shortName: string };
+export type Team = { id: string; name: string; shortName: string; logoUrl: string };
 
 export async function getTeams(): Promise<Team[]> {
   await ensureFixturesCached();
@@ -12,6 +13,7 @@ export async function getTeams(): Promise<Team[]> {
       id: doc.id,
       name: decodeHtmlEntities(doc.data().name as string),
       shortName: doc.data().shortName as string,
+      logoUrl: teamLogoUrl(doc.id),
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -24,5 +26,6 @@ export async function getTeamById(id: string): Promise<Team | undefined> {
     id: snapshot.id,
     name: decodeHtmlEntities(snapshot.data()!.name as string),
     shortName: snapshot.data()!.shortName as string,
+    logoUrl: teamLogoUrl(snapshot.id),
   };
 }

@@ -26,7 +26,7 @@ describe("foundation API", () => {
   });
 
   it("creates all deterministic default leagues", () => {
-    expect(getDefaultLeagues("season-1", { id: "arsenal", name: "Arsenal", shortName: "ARS" }, 4)).toEqual([
+    expect(getDefaultLeagues("season-1", { id: "arsenal", name: "Arsenal", shortName: "ARS", logoUrl: "/team-logos/arsenal.png" }, 4)).toEqual([
       { id: "season-1_overall", name: "Overall", type: "OVERALL" },
       { id: "season-1_team_arsenal", name: "Arsenal Supporters", type: "TEAM_DEFAULT", favoriteTeamId: "arsenal" },
       { id: "season-1_gameweek_4", name: "Gameweek 4", type: "GAMEWEEK_DEFAULT", roundNumber: 4 }

@@ -100,9 +100,9 @@ export function HomePage() {
           <div className="fixture-head"><span>Date & time</span><span>Home</span><span>Match</span><span>Away</span></div>
           {fixtures.map((fixture) => { const kickoff = formatKickoff(fixture.kickoffAt); return <article className="fixture-row" key={fixture.id}>
             <time dateTime={fixture.kickoffAt}><strong>{kickoff.date}</strong><span>{kickoff.time}</span></time>
-            <div className="team home-team"><span className="team-initials">{initials(fixture.homeTeam.name)}</span><strong>{fixture.homeTeam.name}</strong></div>
+            <div className="team home-team"><span className="team-crest"><img src={fixture.homeTeam.logoUrl} alt="" onError={(event) => { event.currentTarget.hidden = true; }} /><span>{initials(fixture.homeTeam.name)}</span></span><strong>{fixture.homeTeam.name}</strong></div>
             <div className="versus">vs</div>
-            <div className="team away-team"><strong>{fixture.awayTeam.name}</strong><span className="team-initials">{initials(fixture.awayTeam.name)}</span></div>
+            <div className="team away-team"><strong>{fixture.awayTeam.name}</strong><span className="team-crest"><img src={fixture.awayTeam.logoUrl} alt="" onError={(event) => { event.currentTarget.hidden = true; }} /><span>{initials(fixture.awayTeam.name)}</span></span></div>
           </article>; })}
         </div>}
       </div>

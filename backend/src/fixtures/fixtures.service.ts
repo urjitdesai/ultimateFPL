@@ -3,6 +3,7 @@ import { z } from "zod";
 import { env } from "../config/env.js";
 import { firestore } from "../firebase/admin.js";
 import { decodeHtmlEntities } from "../utils/html.js";
+import { teamLogoUrl } from "../utils/team-logo.js";
 
 const teamSchema = z.object({
   team_id: z.number(),
@@ -204,8 +205,16 @@ async function syncFixtures() {
         seasonId,
         gameweekId,
         roundNumber,
-        homeTeam: { id: `footballdataIo_${match.home_team.team_id}`, name: decodeHtmlEntities(match.home_team.team_name) },
-        awayTeam: { id: `footballdataIo_${match.away_team.team_id}`, name: decodeHtmlEntities(match.away_team.team_name) },
+        homeTeam: {
+          id: `footballdataIo_${match.home_team.team_id}`,
+          name: decodeHtmlEntities(match.home_team.team_name),
+          logoUrl: teamLogoUrl(`footballdataIo_${match.home_team.team_id}`),
+        },
+        awayTeam: {
+          id: `footballdataIo_${match.away_team.team_id}`,
+          name: decodeHtmlEntities(match.away_team.team_name),
+          logoUrl: teamLogoUrl(`footballdataIo_${match.away_team.team_id}`),
+        },
         kickoffAt: Timestamp.fromMillis(match.date_unix * 1000),
         providerStatus: match.status,
         normalizedStatus: normalizeStatus(match.status),
@@ -260,8 +269,16 @@ export async function getFixturesForGameweek(gameweekId: string) {
       return {
         id: doc.id,
         ...data,
-        homeTeam: { ...data.homeTeam, name: decodeHtmlEntities(data.homeTeam.name) },
-        awayTeam: { ...data.awayTeam, name: decodeHtmlEntities(data.awayTeam.name) },
+        homeTeam: {
+          ...data.homeTeam,
+          name: decodeHtmlEntities(data.homeTeam.name),
+          logoUrl: teamLogoUrl(data.homeTeam.id),
+        },
+        awayTeam: {
+          ...data.awayTeam,
+          name: decodeHtmlEntities(data.awayTeam.name),
+          logoUrl: teamLogoUrl(data.awayTeam.id),
+        },
         kickoffAt: iso(data.kickoffAt),
       };
     })

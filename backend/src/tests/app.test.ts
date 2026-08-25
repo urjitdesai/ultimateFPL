@@ -1,7 +1,6 @@
 import request from "supertest";
 import { describe, expect, it } from "vitest";
 import { app } from "../app.js";
-import { getDefaultLeagues } from "../leagues/leagues.service.js";
 import { assignGameweeks, selectSeasonByYear } from "../fixtures/fixtures.service.js";
 import { decodeHtmlEntities } from "../utils/html.js";
 import { scorePrediction } from "../predictions/predictions.scoring.js";
@@ -9,7 +8,6 @@ import { gameweekLockDeadline, isCurrentPredictionGameweek, predictionIsLocked }
 import { Timestamp } from "firebase-admin/firestore";
 import { getGameweekStatus } from "../gameweeks/gameweeks.service.js";
 import { generateInviteCode, getMembershipStartRound, normalizeInviteCode, rankLeagueStandings } from "../leagues/leagues.service.js";
-import { getWagerOutcome } from "../wagers/wagers.service.js";
 
 describe("foundation API", () => {
   it("reports health", async () => {
@@ -29,14 +27,6 @@ describe("foundation API", () => {
     const response = await request(app).post("/api/v1/auth/register-profile").send({ displayName: "Alex", favoriteTeamId: "arsenal" });
     expect(response.status).toBe(401);
     expect(response.body.error.code).toBe("AUTHENTICATION_REQUIRED");
-  });
-
-  it("creates all deterministic default leagues", () => {
-    expect(getDefaultLeagues("season-1", { id: "arsenal", name: "Arsenal", shortName: "ARS", logoUrl: "/team-logos/arsenal.png" }, 4)).toEqual([
-      { id: "season-1_overall", name: "Overall", type: "OVERALL" },
-      { id: "season-1_team_arsenal", name: "Arsenal Supporters", type: "TEAM_DEFAULT", favoriteTeamId: "arsenal" },
-      { id: "season-1_gameweek_4", name: "Gameweek 4", type: "GAMEWEEK_DEFAULT", roundNumber: 4 }
-    ]);
   });
 
   it("derives missing Premier League gameweeks from fixture-date clusters", () => {
@@ -178,25 +168,4 @@ describe("foundation API", () => {
     expect(getMembershipStartRound(undefined, Date.parse("2026-08-12T12:00:00.000Z"), gameweeks)).toBe(2);
   });
 
-  it("settles wagers using base points and refunds ties", () => {
-    expect(getWagerOutcome(
-      { predictedHomeScore: 2, predictedAwayScore: 1 },
-      { predictedHomeScore: 1, predictedAwayScore: 0 },
-      2, 1,
-    )).toMatchObject({ winner: "CREATOR", creatorPoints: 5, opponentPoints: 3 });
-    expect(getWagerOutcome(
-      { predictedHomeScore: 0, predictedAwayScore: 0 },
-      { predictedHomeScore: 1, predictedAwayScore: 1 },
-      2, 2,
-    ).winner).toBe("TIE");
-  });
-
-  it("protects wager routes", async () => {
-    const [board, create] = await Promise.all([
-      request(app).get("/api/v1/leagues/league-1/wagers"),
-      request(app).post("/api/v1/leagues/league-1/wagers").send({ fixtureId: "fixture-1", stake: 5 }),
-    ]);
-    expect(board.status).toBe(401);
-    expect(create.status).toBe(401);
-  });
 });

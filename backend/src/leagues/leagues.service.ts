@@ -1,29 +1,25 @@
 import crypto from "node:crypto";
-import { FieldValue, Timestamp, type Transaction } from "firebase-admin/firestore";
+import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { z } from "zod";
 import { firestore } from "../firebase/admin.js";
 import { getGameweeks, getJoinGameweek, type Gameweek } from "../gameweeks/gameweeks.service.js";
 import { getFixturesForGameweek } from "../fixtures/fixtures.service.js";
-import type { Team } from "../teams/teams.service.js";
 import { teamLogoUrl } from "../utils/team-logo.js";
-
-type DefaultLeague = {
-  id: string;
-  name: string;
-  type: "OVERALL" | "TEAM_DEFAULT" | "GAMEWEEK_DEFAULT";
-  favoriteTeamId?: string;
-  roundNumber?: number;
-};
 
 export const createLeagueSchema = z.object({
   name: z.string().trim().min(3).max(50),
-  scoringType: z.enum(["CLASSIC", "WAGER"]).default("CLASSIC"),
 });
 export const joinLeagueSchema = z.object({ inviteCode: z.string().trim().min(6).max(12) });
 const INVITE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 function membershipId(leagueId: string, userId: string) {
   return `${leagueId}_${userId}`;
+}
+
+function isPrivateLeague(data: FirebaseFirestore.DocumentData | undefined) {
+  return data?.isActive === true
+    && typeof data.ownerUserId === "string"
+    && typeof data.inviteCode === "string";
 }
 
 export function normalizeInviteCode(value: string) {
@@ -51,7 +47,7 @@ export function getMembershipStartRound(
   return fallbackRound;
 }
 
-export async function createLeague(userId: string, name: string, scoringType: "CLASSIC" | "WAGER") {
+export async function createLeague(userId: string, name: string) {
   const userRef = firestore.collection("users").doc(userId);
   const joinGameweek = await getJoinGameweek();
   if (!joinGameweek) throw new Error("No Premier League gameweek is available.");
@@ -66,8 +62,6 @@ export async function createLeague(userId: string, name: string, scoringType: "C
       const seasonId = user.data()!.activeSeasonId as string;
       transaction.create(leagueRef, {
         seasonId,
-        type: "CUSTOM",
-        scoringType,
         name,
         normalizedName: name.toLowerCase(),
         ownerUserId: userId,
@@ -83,14 +77,13 @@ export async function createLeague(userId: string, name: string, scoringType: "C
         userId,
         seasonId,
         role: "OWNER",
-        leagueType: "CUSTOM",
         joinedGameweek: joinGameweek.roundNumber,
         joinedAt: FieldValue.serverTimestamp(),
         isActive: true,
       });
       return true;
     });
-    if (created) return { id: leagueRef.id, name, type: "CUSTOM" as const, scoringType, inviteCode, memberCount: 1 };
+    if (created) return { id: leagueRef.id, name, inviteCode, memberCount: 1 };
   }
   throw Object.assign(new Error("We couldn't generate an invite code. Try again."), { code: "INVITE_CODE_UNAVAILABLE", status: 503 });
 }
@@ -116,7 +109,7 @@ export async function joinLeague(userId: string, rawInviteCode: string) {
       transaction.get(leagueRef), transaction.get(membershipRef), transaction.get(userRef),
     ]);
     if (!user.exists) throw Object.assign(new Error("Complete your profile first."), { code: "PROFILE_REQUIRED", status: 409 });
-    if (!league.exists || league.data()?.isActive !== true || league.data()?.type !== "CUSTOM") {
+    if (!league.exists || !isPrivateLeague(league.data())) {
       throw Object.assign(new Error("That league is no longer available."), { code: "LEAGUE_NOT_FOUND", status: 404 });
     }
     if (league.data()!.seasonId !== user.data()!.activeSeasonId) {
@@ -130,7 +123,6 @@ export async function joinLeague(userId: string, rawInviteCode: string) {
       userId,
       seasonId: league.data()!.seasonId,
       role: "MEMBER",
-      leagueType: "CUSTOM",
       joinedGameweek: joinGameweek.roundNumber,
       joinedAt: FieldValue.serverTimestamp(),
       isActive: true,
@@ -140,73 +132,6 @@ export async function joinLeague(userId: string, rawInviteCode: string) {
   });
 }
 
-export function getDefaultLeagues(seasonId: string, team: Team, roundNumber: number): DefaultLeague[] {
-  return [
-    { id: `${seasonId}_overall`, name: "Overall", type: "OVERALL" },
-    { id: `${seasonId}_team_${team.id}`, name: `${team.name} Supporters`, type: "TEAM_DEFAULT", favoriteTeamId: team.id },
-    { id: `${seasonId}_gameweek_${roundNumber}`, name: `Gameweek ${roundNumber}`, type: "GAMEWEEK_DEFAULT", roundNumber },
-  ];
-}
-
-export async function joinDefaultLeagues(
-  transaction: Transaction,
-  userId: string,
-  seasonId: string,
-  team: Team,
-  roundNumber: number,
-) {
-  const leagues = getDefaultLeagues(seasonId, team, roundNumber);
-  const records = await Promise.all(leagues.map(async (league) => {
-    const leagueRef = firestore.collection("leagues").doc(league.id);
-    const memberRef = firestore.collection("leagueMemberships").doc(membershipId(league.id, userId));
-    const [leagueSnapshot, memberSnapshot] = await Promise.all([
-      transaction.get(leagueRef),
-      transaction.get(memberRef),
-    ]);
-    return { league, leagueRef, memberRef, leagueSnapshot, memberSnapshot };
-  }));
-
-  for (const record of records) {
-    const { league, leagueRef, memberRef, leagueSnapshot, memberSnapshot } = record;
-    if (!leagueSnapshot.exists) {
-      transaction.create(leagueRef, {
-        seasonId,
-        type: league.type,
-        scoringType: "CLASSIC",
-        name: league.name,
-        normalizedName: league.name.toLowerCase(),
-        favoriteTeamId: league.favoriteTeamId ?? null,
-        roundNumber: league.roundNumber ?? null,
-        ownerUserId: null,
-        inviteCode: null,
-        memberCount: 1,
-        isActive: true,
-        createdAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
-      });
-    } else if (!memberSnapshot.exists) {
-      transaction.update(leagueRef, {
-        memberCount: FieldValue.increment(1),
-        updatedAt: FieldValue.serverTimestamp(),
-      });
-    }
-
-    if (!memberSnapshot.exists) {
-      transaction.create(memberRef, {
-        leagueId: league.id,
-        userId,
-        seasonId,
-        role: "MEMBER",
-        leagueType: league.type,
-        joinedGameweek: roundNumber,
-        joinedAt: FieldValue.serverTimestamp(),
-        isActive: true,
-      });
-    }
-  }
-
-  return leagues;
-}
 
 export async function getUserLeagues(userId: string) {
   const memberships = await firestore.collection("leagueMemberships")
@@ -217,7 +142,8 @@ export async function getUserLeagues(userId: string) {
       .filter((membership) => membership.data().isActive === true)
       .map((membership) => firestore.collection("leagues").doc(membership.data().leagueId).get()),
   );
-  return leagueSnapshots.filter((snapshot) => snapshot.exists).map((snapshot) => ({ id: snapshot.id, ...snapshot.data() }));
+  return leagueSnapshots.filter((snapshot) => snapshot.exists && isPrivateLeague(snapshot.data()))
+    .map((snapshot) => ({ id: snapshot.id, ...snapshot.data() }));
 }
 
 type StandingCandidate = {
@@ -266,13 +192,12 @@ export async function getLeagueStandings(userId: string, leagueId: string) {
     throw Object.assign(new Error("You are not a member of this league."), { code: "LEAGUE_PERMISSION_DENIED", status: 403 });
   }
 
-  const [league, memberships, gameweeks, wagers] = await Promise.all([
+  const [league, memberships, gameweeks] = await Promise.all([
     firestore.collection("leagues").doc(leagueId).get(),
     firestore.collection("leagueMemberships").where("leagueId", "==", leagueId).get(),
     getGameweeks(),
-    firestore.collection("wagers").where("leagueId", "==", leagueId).get(),
   ]);
-  if (!league.exists || league.data()?.isActive !== true) {
+  if (!league.exists || !isPrivateLeague(league.data())) {
     throw Object.assign(new Error("League not found."), { code: "LEAGUE_NOT_FOUND", status: 404 });
   }
 
@@ -306,15 +231,6 @@ export async function getLeagueStandings(userId: string, leagueId: string) {
     const throughCurrent = scored.filter((prediction) => roundByGameweekId.get(prediction.gameweekId)! <= currentRound);
     const throughPrevious = scored.filter((prediction) => roundByGameweekId.get(prediction.gameweekId)! < currentRound);
     const correctReasons = new Set(["EXACT_SCORE", "CORRECT_GOAL_DIFFERENCE", "CORRECT_RESULT"]);
-    const settledWagers = wagers.docs.map((wager) => wager.data()).filter((wager) => wager.status === "SETTLED");
-    const wagerNetThrough = (round: number) => settledWagers.reduce((total, wager) => {
-      if ((roundByGameweekId.get(wager.gameweekId) ?? 0) > round) return total;
-      if (wager.winnerUserId === memberUserId) return total + Number(wager.stake);
-      if (wager.loserUserId === memberUserId) return total - Number(wager.stake);
-      return total;
-    }, 0);
-    const currentWagerNet = wagerNetThrough(currentRound) - wagerNetThrough(currentRound - 1);
-
     return {
       userId: memberUserId,
       displayName: (profileData?.displayName as string | undefined) ?? "UFL Player",
@@ -323,10 +239,10 @@ export async function getLeagueStandings(userId: string, leagueId: string) {
         name: team.data()!.name as string,
         logoUrl: teamLogoUrl(team.id),
       } : null,
-      points: throughCurrent.reduce((total, prediction) => total + Number(prediction.awardedPoints), 0) + wagerNetThrough(currentRound),
-      previousPoints: throughPrevious.reduce((total, prediction) => total + Number(prediction.awardedPoints), 0) + wagerNetThrough(currentRound - 1),
+      points: throughCurrent.reduce((total, prediction) => total + Number(prediction.awardedPoints), 0),
+      previousPoints: throughPrevious.reduce((total, prediction) => total + Number(prediction.awardedPoints), 0),
       gameweekPoints: scored.filter((prediction) => roundByGameweekId.get(prediction.gameweekId) === currentRound)
-        .reduce((total, prediction) => total + Number(prediction.awardedPoints), 0) + currentWagerNet,
+        .reduce((total, prediction) => total + Number(prediction.awardedPoints), 0),
       exactScores: throughCurrent.filter((prediction) => prediction.scoringReason === "EXACT_SCORE").length,
       previousExactScores: throughPrevious.filter((prediction) => prediction.scoringReason === "EXACT_SCORE").length,
       correctResults: throughCurrent.filter((prediction) => correctReasons.has(prediction.scoringReason)).length,
@@ -339,10 +255,8 @@ export async function getLeagueStandings(userId: string, leagueId: string) {
     league: {
       id: league.id,
       name: league.data()!.name as string,
-      type: league.data()!.type as string,
-      scoringType: (league.data()!.scoringType as string | undefined) ?? "CLASSIC",
       memberCount: activeMemberships.length,
-      inviteCode: league.data()!.type === "CUSTOM" ? league.data()!.inviteCode as string : null,
+      inviteCode: league.data()!.inviteCode as string,
     },
     currentGameweek: currentRound,
     previousGameweek: currentRound > 1 ? currentRound - 1 : null,
@@ -371,7 +285,7 @@ export async function getLeagueMemberPredictions(
     || !memberMembership.exists || memberMembership.data()?.isActive !== true) {
     throw Object.assign(new Error("Both players must be active members of this league."), { code: "LEAGUE_PERMISSION_DENIED", status: 403 });
   }
-  if (!league.exists || league.data()?.isActive !== true || !profile.exists) {
+  if (!league.exists || !isPrivateLeague(league.data()) || !profile.exists) {
     throw Object.assign(new Error("League player not found."), { code: "LEAGUE_PLAYER_NOT_FOUND", status: 404 });
   }
 

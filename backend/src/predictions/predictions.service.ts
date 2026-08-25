@@ -191,8 +191,6 @@ export async function settleFixturePredictions(fixtureId: string) {
   }
   await batch.commit();
   await Promise.all([...userIds].map((userId) => rebuildUserStats(userId, fixtureData.seasonId)));
-  const { settleFixtureWagers } = await import("../wagers/wagers.service.js");
-  await settleFixtureWagers(fixtureId);
 }
 
 async function rebuildUserStats(userId: string, seasonId: string) {

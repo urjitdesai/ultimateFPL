@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowLeft, ArrowUp, Check, Coins, Copy, Minus, Shield } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, Check, Copy, Minus, Shield } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api, type LeagueStandings, type StandingEntry } from "../api";
 import { useAuth } from "../auth/AuthContext";
@@ -37,7 +37,7 @@ export function LeagueStandingsPage({ leagueId }: { leagueId: string }) {
 
   return <main className="league-page">
     <AppNav active="leagues" />
-    <header className="standings-hero"><button onClick={() => navigate("/leagues")}><ArrowLeft /> All leagues</button><span>League standings</span><h1>{data?.league.name ?? "Loading table"}</h1><div className="standings-hero-meta"><p>{data ? `${data.league.memberCount} competitors · Through Gameweek ${data.currentGameweek}` : "Calculating every position and movement…"}</p>{data?.league.scoringType === "WAGER" ? <button className="hero-wager-link" onClick={() => navigate(`/leagues/${encodeURIComponent(leagueId)}/wagers`)}><Coins /> Wager board</button> : null}{data?.league.inviteCode ? <button className="hero-league-code" onClick={copyLeagueCode}><small>League code</small><code>{data.league.inviteCode}</code>{copied ? <Check /> : <Copy />}<span>{copied ? "Copied" : "Copy"}</span></button> : null}</div></header>
+    <header className="standings-hero"><button onClick={() => navigate("/leagues")}><ArrowLeft /> All leagues</button><span>League standings</span><h1>{data?.league.name ?? "Loading table"}</h1><div className="standings-hero-meta"><p>{data ? `${data.league.memberCount} competitors · Through Gameweek ${data.currentGameweek}` : "Calculating every position and movement…"}</p>{data?.league.inviteCode ? <button className="hero-league-code" onClick={copyLeagueCode}><small>League code</small><code>{data.league.inviteCode}</code>{copied ? <Check /> : <Copy />}<span>{copied ? "Copied" : "Copy"}</span></button> : null}</div></header>
     <section className="standings-content">
       {error ? <div className="home-error" role="alert">{error}<button onClick={() => navigate("/leagues")}>Back to leagues</button></div> : !data ? <div className="league-loading">Loading standings…</div> : <>
         <div className="standings-meta"><div><Shield /><span><strong>Current table</strong><small>Rank movement compares with Gameweek {data.previousGameweek ?? "—"}</small></span></div><span className="you-key"><i /> Your position</span></div>

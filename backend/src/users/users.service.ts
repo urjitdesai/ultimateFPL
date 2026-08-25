@@ -1,7 +1,7 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { firestore } from "../firebase/admin.js";
 import { getJoinGameweek } from "../gameweeks/gameweeks.service.js";
-import { getUserLeagues, joinDefaultLeagues } from "../leagues/leagues.service.js";
+import { getUserLeagues } from "../leagues/leagues.service.js";
 import { getTeamById } from "../teams/teams.service.js";
 
 export type ProfileInput = { uid: string; email: string; displayName: string; favoriteTeamId: string };
@@ -15,18 +15,10 @@ export async function createProfile(input: ProfileInput) {
 
   const seasonId = joinGameweek.seasonId;
   const userRef = firestore.collection("users").doc(input.uid);
-  let profileTeam = requestedTeam;
+  const profileTeam = requestedTeam;
 
   await firestore.runTransaction(async (transaction) => {
     const user = await transaction.get(userRef);
-    await joinDefaultLeagues(
-      transaction,
-      input.uid,
-      seasonId,
-      profileTeam,
-      joinGameweek.roundNumber,
-    );
-
     if (!user.exists) {
       transaction.create(userRef, {
         email: input.email,

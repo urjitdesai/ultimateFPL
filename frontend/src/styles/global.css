@@ -235,9 +235,6 @@ input:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 4px rgb
 .hero-league-code code { color: var(--lime); font: 800 12px 'Manrope'; letter-spacing: .14em; }
 .hero-league-code svg { width: 12px; }
 .hero-league-code span { font-size: 9px; }
-.standings-hero .hero-wager-link { min-height: 30px; margin: 0; padding: 0 11px; border: 0; background: var(--lime); color: var(--navy); }
-.standings-hero .hero-wager-link:hover { color: var(--navy); background: #d5ef4b; }
-.hero-wager-link svg { width: 14px; }
 .standings-meta { min-height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 24px; border-bottom: 1px solid #cbd4df; }
 .standings-meta > div { display: flex; align-items: center; gap: 12px; }
 .standings-meta svg { width: 20px; color: #638000; }
@@ -282,39 +279,6 @@ input:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 4px rgb
 .player-points strong { font: 800 18px 'Manrope'; }
 .player-points small { color: #78869a; font-size: 10px; }
 .player-points.earned strong { color: #4e7800; }
-.wager-content { width: min(100%, 1180px); margin: 0 auto; padding: 34px clamp(20px,5vw,64px) 80px; }
-.wager-balance { display: grid; grid-template-columns: repeat(3,1fr); margin-bottom: 24px; border: 1px solid #d6dee8; }
-.wager-balance > div { min-height: 82px; display: grid; align-content: center; gap: 4px; padding: 14px 22px; border-left: 1px solid #d6dee8; }
-.wager-balance > div:first-child { border-left: 0; }
-.wager-balance small, .create-wager label > span { color: #748399; font: 800 9px 'Manrope'; letter-spacing: .08em; text-transform: uppercase; }
-.wager-balance strong { font: 800 27px 'Manrope'; }
-.create-wager { display: grid; grid-template-columns: minmax(230px,1fr) minmax(260px,1.4fr) 90px 130px; align-items: end; gap: 16px; padding: 22px; background: #f4f7d8; border-left: 4px solid var(--lime); }
-.create-wager > div { display: flex; align-items: center; gap: 12px; align-self: center; }
-.create-wager > div > svg { width: 22px; color: #617e00; }
-.create-wager > div span { display: grid; gap: 4px; }
-.create-wager > div strong { font: 800 14px 'Manrope'; }
-.create-wager > div small { color: #68754d; font-size: 10px; }
-.create-wager label { display: grid; gap: 6px; }
-.create-wager select, .create-wager input { width: 100%; height: 40px; padding: 0 10px; border: 1px solid #c6cfaf; background: #fff; color: var(--ink); font: 700 11px 'Manrope'; }
-.create-wager button, .wager-actions button { min-height: 40px; display: flex; align-items: center; justify-content: center; gap: 6px; border: 0; background: var(--navy); color: #fff; font: 800 11px 'Manrope'; cursor: pointer; }
-.create-wager button:disabled { opacity: .45; cursor: not-allowed; }
-.create-wager button svg { width: 14px; }
-.wager-section-head { min-height: 76px; display: flex; align-items: center; justify-content: space-between; margin-top: 28px; border-bottom: 1px solid #cbd4df; }
-.wager-section-head > div { display: flex; align-items: center; gap: 11px; }
-.wager-section-head svg { width: 20px; color: #658400; }
-.wager-section-head div span { display: grid; gap: 3px; }
-.wager-section-head strong { font: 800 15px 'Manrope'; }
-.wager-section-head small, .wager-section-head > span { color: #718096; font-size: 10px; }
-.wager-row { min-height: 88px; display: grid; grid-template-columns: minmax(190px,1fr) 150px 80px 150px 105px; align-items: center; gap: 15px; padding: 12px 16px; border-bottom: 1px solid #dde4ec; }
-.wager-fixture, .wager-player, .wager-stake { display: grid; gap: 5px; }
-.wager-fixture strong { font: 800 12px 'Manrope'; }
-.wager-fixture small, .wager-stake small { color: #76859a; font: 800 9px 'Manrope'; letter-spacing: .07em; text-transform: uppercase; }
-.wager-player span { color: #68788e; font-size: 10px; }
-.wager-player strong, .wager-stake strong { font: 800 17px 'Manrope'; }
-.wager-actions { display: flex; justify-content: flex-end; gap: 6px; }
-.wager-actions button { min-width: 64px; padding: 0 10px; }
-.wager-actions button.cancel { min-width: 36px; background: #f3e5e4; color: #a62c25; }
-.wager-actions button svg { width: 14px; }
 
 @media (max-width: 920px) {
   .auth-shell { grid-template-columns: minmax(300px, 36%) 1fr; }
@@ -426,14 +390,5 @@ input:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 4px rgb
   .player-fixture img { width: 21px; height: 21px; }
   .player-prediction-row > strong, .player-points strong { font-size: 15px; }
   .player-points small { font-size: 9px; }
-  .wager-content { padding: 24px 14px 55px; }
-  .wager-balance > div { padding: 10px; }
-  .wager-balance strong { font-size: 21px; }
-  .create-wager { grid-template-columns: 1fr 76px; }
-  .create-wager > div, .create-wager label:first-of-type { grid-column: 1 / -1; }
-  .create-wager button { min-width: 0; }
-  .wager-row { grid-template-columns: minmax(0,1fr) 64px 64px; gap: 8px; padding-inline: 5px; }
-  .wager-player:nth-of-type(2) { display: none; }
-  .wager-actions { grid-column: 1 / -1; justify-content: flex-start; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; } }

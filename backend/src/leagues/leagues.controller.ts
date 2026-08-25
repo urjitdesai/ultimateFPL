@@ -9,7 +9,7 @@ export async function listUserLeagues(req: AuthenticatedRequest, res: Response, 
 export async function createUserLeague(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const input = createLeagueSchema.parse(req.body);
-    res.status(201).json({ data: await createLeague(req.user!.uid, input.name, input.scoringType) });
+    res.status(201).json({ data: await createLeague(req.user!.uid, input.name) });
   } catch (error) { next(error); }
 }
 

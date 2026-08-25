@@ -15,11 +15,10 @@ Users will:
 
 1. Create an account.
 2. Select their favorite Premier League team.
-3. Automatically join the default league associated with that team.
-4. Create or join private leagues with friends.
-5. Predict the score of every Premier League fixture before kickoff.
-6. Earn points after each fixture is completed.
-7. Compete on gameweek and season-long leaderboards.
+3. Create or join private leagues with friends.
+4. Predict the score of every Premier League fixture before kickoff.
+5. Earn points after each fixture is completed.
+6. Compete on gameweek and season-long leaderboards.
 
 The application will use Footballdata.io as the external football-data provider. Footballdata.io will provide Premier League metadata, seasons, teams, matches, gameweek information, kickoff times, match statuses, and final scores. Ultimate Fantasy League will own all users, leagues, predictions, scoring rules, and leaderboard data.
 
@@ -31,14 +30,13 @@ The MVP must support:
 
 - Firebase Authentication email/password account creation and login.
 - Selection of one favorite Premier League team.
-- Automatic membership in the favorite team's default league.
-- Creation of private custom leagues.
-- Joining a custom league using an invite code.
+- Creation of private leagues using one uniform league model.
+- Joining a league using an invite code.
 - Display of Premier League fixtures grouped by gameweek.
 - Score predictions for every fixture.
 - Per-fixture prediction locking at kickoff.
 - Automatic scoring after final results are available.
-- Gameweek and season leaderboards for default and custom leagues.
+- Gameweek and season leaderboards for private leagues.
 - Responsive desktop and mobile interfaces.
 - Server-side integration with Footballdata.io.
 - Scheduled synchronization of fixtures and results.
@@ -381,24 +379,19 @@ Do not store password hashes in Cloud Firestore.
 
 ### League
 
-Two league types are required:
-
-- `TEAM_DEFAULT`
-- `CUSTOM_PRIVATE`
+The MVP has one private league model. There is no league type or scoring-format discriminator and there are no default, team, gameweek, global, wager, or head-to-head leagues.
 
 Fields should include:
 
 - Internal ID
 - Season ID
-- Type
 - Name
 - Slug
-- Favorite team ID for team-default leagues
-- Owner user ID for custom leagues
-- Invite code for custom leagues
+- Owner user ID
+- Invite code
 - Created and updated timestamps
 
-There must be exactly one team-default league per active Premier League team and season.
+Every league uses the same score-prediction and leaderboard rules.
 
 ### League Membership
 
@@ -458,11 +451,10 @@ Recommended registration flow:
 5. The Express backend verifies the ID token with Firebase Admin SDK.
 6. The backend runs a Firestore transaction that:
    - creates `users/{uid}`;
-   - creates the user's default team-league membership;
    - initializes season statistics when necessary.
 7. The backend returns the completed application profile.
 
-The profile-creation endpoint must be idempotent so a retry cannot create duplicate memberships.
+The profile-creation endpoint must be idempotent.
 
 If profile creation fails after the Firebase Authentication account is created, the UI must allow the user to retry profile completion.
 
@@ -543,44 +535,9 @@ Users can view:
 - Gameweek points
 - Prediction accuracy
 
-Favorite-team changing behavior is an open product decision. The recommended MVP behavior is:
-
-- Permit a favorite-team change.
-- Remove the user from the old team-default league.
-- Add the user to the new team-default league.
-- Do not alter custom-league memberships or historical predictions.
-
-The membership change must be performed in a Firestore transaction.
-
 ---
 
-
-## 7. Default Team Leagues
-
-At the start of a season, create one default league for every active Premier League team.
-
-Examples:
-
-```text
-Arsenal Supporters
-Liverpool Supporters
-Manchester United Supporters
-```
-
-When a user selects a favorite team, the user automatically joins that team's league.
-
-Requirements:
-
-- Users cannot delete default leagues.
-- Users cannot manually leave their current favorite team's default league.
-- Default leagues are season-specific.
-- Rankings are based on points earned during the league's season.
-- A team-default league may contain any number of members.
-- Default league membership does not change prediction rules.
-
----
-
-## 8. Custom Leagues
+## 7. Leagues
 
 Authenticated users can create private leagues.
 
@@ -617,18 +574,18 @@ Validation must cover:
 
 For the MVP:
 
-- Owners can rename their custom league.
+- Owners can rename their league.
 - Owners can regenerate the invite code.
 - Owners can remove members.
 - Owners can delete the league after confirmation.
-- Members can leave a custom league.
+- Members can leave a league.
 - The owner cannot leave without transferring ownership or deleting the league.
 
 The initial implementation may restrict each user to a configurable number of created leagues, such as five.
 
 ---
 
-## 9. Fixture and Gameweek Requirements
+## 8. Fixture and Gameweek Requirements
 
 ### Fixture display
 
@@ -691,7 +648,7 @@ The UI should clearly indicate fixtures for which the user has not submitted a p
 
 ---
 
-## 10. Scoring Rules
+## 9. Scoring Rules
 
 Use a versioned scoring system so rules can change in future seasons without corrupting historical results.
 
@@ -785,7 +742,7 @@ If Footballdata.io later corrects a result, the application must:
 
 ---
 
-## 11. Postponed and Rescheduled Fixtures
+## 10. Postponed and Rescheduled Fixtures
 
 Predictions must remain tied to the internal fixture document backed by the provider match ID.
 
@@ -809,7 +766,7 @@ When a fixture is cancelled or abandoned:
 
 ---
 
-## 12. Leaderboards
+## 11. Leaderboards
 
 Each league must have:
 
@@ -904,7 +861,7 @@ Do not attempt to place an unlimited fixture settlement inside one Firestore tra
 ---
 
 
-## 13. Frontend Requirements
+## 12. Frontend Requirements
 
 ### Main routes
 
@@ -956,8 +913,8 @@ Show:
 - Next prediction deadline
 - Current gameweek points
 - Season total points
-- User's team-default league rank
-- User's custom leagues
+- User's league ranks
+- User's leagues
 - Upcoming fixtures
 
 ### Gameweek page
@@ -982,8 +939,7 @@ Requirements:
 
 Show:
 
-- Favorite-team default league
-- Custom leagues
+- All joined leagues
 - Create-league action
 - Join-by-code action
 
@@ -991,8 +947,8 @@ Show:
 
 Show:
 
-- League name and type
-- Owner for custom leagues
+- League name
+- Owner
 - Invite code for owners/admins
 - Season and gameweek leaderboard tabs
 - Member count
@@ -1039,7 +995,7 @@ Required:
 
 ---
 
-## 14. Backend REST API
+## 13. Backend REST API
 
 Prefix all application routes with:
 
@@ -1137,7 +1093,7 @@ All admin endpoints must require the admin role and must be auditable.
 
 ---
 
-## 15. Firebase and Firestore Data Requirements
+## 14. Firebase and Firestore Data Requirements
 
 ### Data-access policy
 
@@ -1206,11 +1162,8 @@ userSeasonStats/{seasonId}_{userId}
 
 userGameweekStats/{gameweekId}_{userId}
 
-default team league:
-leagues/{seasonId}_team_{teamId}
+leagues use Firestore auto-generated IDs.
 ```
-
-Custom league IDs may use Firestore auto-generated IDs.
 
 Deterministic IDs provide uniqueness without relying on unsupported relational constraints.
 
@@ -1317,12 +1270,10 @@ Firebase Authentication remains the source of truth for the user's email identit
 ```ts
 {
   seasonId: string;
-  type: "TEAM_DEFAULT" | "CUSTOM_PRIVATE";
   name: string;
   normalizedName: string;
-  favoriteTeamId: string | null;
-  ownerUserId: string | null;
-  inviteCode: string | null;
+  ownerUserId: string;
+  inviteCode: string;
   memberCount: number;
   isActive: boolean;
   createdAt: Timestamp;
@@ -1338,7 +1289,6 @@ Firebase Authentication remains the source of truth for the user's email identit
   userId: string;
   seasonId: string;
   role: "OWNER" | "ADMIN" | "MEMBER";
-  leagueType: "TEAM_DEFAULT" | "CUSTOM_PRIVATE";
   joinedAt: Timestamp;
   isActive: boolean;
 }
@@ -1395,7 +1345,6 @@ Enforce the following with deterministic IDs, transactions, and server validatio
 - Unique Footballdata.io team ID
 - Unique prediction per user and fixture
 - Unique membership per user and league
-- Unique team-default league per team and season
 - Unique invite code
 - Nonnegative integer prediction scores
 - Home team must not equal away team
@@ -1411,7 +1360,7 @@ Create composite indexes in `firestore.indexes.json` for actual query patterns, 
 - Predictions by `userId`, `gameweekId`, and `updatedAt`
 - Memberships by `userId`, `seasonId`, and `isActive`
 - Memberships by `leagueId`, `isActive`, and `joinedAt`
-- Leagues by `seasonId`, `type`, and `favoriteTeamId`
+- Leagues by `seasonId`, `isActive`, and `createdAt`
 - Sync runs by `type`, `status`, and `startedAt`
 - Scoring runs by `fixtureId`, `status`, and `createdAt`
 
@@ -1423,7 +1372,7 @@ Commit `firestore.indexes.json` to the repository and deploy it as part of CI/CD
 
 Use Firestore transactions for operations that depend on current document state:
 
-- User profile creation and default-league membership
+- User profile creation
 - League creation, owner membership, and invite-code reservation
 - Favorite-team changes and default membership migration
 - Invite-code regeneration
@@ -1452,7 +1401,7 @@ Fixture settlement may involve more documents than should be handled atomically.
 
 Avoid a single highly contended document for global totals.
 
-For MVP-sized team and custom leagues, a `memberCount` transaction is acceptable. If contention develops, replace it with distributed counters or derive the count asynchronously.
+For MVP-sized leagues, a `memberCount` transaction is acceptable. If contention develops, replace it with distributed counters or derive the count asynchronously.
 
 ### Data retention and deletion
 
@@ -1469,7 +1418,7 @@ Implement an account-deletion workflow that:
 ---
 
 
-## 16. Synchronization Jobs
+## 15. Synchronization Jobs
 
 ### Initial season bootstrap
 
@@ -1481,12 +1430,11 @@ An administrator or deployment script must be able to:
 4. Create or update the active season document in Firestore.
 5. Fetch Premier League teams for the verified provider season ID.
 6. Create or update team documents.
-7. Create one deterministic team-default league per team.
-8. Fetch every paginated season match.
-9. Derive gameweek documents from match `game_week` and `round` values.
-10. Create or update fixture documents using provider match IDs.
-11. Verify that the import contains the expected complete season schedule or explicitly report incomplete provider coverage.
-12. Create required Firestore indexes before production traffic.
+7. Fetch every paginated season match.
+8. Derive gameweek documents from match `game_week` and `round` values.
+9. Create or update fixture documents using provider match IDs.
+10. Verify that the import contains the expected complete season schedule or explicitly report incomplete provider coverage.
+11. Create required Firestore indexes before production traffic.
 
 ### Scheduled synchronization
 
@@ -1548,7 +1496,7 @@ Every job must:
 ---
 
 
-## 17. Footballdata.io Quota and Caching
+## 16. Footballdata.io Quota and Caching
 
 Footballdata.io applies monthly request limits by plan. The backend must treat `GET /account/usage` and the usage metadata in actual API responses as the source of truth because pricing and quotas may change.
 
@@ -1596,7 +1544,7 @@ Maintain a monthly request budget. A single season bootstrap should use paginate
 
 ---
 
-## 18. Validation and Error Handling
+## 17. Validation and Error Handling
 
 ### Prediction validation
 
@@ -1647,7 +1595,7 @@ PROVIDER_UNAVAILABLE
 
 ---
 
-## 19. Security Requirements
+## 18. Security Requirements
 
 ### Firebase Authentication
 
@@ -1694,7 +1642,7 @@ Firebase Admin private keys and Footballdata.io API keys are secrets and must ne
 ---
 
 
-## 20. Privacy and Legal Requirements
+## 19. Privacy and Legal Requirements
 
 The application is an independent prediction game and must not imply official affiliation.
 
@@ -1717,7 +1665,7 @@ Important:
 
 ---
 
-## 21. Testing Requirements
+## 20. Testing Requirements
 
 ### Unit tests
 
@@ -1736,7 +1684,7 @@ Must cover:
 
 Must cover:
 
-- Registration auto-joins the correct team league.
+- Registration creates an idempotent user profile without automatic league membership.
 - Duplicate email rejection.
 - Prediction creation before kickoff.
 - Prediction update before kickoff.
@@ -1766,19 +1714,18 @@ Must cover:
 Recommended Playwright flows:
 
 1. Register and choose a team.
-2. Confirm automatic team-league membership.
-3. Submit predictions.
-4. Create a custom league.
-5. Join that league as another user.
-6. Simulate kickoff and confirm predictions lock.
-7. Simulate final result synchronization.
-8. Confirm points and leaderboards update.
+2. Submit predictions.
+3. Create a private league.
+4. Join that league as another user.
+5. Simulate kickoff and confirm predictions lock.
+6. Simulate final result synchronization.
+7. Confirm points and leaderboards update.
 
 Use a fake football-data provider in automated tests. Tests must not call the live Footballdata.io service.
 
 ---
 
-## 22. Observability
+## 21. Observability
 
 The backend must provide:
 
@@ -1810,7 +1757,7 @@ Track metrics such as:
 
 ---
 
-## 23. Environment Variables and Firebase Configuration
+## 22. Environment Variables and Firebase Configuration
 
 Create `.env.example` without real secrets.
 
@@ -1882,7 +1829,7 @@ The local setup must work without production Firebase credentials when the Emula
 ---
 
 
-## 24. Suggested Repository Structure
+## 23. Suggested Repository Structure
 
 A monorepo is recommended.
 
@@ -1937,7 +1884,7 @@ Use the Firebase Emulator Suite for local Firestore and Authentication. A local 
 ---
 
 
-## 25. Codex Implementation Instructions
+## 24. Codex Implementation Instructions
 
 Codex should implement the application incrementally.
 
@@ -1957,9 +1904,7 @@ Codex should implement the application incrementally.
 2. Implement Express middleware that verifies Firebase ID tokens.
 3. Implement the idempotent profile-completion endpoint.
 4. Implement team selection.
-5. Create deterministic default team leagues.
-6. Auto-join registered users to the correct team league.
-7. Add Firebase Auth and Firestore Emulator integration tests.
+5. Add Firebase Auth and Firestore Emulator integration tests.
 
 ### Phase 3 — Fixtures and predictions
 
@@ -1971,7 +1916,7 @@ Codex should implement the application incrementally.
 6. Enforce server-side kickoff locking using server time.
 7. Add required composite indexes.
 
-### Phase 4 — Custom leagues
+### Phase 4 — Private leagues
 
 1. Implement league creation and transactional invite-code reservation.
 2. Implement joining, leaving, and member management.
@@ -2023,22 +1968,22 @@ Codex must:
 ---
 
 
-## 26. MVP Acceptance Criteria
+## 25. MVP Acceptance Criteria
 
 The MVP is complete when:
 
-1. A user can register, select a favorite team, and automatically join its default league.
+1. A user can register and select a favorite team without being automatically placed in a league.
 2. A user can log in with Firebase Authentication and access protected Express routes using a verified Firebase ID token.
 3. The Premier League, active season, teams, gameweeks, and all available season fixtures can be imported from Footballdata.io with pagination.
 4. The backend validates the configured league and season IDs and exposes provider coverage or import incompleteness to administrators.
 5. A user can predict every fixture's score before kickoff.
 6. The backend rejects prediction changes at or after kickoff.
-7. A user can create a private league and invite another user.
+7. A user can create a private league using the single league model and invite another user.
 8. Another user can join using the invite code.
 9. Predictions from other users are hidden until the relevant fixture begins.
 10. A completed fixture can be synchronized and scored automatically.
 11. Reprocessing a fixture does not duplicate points.
-12. Default and custom leagues show correct gameweek and season rankings.
+12. Private leagues show correct gameweek and season rankings.
 13. Postponed fixtures can be rescheduled without losing predictions.
 14. The app works on mobile and desktop.
 15. Automated tests cover the scoring and locking rules.
@@ -2047,7 +1992,7 @@ The MVP is complete when:
 18. Club-logo display can be disabled through configuration.
 ---
 
-## 27. Out of Scope for the Initial MVP
+## 26. Out of Scope for the Initial MVP
 
 Unless explicitly added later, exclude:
 
@@ -2074,7 +2019,7 @@ Unless explicitly added later, exclude:
 
 ---
 
-## 28. Product Decisions Still Needed
+## 27. Product Decisions Still Needed
 
 The product owner should provide the following details before or during implementation.
 
@@ -2100,11 +2045,11 @@ The product owner should provide the following details before or during implemen
 - How often?
 - Should historical membership in the old team league remain visible?
 
-### Custom leagues
+### Leagues
 
 - Maximum leagues a user may create.
 - Maximum members per league.
-- Whether custom leagues are private only.
+- All MVP leagues are private and use the same prediction rules.
 - Whether league owners may appoint admins.
 - Whether a league can span multiple seasons.
 
@@ -2160,7 +2105,7 @@ The product owner should provide the following details before or during implemen
 
 ---
 
-## 29. Recommended Decisions for a Fast MVP
+## 28. Recommended Decisions for a Fast MVP
 
 When no other direction is provided, use these defaults:
 
@@ -2169,7 +2114,7 @@ When no other direction is provided, use these defaults:
 - Cloud Firestore + Firebase Admin SDK.
 - Firebase Authentication with email/password.
 - No email verification or password reset initially.
-- Private custom leagues only.
+- One private league model with no league-type or scoring-format field.
 - Maximum five created leagues per user.
 - Unlimited memberships for the initial MVP.
 - Per-fixture locking at kickoff.

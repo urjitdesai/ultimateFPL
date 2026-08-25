@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowLeft, ArrowUp, Check, Copy, Minus, Shield } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, Check, Coins, Copy, Minus, Shield } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api, type LeagueStandings, type StandingEntry } from "../api";
 import { useAuth } from "../auth/AuthContext";
@@ -37,19 +37,19 @@ export function LeagueStandingsPage({ leagueId }: { leagueId: string }) {
 
   return <main className="league-page">
     <AppNav active="leagues" />
-    <header className="standings-hero"><button onClick={() => navigate("/leagues")}><ArrowLeft /> All leagues</button><span>League standings</span><h1>{data?.league.name ?? "Loading table"}</h1><div className="standings-hero-meta"><p>{data ? `${data.league.memberCount} competitors · Through Gameweek ${data.currentGameweek}` : "Calculating every position and movement…"}</p>{data?.league.inviteCode ? <button className="hero-league-code" onClick={copyLeagueCode}><small>League code</small><code>{data.league.inviteCode}</code>{copied ? <Check /> : <Copy />}<span>{copied ? "Copied" : "Copy"}</span></button> : null}</div></header>
+    <header className="standings-hero"><button onClick={() => navigate("/leagues")}><ArrowLeft /> All leagues</button><span>League standings</span><h1>{data?.league.name ?? "Loading table"}</h1><div className="standings-hero-meta"><p>{data ? `${data.league.memberCount} competitors · Through Gameweek ${data.currentGameweek}` : "Calculating every position and movement…"}</p>{data?.league.scoringType === "WAGER" ? <button className="hero-wager-link" onClick={() => navigate(`/leagues/${encodeURIComponent(leagueId)}/wagers`)}><Coins /> Wager board</button> : null}{data?.league.inviteCode ? <button className="hero-league-code" onClick={copyLeagueCode}><small>League code</small><code>{data.league.inviteCode}</code>{copied ? <Check /> : <Copy />}<span>{copied ? "Copied" : "Copy"}</span></button> : null}</div></header>
     <section className="standings-content">
       {error ? <div className="home-error" role="alert">{error}<button onClick={() => navigate("/leagues")}>Back to leagues</button></div> : !data ? <div className="league-loading">Loading standings…</div> : <>
         <div className="standings-meta"><div><Shield /><span><strong>Current table</strong><small>Rank movement compares with Gameweek {data.previousGameweek ?? "—"}</small></span></div><span className="you-key"><i /> Your position</span></div>
         <div className="standings-table">
           <div className="standings-head"><span>Rank</span><span>Player</span><span>Movement</span><span>GW points</span><span>Total</span></div>
-          {data.standings.map((entry) => <div className={`standing-row ${entry.isCurrentUser ? "is-you" : ""}`} key={entry.userId}>
+          {data.standings.map((entry) => <button className={`standing-row standing-row-button ${entry.isCurrentUser ? "is-you" : ""}`} key={entry.userId} onClick={() => navigate(`/leagues/${encodeURIComponent(leagueId)}/players/${encodeURIComponent(entry.userId)}`)}>
             <strong className="rank-number">{entry.rank}</strong>
             <span className="standing-player">{entry.favoriteTeam?.logoUrl ? <img src={entry.favoriteTeam.logoUrl} alt="" /> : <i>{entry.displayName.charAt(0)}</i>}<span><strong>{entry.displayName}{entry.isCurrentUser ? " (You)" : ""}</strong><small>{entry.favoriteTeam?.name ?? "Premier League player"}</small></span></span>
             <Movement entry={entry} />
             <strong className="gw-points">{entry.gameweekPoints}</strong>
             <strong className="total-points">{entry.totalPoints}</strong>
-          </div>)}
+          </button>)}
         </div>
       </>}
     </section>

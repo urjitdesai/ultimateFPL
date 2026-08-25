@@ -1,11 +1,23 @@
 import crypto from "node:crypto";
-import { FieldValue, Timestamp } from "firebase-admin/firestore";
+import { FieldValue, Timestamp, type Transaction } from "firebase-admin/firestore";
 import { z } from "zod";
 import { firestore } from "../firebase/admin.js";
 import { getGameweeks, getJoinGameweek, type Gameweek } from "../gameweeks/gameweeks.service.js";
+import { getFixturesForGameweek } from "../fixtures/fixtures.service.js";
+import type { Team } from "../teams/teams.service.js";
+import { teamLogoUrl } from "../utils/team-logo.js";
+
+type DefaultLeague = {
+  id: string;
+  name: string;
+  type: "OVERALL" | "TEAM_DEFAULT" | "GAMEWEEK_DEFAULT";
+  favoriteTeamId?: string;
+  roundNumber?: number;
+};
 
 export const createLeagueSchema = z.object({
   name: z.string().trim().min(3).max(50),
+  scoringType: z.enum(["CLASSIC", "WAGER"]).default("CLASSIC"),
 });
 export const joinLeagueSchema = z.object({ inviteCode: z.string().trim().min(6).max(12) });
 const INVITE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -39,7 +51,7 @@ export function getMembershipStartRound(
   return fallbackRound;
 }
 
-export async function createLeague(userId: string, name: string) {
+export async function createLeague(userId: string, name: string, scoringType: "CLASSIC" | "WAGER") {
   const userRef = firestore.collection("users").doc(userId);
   const joinGameweek = await getJoinGameweek();
   if (!joinGameweek) throw new Error("No Premier League gameweek is available.");
@@ -54,6 +66,8 @@ export async function createLeague(userId: string, name: string) {
       const seasonId = user.data()!.activeSeasonId as string;
       transaction.create(leagueRef, {
         seasonId,
+        type: "CUSTOM",
+        scoringType,
         name,
         normalizedName: name.toLowerCase(),
         ownerUserId: userId,
@@ -69,13 +83,14 @@ export async function createLeague(userId: string, name: string) {
         userId,
         seasonId,
         role: "OWNER",
+        leagueType: "CUSTOM",
         joinedGameweek: joinGameweek.roundNumber,
         joinedAt: FieldValue.serverTimestamp(),
         isActive: true,
       });
       return true;
     });
-    if (created) return { id: leagueRef.id, name, inviteCode, memberCount: 1 };
+    if (created) return { id: leagueRef.id, name, type: "CUSTOM" as const, scoringType, inviteCode, memberCount: 1 };
   }
   throw Object.assign(new Error("We couldn't generate an invite code. Try again."), { code: "INVITE_CODE_UNAVAILABLE", status: 503 });
 }
@@ -101,7 +116,7 @@ export async function joinLeague(userId: string, rawInviteCode: string) {
       transaction.get(leagueRef), transaction.get(membershipRef), transaction.get(userRef),
     ]);
     if (!user.exists) throw Object.assign(new Error("Complete your profile first."), { code: "PROFILE_REQUIRED", status: 409 });
-    if (!league.exists || league.data()?.isActive !== true) {
+    if (!league.exists || league.data()?.isActive !== true || league.data()?.type !== "CUSTOM") {
       throw Object.assign(new Error("That league is no longer available."), { code: "LEAGUE_NOT_FOUND", status: 404 });
     }
     if (league.data()!.seasonId !== user.data()!.activeSeasonId) {
@@ -115,6 +130,7 @@ export async function joinLeague(userId: string, rawInviteCode: string) {
       userId,
       seasonId: league.data()!.seasonId,
       role: "MEMBER",
+      leagueType: "CUSTOM",
       joinedGameweek: joinGameweek.roundNumber,
       joinedAt: FieldValue.serverTimestamp(),
       isActive: true,
@@ -124,6 +140,73 @@ export async function joinLeague(userId: string, rawInviteCode: string) {
   });
 }
 
+export function getDefaultLeagues(seasonId: string, team: Team, roundNumber: number): DefaultLeague[] {
+  return [
+    { id: `${seasonId}_overall`, name: "Overall", type: "OVERALL" },
+    { id: `${seasonId}_team_${team.id}`, name: `${team.name} Supporters`, type: "TEAM_DEFAULT", favoriteTeamId: team.id },
+    { id: `${seasonId}_gameweek_${roundNumber}`, name: `Gameweek ${roundNumber}`, type: "GAMEWEEK_DEFAULT", roundNumber },
+  ];
+}
+
+export async function joinDefaultLeagues(
+  transaction: Transaction,
+  userId: string,
+  seasonId: string,
+  team: Team,
+  roundNumber: number,
+) {
+  const leagues = getDefaultLeagues(seasonId, team, roundNumber);
+  const records = await Promise.all(leagues.map(async (league) => {
+    const leagueRef = firestore.collection("leagues").doc(league.id);
+    const memberRef = firestore.collection("leagueMemberships").doc(membershipId(league.id, userId));
+    const [leagueSnapshot, memberSnapshot] = await Promise.all([
+      transaction.get(leagueRef),
+      transaction.get(memberRef),
+    ]);
+    return { league, leagueRef, memberRef, leagueSnapshot, memberSnapshot };
+  }));
+
+  for (const record of records) {
+    const { league, leagueRef, memberRef, leagueSnapshot, memberSnapshot } = record;
+    if (!leagueSnapshot.exists) {
+      transaction.create(leagueRef, {
+        seasonId,
+        type: league.type,
+        scoringType: "CLASSIC",
+        name: league.name,
+        normalizedName: league.name.toLowerCase(),
+        favoriteTeamId: league.favoriteTeamId ?? null,
+        roundNumber: league.roundNumber ?? null,
+        ownerUserId: null,
+        inviteCode: null,
+        memberCount: 1,
+        isActive: true,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    } else if (!memberSnapshot.exists) {
+      transaction.update(leagueRef, {
+        memberCount: FieldValue.increment(1),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    }
+
+    if (!memberSnapshot.exists) {
+      transaction.create(memberRef, {
+        leagueId: league.id,
+        userId,
+        seasonId,
+        role: "MEMBER",
+        leagueType: league.type,
+        joinedGameweek: roundNumber,
+        joinedAt: FieldValue.serverTimestamp(),
+        isActive: true,
+      });
+    }
+  }
+
+  return leagues;
+}
 
 export async function getUserLeagues(userId: string) {
   const memberships = await firestore.collection("leagueMemberships")
@@ -202,10 +285,13 @@ export async function getLeagueStandings(userId: string, leagueId: string) {
 
   const candidates = await Promise.all(activeMemberships.map(async (member) => {
     const memberUserId = member.data().userId as string;
-    const [profile] = await Promise.all([
+    const [profile, predictions] = await Promise.all([
       firestore.collection("users").doc(memberUserId).get(),
+      firestore.collection("predictions").where("userId", "==", memberUserId).get(),
     ]);
     const profileData = profile.data();
+    const favoriteTeamId = profileData?.favoriteTeamId as string | undefined;
+    const team = favoriteTeamId ? await firestore.collection("teams").doc(favoriteTeamId).get() : null;
     const membershipData = member.data();
     const joinedAtMillis = membershipData.joinedAt instanceof Timestamp ? membershipData.joinedAt.toMillis() : null;
     const startRound = getMembershipStartRound(
@@ -214,26 +300,37 @@ export async function getLeagueStandings(userId: string, leagueId: string) {
       gameweeks,
       Number(profileData?.joinedGameweek ?? 1),
     );
-    const settledWagers = wagers.docs.map((wager) => wager.data())
-      .filter((wager) => wager.userId === memberUserId && ["WON", "LOST"].includes(wager.status)
-        && (roundByGameweekId.get(wager.gameweekId) ?? 0) >= startRound);
+    const scored = predictions.docs.map((prediction) => prediction.data())
+      .filter((prediction) => prediction.awardedPoints != null
+        && (roundByGameweekId.get(prediction.gameweekId) ?? 0) >= startRound);
+    const throughCurrent = scored.filter((prediction) => roundByGameweekId.get(prediction.gameweekId)! <= currentRound);
+    const throughPrevious = scored.filter((prediction) => roundByGameweekId.get(prediction.gameweekId)! < currentRound);
+    const correctReasons = new Set(["EXACT_SCORE", "CORRECT_GOAL_DIFFERENCE", "CORRECT_RESULT"]);
+    const settledWagers = wagers.docs.map((wager) => wager.data()).filter((wager) => wager.status === "SETTLED");
     const wagerNetThrough = (round: number) => settledWagers.reduce((total, wager) => {
       if ((roundByGameweekId.get(wager.gameweekId) ?? 0) > round) return total;
-      return total + Number(wager.netPoints ?? 0);
+      if (wager.winnerUserId === memberUserId) return total + Number(wager.stake);
+      if (wager.loserUserId === memberUserId) return total - Number(wager.stake);
+      return total;
     }, 0);
     const currentWagerNet = wagerNetThrough(currentRound) - wagerNetThrough(currentRound - 1);
 
     return {
       userId: memberUserId,
       displayName: (profileData?.displayName as string | undefined) ?? "UFL Player",
-      favoriteTeam: null,
-      points: wagerNetThrough(currentRound),
-      previousPoints: wagerNetThrough(currentRound - 1),
-      gameweekPoints: currentWagerNet,
-      exactScores: settledWagers.filter((wager) => wager.status === "WON" && (roundByGameweekId.get(wager.gameweekId) ?? 0) <= currentRound).length,
-      previousExactScores: settledWagers.filter((wager) => wager.status === "WON" && (roundByGameweekId.get(wager.gameweekId) ?? 0) < currentRound).length,
-      correctResults: settledWagers.filter((wager) => wager.status === "WON" && (roundByGameweekId.get(wager.gameweekId) ?? 0) <= currentRound).length,
-      previousCorrectResults: settledWagers.filter((wager) => wager.status === "WON" && (roundByGameweekId.get(wager.gameweekId) ?? 0) < currentRound).length,
+      favoriteTeam: team?.exists ? {
+        id: team.id,
+        name: team.data()!.name as string,
+        logoUrl: teamLogoUrl(team.id),
+      } : null,
+      points: throughCurrent.reduce((total, prediction) => total + Number(prediction.awardedPoints), 0) + wagerNetThrough(currentRound),
+      previousPoints: throughPrevious.reduce((total, prediction) => total + Number(prediction.awardedPoints), 0) + wagerNetThrough(currentRound - 1),
+      gameweekPoints: scored.filter((prediction) => roundByGameweekId.get(prediction.gameweekId) === currentRound)
+        .reduce((total, prediction) => total + Number(prediction.awardedPoints), 0) + currentWagerNet,
+      exactScores: throughCurrent.filter((prediction) => prediction.scoringReason === "EXACT_SCORE").length,
+      previousExactScores: throughPrevious.filter((prediction) => prediction.scoringReason === "EXACT_SCORE").length,
+      correctResults: throughCurrent.filter((prediction) => correctReasons.has(prediction.scoringReason)).length,
+      previousCorrectResults: throughPrevious.filter((prediction) => correctReasons.has(prediction.scoringReason)).length,
       joinedAt: joinedAtMillis ?? 0,
     } satisfies StandingCandidate;
   }));
@@ -242,8 +339,10 @@ export async function getLeagueStandings(userId: string, leagueId: string) {
     league: {
       id: league.id,
       name: league.data()!.name as string,
+      type: league.data()!.type as string,
+      scoringType: (league.data()!.scoringType as string | undefined) ?? "CLASSIC",
       memberCount: activeMemberships.length,
-      inviteCode: league.data()!.inviteCode as string,
+      inviteCode: league.data()!.type === "CUSTOM" ? league.data()!.inviteCode as string : null,
     },
     currentGameweek: currentRound,
     previousGameweek: currentRound > 1 ? currentRound - 1 : null,
@@ -252,5 +351,70 @@ export async function getLeagueStandings(userId: string, leagueId: string) {
       totalPoints: entry.points,
       isCurrentUser: entry.userId === userId,
     })),
+  };
+}
+
+export async function getLeagueMemberPredictions(
+  userId: string,
+  leagueId: string,
+  memberUserId: string,
+  requestedGameweekId?: string,
+) {
+  const [viewerMembership, memberMembership, league, gameweeks, profile] = await Promise.all([
+    firestore.collection("leagueMemberships").doc(membershipId(leagueId, userId)).get(),
+    firestore.collection("leagueMemberships").doc(membershipId(leagueId, memberUserId)).get(),
+    firestore.collection("leagues").doc(leagueId).get(),
+    getGameweeks(),
+    firestore.collection("users").doc(memberUserId).get(),
+  ]);
+  if (!viewerMembership.exists || viewerMembership.data()?.isActive !== true
+    || !memberMembership.exists || memberMembership.data()?.isActive !== true) {
+    throw Object.assign(new Error("Both players must be active members of this league."), { code: "LEAGUE_PERMISSION_DENIED", status: 403 });
+  }
+  if (!league.exists || league.data()?.isActive !== true || !profile.exists) {
+    throw Object.assign(new Error("League player not found."), { code: "LEAGUE_PLAYER_NOT_FOUND", status: 404 });
+  }
+
+  const availableGameweeks = gameweeks.filter((gameweek) => gameweek.status === "COMPLETE");
+  const selectedGameweek = requestedGameweekId
+    ? availableGameweeks.find((gameweek) => gameweek.id === requestedGameweekId)
+    : availableGameweeks.at(-1);
+  if (requestedGameweekId && !selectedGameweek) {
+    throw Object.assign(new Error("Only completed gameweeks can be viewed."), { code: "GAMEWEEK_NOT_COMPLETE", status: 409 });
+  }
+  const profileData = profile.data()!;
+  const favoriteTeamId = profileData.favoriteTeamId as string | undefined;
+  const [fixtures, team] = await Promise.all([
+    selectedGameweek ? getFixturesForGameweek(selectedGameweek.id) : Promise.resolve([]),
+    favoriteTeamId ? firestore.collection("teams").doc(favoriteTeamId).get() : null,
+  ]);
+  const predictionSnapshots = await Promise.all(fixtures.map((fixture) =>
+    firestore.collection("predictions").doc(`${memberUserId}_${fixture.id}`).get()));
+  const predictions = new Map(predictionSnapshots.filter((snapshot) => snapshot.exists)
+    .map((snapshot) => [snapshot.data()!.fixtureId as string, snapshot.data()!]));
+
+  return {
+    league: { id: league.id, name: league.data()!.name as string },
+    player: {
+      userId: memberUserId,
+      displayName: (profileData.displayName as string | undefined) ?? "UFL Player",
+      favoriteTeam: team?.exists ? { id: team.id, name: team.data()!.name as string, logoUrl: teamLogoUrl(team.id) } : null,
+    },
+    gameweeks: availableGameweeks.map(({ id, roundNumber }) => ({ id, roundNumber })),
+    selectedGameweek: selectedGameweek ? { id: selectedGameweek.id, roundNumber: selectedGameweek.roundNumber } : null,
+    fixtures: fixtures.map((fixture) => {
+      const prediction = predictions.get(fixture.id);
+      return {
+        ...fixture,
+        prediction: {
+          predictedHomeScore: Number(prediction?.predictedHomeScore ?? 0),
+          predictedAwayScore: Number(prediction?.predictedAwayScore ?? 0),
+          awardedPoints: Number(prediction?.awardedPoints ?? 0),
+          scoringReason: (prediction?.scoringReason as string | null) ?? null,
+          isCaptain: prediction?.isCaptain === true,
+          isDefault: prediction?.isDefault === true || !prediction,
+        },
+      };
+    }),
   };
 }

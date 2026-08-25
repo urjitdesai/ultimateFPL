@@ -14,10 +14,7 @@ const schema = z.object({
   BACKEND_API: z.string().url(),
   BACKEND_API_TOKEN: z.string().min(1),
   FOOTBALLDATA_IO_LEAGUE_ID: z.coerce.number().int().positive(),
-  FOOTBALLDATA_IO_SEASON_YEAR: z.coerce.number().int().positive(),
-  STARTING_POINTS: z.coerce.number().int().positive().default(100),
-  MAX_WAGER_POINTS_PER_FIXTURE: z.coerce.number().int().min(1).max(100).default(20),
-  SETTLEMENT_RULE_VERSION: z.string().min(1).default("2026.1"),
+  FOOTBALLDATA_IO_SEASON_YEAR: z.coerce.number().int().positive()
 });
 
 export const env = schema.parse(process.env);

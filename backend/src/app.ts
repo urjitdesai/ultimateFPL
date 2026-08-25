@@ -9,7 +9,7 @@ import { usersRouter } from "./users/index.js";
 import { fixturesRouter } from "./fixtures/index.js";
 import { gameweeksRouter } from "./gameweeks/index.js";
 import { leaguesRouter } from "./leagues/index.js";
-import { wagersRouter } from "./wagers/index.js";
+import { predictionsRouter } from "./predictions/index.js";
 
 export const app = express();
 
@@ -47,7 +47,7 @@ app.use("/api/v1/auth", usersRouter);
 app.use("/api/v1/fixtures", fixturesRouter);
 app.use("/api/v1/gameweeks", gameweeksRouter);
 app.use("/api/v1/leagues", leaguesRouter);
-app.use("/api/v1", wagersRouter);
+app.use("/api/v1", predictionsRouter);
 
 // Keep this handler last so errors from every route use the same public shape.
 // Unexpected server errors receive a generic message to avoid leaking details.

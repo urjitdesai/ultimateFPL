@@ -1,76 +1,108 @@
-import { CalendarDays, Coins, Save, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { api, type Gameweek, type GameweekWagers, type WagerSelection } from "../api";
+import { ArrowRight, CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, Save, Trophy, Users } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { api, type Gameweek, type League, type PredictionView } from "../api";
 import { useAuth } from "../auth/AuthContext";
+import { PredictionFixtureRow } from "../components/PredictionFixtureRow";
 import { AppNav } from "../components/AppNav";
 import { navigate } from "../navigation";
 
-type Draft = { selection: WagerSelection; stakePoints: number };
-const outcomes: Array<{ value: WagerSelection; label: string }> = [
-  { value: "HOME_WIN", label: "Home win" },
-  { value: "DRAW", label: "Draw" },
-  { value: "AWAY_WIN", label: "Away win" },
-];
+const emptyView: PredictionView = { fixtures: [], predictionsOpen: false, captainedFixtureId: null, summary: { totalPoints: 0, gameweekPoints: 0, submittedCount: 0, fixtureCount: 0 } };
+
+function formatRange(gameweek: Gameweek) {
+  const start = new Date(gameweek.startsAt);
+  const end = new Date(gameweek.endsAt);
+  const month = new Intl.DateTimeFormat(undefined, { month: "short" });
+  return `${start.getDate()} ${month.format(start)} – ${end.getDate()} ${month.format(end)}`;
+}
+
+function formatKickoff(kickoffAt: string) {
+  const kickoff = new Date(kickoffAt);
+  return { date: new Intl.DateTimeFormat(undefined, { weekday: "short", day: "numeric", month: "short" }).format(kickoff), time: new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(kickoff) };
+}
+
+function formatPredictionDeadline(startsAt: string) {
+  return formatKickoff(new Date(new Date(startsAt).getTime() - 3_600_000).toISOString());
+}
 
 export function HomePage() {
   const { user, profile, loading: authLoading } = useAuth();
   const [gameweeks, setGameweeks] = useState<Gameweek[]>([]);
   const [selectedId, setSelectedId] = useState("");
-  const [view, setView] = useState<GameweekWagers | null>(null);
-  const [drafts, setDrafts] = useState<Record<string, Draft>>({});
-  const [busy, setBusy] = useState("");
+  const [view, setView] = useState<PredictionView>(emptyView);
+  const [drafts, setDrafts] = useState<Record<string, { home: string; away: string }>>({});
+  const [captainedFixtureId, setCaptainedFixtureId] = useState<string | null>(null);
+  const [leagues, setLeagues] = useState<League[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [fixtureLoading, setFixtureLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
+  const railRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!user) return;
-    api.gameweeks(user).then((items) => {
-      setGameweeks(items);
-      setSelectedId((items.find((gameweek) => gameweek.status === "ACTIVE") ?? items.find((gameweek) => gameweek.status === "UPCOMING") ?? items.at(-1))?.id ?? "");
-    }).catch(() => setError("We couldn't load the gameweeks."));
+    let active = true;
+    Promise.all([api.gameweeks(user), api.leagues(user)]).then(([nextGameweeks, nextLeagues]) => {
+      if (!active) return;
+      setGameweeks(nextGameweeks);
+      setLeagues(nextLeagues);
+      const current = nextGameweeks.find((gameweek) => gameweek.status === "ACTIVE") ?? nextGameweeks.find((gameweek) => gameweek.status === "UPCOMING") ?? nextGameweeks.at(-1);
+      setSelectedId(current?.id ?? "");
+    }).catch(() => active && setError("We couldn't load matchday. Try again in a moment.")).finally(() => active && setLoading(false));
+    return () => { active = false; };
   }, [user]);
 
-  const load = async () => {
+  useEffect(() => {
     if (!user || !selectedId) return;
-    const next = await api.gameweekWagers(user, selectedId);
-    setView(next);
-    setDrafts(Object.fromEntries(next.fixtures.map((fixture) => [fixture.id, {
-      selection: fixture.wager?.selection ?? "HOME_WIN",
-      stakePoints: fixture.wager?.stakePoints ?? 1,
-    }])));
-  };
+    let active = true;
+    setFixtureLoading(true);
+    api.predictions(user, selectedId).then((nextView) => {
+      if (!active) return;
+      setView(nextView);
+      setCaptainedFixtureId(nextView.captainedFixtureId);
+      setDrafts(Object.fromEntries(nextView.fixtures.map((fixture) => [fixture.id, { home: fixture.prediction ? String(fixture.prediction.predictedHomeScore) : "", away: fixture.prediction ? String(fixture.prediction.predictedAwayScore) : "" }])));
+      setSaved(false);
+    }).catch(() => active && setError("We couldn't load predictions for that gameweek.")).finally(() => active && setFixtureLoading(false));
+    return () => { active = false; };
+  }, [selectedId, user]);
 
-  useEffect(() => { load().catch(() => setError("We couldn't load wagers for that gameweek.")); }, [selectedId, user]);
   const selected = useMemo(() => gameweeks.find((gameweek) => gameweek.id === selectedId), [gameweeks, selectedId]);
+  const visibleLeagues = leagues;
+  const savableCount = view.fixtures.filter((fixture) => !fixture.predictionLocked && drafts[fixture.id]?.home !== "" && drafts[fixture.id]?.away !== "").length;
 
   if (authLoading) return <div className="loading-screen">Preparing matchday…</div>;
   if (!user || !profile) { queueMicrotask(() => navigate("/login", true)); return <div className="loading-screen">Returning to login…</div>; }
 
-  const save = async (fixtureId: string) => {
-    const draft = drafts[fixtureId];
-    if (!draft) return;
-    setBusy(fixtureId); setError("");
-    try { await api.saveWager(user, fixtureId, draft.selection, draft.stakePoints); await load(); }
-    catch (requestError) { setError(requestError instanceof Error ? requestError.message : "The wager could not be saved."); }
-    finally { setBusy(""); }
+  const updateDraft = (fixtureId: string, side: "home" | "away", value: string) => {
+    if (value !== "" && (!/^\d{1,2}$/.test(value) || Number(value) > 20)) return;
+    setDrafts((current) => ({ ...current, [fixtureId]: { ...(current[fixtureId] ?? { home: "", away: "" }), [side]: value } }));
+    setSaved(false);
   };
-  const remove = async (fixtureId: string) => {
-    setBusy(fixtureId); setError("");
-    try { await api.deleteWager(user, fixtureId); await load(); }
-    catch (requestError) { setError(requestError instanceof Error ? requestError.message : "The wager could not be removed."); }
-    finally { setBusy(""); }
+  const savePredictions = async () => {
+    const predictions = view.fixtures.filter((fixture) => !fixture.predictionLocked).flatMap((fixture) => {
+      const draft = drafts[fixture.id];
+      return draft?.home !== "" && draft?.away !== "" ? [{ fixtureId: fixture.id, predictedHomeScore: Number(draft.home), predictedAwayScore: Number(draft.away) }] : [];
+    });
+    if (!user || predictions.length === 0) return;
+    setSaving(true); setError("");
+    try { const nextView = await api.savePredictions(user, selectedId, predictions, captainedFixtureId); setView(nextView); setCaptainedFixtureId(nextView.captainedFixtureId); setSaved(true); }
+    catch (saveError) { setError(saveError instanceof Error ? saveError.message : "We couldn't save your predictions."); }
+    finally { setSaving(false); }
   };
+  const predictionDeadline = selected ? formatPredictionDeadline(selected.startsAt) : null;
 
-  return <main className="home-page"><AppNav active="home" />
-    <section className="matchday-band"><div className="matchday-overview"><div className="matchday-title"><h1>Gameweek {selected?.roundNumber ?? "—"} wagers</h1><p><CalendarDays /> Pick the result before each fixture kicks off.</p></div><div className="score-summary"><div><Coins /><span>Available</span><strong>{view?.wallet.availablePoints ?? profile.wallet?.availablePoints ?? 0}</strong></div><div><span>Reserved</span><strong>{view?.wallet.reservedPoints ?? profile.wallet?.reservedPoints ?? 0}</strong></div></div></div>
-      <div className="gameweek-navigation"><div className="gameweek-rail">{gameweeks.map((gameweek) => <button key={gameweek.id} className={gameweek.id === selectedId ? "selected" : ""} onClick={() => setSelectedId(gameweek.id)}><strong>Gameweek {gameweek.roundNumber}</strong><span>{gameweek.status}</span></button>)}</div></div>
+  return <main className="home-page">
+    <AppNav active="home" />
+
+    <section className="matchday-band" id="gameweeks">
+      <div className="matchday-overview"><div className="matchday-title"><h1>{selected?.status === "COMPLETE" ? `Gameweek ${selected.roundNumber} results` : view.predictionsOpen ? `Make your calls for Gameweek ${selected?.roundNumber ?? "—"}` : `Gameweek ${selected?.roundNumber ?? "—"} preview`}</h1><p><Clock3 /> {selected ? view.predictionsOpen && predictionDeadline ? `Predictions lock ${predictionDeadline.date} at ${predictionDeadline.time}` : "Predictions are locked for this gameweek" : "Loading the next round"}</p></div><div className="score-summary"><div><Trophy /><span>Total points</span><strong>{view.summary.totalPoints}</strong></div><div><span>Gameweek points</span><strong>{view.summary.gameweekPoints}</strong></div></div></div>
+      <div className="gameweek-navigation"><button className="rail-arrow" aria-label="Earlier gameweeks" onClick={() => railRef.current?.scrollBy({ left: -420, behavior: "smooth" })}><ChevronLeft /></button><div className="gameweek-rail" ref={railRef}>{gameweeks.map((gameweek) => <button key={gameweek.id} className={gameweek.id === selectedId ? "selected" : ""} onClick={() => setSelectedId(gameweek.id)}><strong>Gameweek {gameweek.roundNumber}</strong><span>{formatRange(gameweek)}</span></button>)}</div><button className="rail-arrow" aria-label="Later gameweeks" onClick={() => railRef.current?.scrollBy({ left: 420, behavior: "smooth" })}><ChevronRight /></button></div>
     </section>
-    <section className="home-content"><div className="fixtures-section"><header><div><h2>Choose an outcome</h2><p>Stake 1–20 points. Correct wagers return double; incorrect wagers return zero.</p></div></header>
-      {error ? <div className="home-error" role="alert">{error}</div> : null}
-      {!view ? <div className="fixture-skeleton"><div /><div /><div /></div> : view.fixtures.length === 0 ? <div className="fixture-empty"><CalendarDays /><h3>No fixtures</h3></div> : <div className="wager-list">{view.fixtures.map((fixture) => {
-        const draft = drafts[fixture.id] ?? { selection: "HOME_WIN" as const, stakePoints: 1 };
-        const locked = Date.now() >= new Date(fixture.kickoffAt).getTime() || fixture.wager?.status !== "OPEN" && fixture.wager != null;
-        return <article className="wager-row" key={fixture.id}><div className="wager-fixture"><strong>{fixture.homeTeam.name} vs {fixture.awayTeam.name}</strong><small>{new Date(fixture.kickoffAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}</small></div><label><span>Outcome</span><select disabled={locked} value={draft.selection} onChange={(event) => setDrafts((current) => ({ ...current, [fixture.id]: { ...draft, selection: event.target.value as WagerSelection } }))}>{outcomes.map((outcome) => <option key={outcome.value} value={outcome.value}>{outcome.label}</option>)}</select></label><label><span>Stake</span><input disabled={locked} type="number" min="1" max="20" value={draft.stakePoints} onChange={(event) => setDrafts((current) => ({ ...current, [fixture.id]: { ...draft, stakePoints: Math.min(20, Math.max(1, Number(event.target.value))) } }))} /></label><div className="wager-actions"><button disabled={locked || busy === fixture.id || draft.stakePoints > view.wallet.availablePoints + (fixture.wager?.stakePoints ?? 0)} onClick={() => void save(fixture.id)}><Save /> {fixture.wager ? "Update" : "Wager"}</button>{fixture.wager?.status === "OPEN" && !locked ? <button className="cancel" aria-label="Delete wager" onClick={() => void remove(fixture.id)}><Trash2 /></button> : null}</div>{fixture.wager ? <div className="wager-stake"><small>{fixture.wager.status}</small><strong>{fixture.wager.returnPoints == null ? `${fixture.wager.stakePoints} pts` : `${fixture.wager.returnPoints} returned`}</strong></div> : null}</article>;
-      })}</div>}
-    </div></section>
+
+    <section className="home-content"><div className="fixtures-section">
+      <header><div><h2>{selected?.status === "COMPLETE" ? "Your results" : view.predictionsOpen ? "Your predictions" : "Fixtures"}</h2><p>{selected?.status === "COMPLETE" ? "Prediction, final score and points" : view.predictionsOpen ? "Predict every match and captain one fixture for double points" : "Future gameweeks are available to preview only"}</p></div><div className="fixture-actions"><span className="fixture-count">{view.fixtures.length} matches</span>{view.predictionsOpen ? <button className={`save-predictions ${saved ? "is-saved" : ""}`} disabled={saving || savableCount === 0} onClick={savePredictions}>{saved ? <Check /> : <Save />}{saving ? "Saving…" : saved ? "Saved" : `Save ${savableCount || ""} predictions`}</button> : null}</div></header>
+      {error ? <div className="home-error" role="alert">{error}<button onClick={() => window.location.reload()}>Retry</button></div> : null}
+      {loading || fixtureLoading ? <div className="fixture-skeleton" aria-label="Loading fixtures">{Array.from({ length: 5 }, (_, index) => <div key={index} />)}</div> : view.fixtures.length === 0 ? <div className="fixture-empty"><CalendarDays /><h3>No fixtures yet</h3><p>This gameweek has no scheduled Premier League matches.</p></div> : <div className="fixture-list"><div className="fixture-head"><span>Date & time</span><span>Home</span><span>Prediction</span><span>Away</span></div>{view.fixtures.map((fixture) => <PredictionFixtureRow key={fixture.id} fixture={fixture} draft={drafts[fixture.id] ?? { home: "", away: "" }} kickoff={formatKickoff(fixture.kickoffAt)} isCaptain={captainedFixtureId === fixture.id} onChange={updateDraft} onCaptain={(fixtureId) => { setCaptainedFixtureId((current) => current === fixtureId ? null : fixtureId); setSaved(false); }} />)}</div>}
+    </div><aside className="league-rail" id="leagues"><h2>Your leagues</h2>{visibleLeagues.map((league) => <button className="league-row league-row-button" key={league.id} onClick={() => navigate(`/leagues/${encodeURIComponent(league.id)}`)}><span className="league-icon"><Users /></span><span><strong>{league.name}</strong><small>{league.memberCount} {league.memberCount === 1 ? "member" : "members"}</small></span><ArrowRight /></button>)}<button className="view-all-leagues" onClick={() => navigate("/leagues")}>View all leagues <ArrowRight /></button><div className="season-note"><CalendarDays /><div><strong>Premier League only</strong><p>Your fixtures and leagues follow the active season.</p></div></div></aside></section>
   </main>;
 }

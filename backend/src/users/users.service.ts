@@ -1,41 +1,40 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { firestore } from "../firebase/admin.js";
 import { getJoinGameweek } from "../gameweeks/gameweeks.service.js";
-import { getUserLeagues } from "../leagues/leagues.service.js";
-import { STARTING_POINTS } from "../wagers/wagers.service.js";
+import { getUserLeagues, joinDefaultLeagues } from "../leagues/leagues.service.js";
+import { getTeamById } from "../teams/teams.service.js";
 
-export type ProfileInput = { uid: string; email: string; displayName: string };
+export type ProfileInput = { uid: string; email: string; displayName: string; favoriteTeamId: string };
 
 export async function createProfile(input: ProfileInput) {
+  const requestedTeam = await getTeamById(input.favoriteTeamId);
+  if (!requestedTeam) throw Object.assign(new Error("Choose a valid team."), { code: "TEAM_NOT_FOUND", status: 404 });
+
   const joinGameweek = await getJoinGameweek();
   if (!joinGameweek) throw new Error("No Premier League gameweek is available.");
 
   const seasonId = joinGameweek.seasonId;
   const userRef = firestore.collection("users").doc(input.uid);
-  const walletRef = firestore.collection("pointWallets").doc(input.uid);
+  let profileTeam = requestedTeam;
 
   await firestore.runTransaction(async (transaction) => {
-    const [user, wallet] = await Promise.all([transaction.get(userRef), transaction.get(walletRef)]);
+    const user = await transaction.get(userRef);
+    await joinDefaultLeagues(
+      transaction,
+      input.uid,
+      seasonId,
+      profileTeam,
+      joinGameweek.roundNumber,
+    );
 
     if (!user.exists) {
       transaction.create(userRef, {
         email: input.email,
         displayName: input.displayName,
+        favoriteTeamId: profileTeam.id,
         role: "USER",
         activeSeasonId: seasonId,
         joinedGameweek: joinGameweek.roundNumber,
-        createdAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
-      });
-    }
-    if (!wallet.exists) {
-      transaction.create(walletRef, {
-        userId: input.uid,
-        availablePoints: STARTING_POINTS,
-        reservedPoints: 0,
-        lifetimePointsStaked: 0,
-        lifetimePointsReturned: 0,
-        version: 1,
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
       });
@@ -49,9 +48,7 @@ export async function getProfile(uid: string) {
   const snapshot = await firestore.collection("users").doc(uid).get();
   if (!snapshot.exists) return null;
   const data = snapshot.data()!;
-  const [leagues, wallet] = await Promise.all([
-    getUserLeagues(uid),
-    firestore.collection("pointWallets").doc(uid).get(),
-  ]);
-  return { uid, ...data, leagues, wallet: wallet.exists ? wallet.data() : null };
+  const team = await getTeamById(data.favoriteTeamId as string);
+  const leagues = await getUserLeagues(uid);
+  return { uid, ...data, favoriteTeam: team, leagues };
 }

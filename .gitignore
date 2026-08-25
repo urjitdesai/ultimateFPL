@@ -6,4 +6,5 @@ backend/firebaserc
 backend/firebase.js
 backend/firebase.json
 backend/firestore.rules
+backend/firestore.indexes.json
 backend/docs/schemas

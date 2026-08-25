@@ -1,11 +1,15 @@
 import request from "supertest";
 import { describe, expect, it } from "vitest";
 import { app } from "../app.js";
+import { getDefaultLeagues } from "../leagues/leagues.service.js";
 import { assignGameweeks, selectSeasonByYear } from "../fixtures/fixtures.service.js";
 import { decodeHtmlEntities } from "../utils/html.js";
+import { scorePrediction } from "../predictions/predictions.scoring.js";
+import { gameweekLockDeadline, isCurrentPredictionGameweek, predictionIsLocked } from "../predictions/predictions.service.js";
+import { Timestamp } from "firebase-admin/firestore";
 import { getGameweekStatus } from "../gameweeks/gameweeks.service.js";
 import { generateInviteCode, getMembershipStartRound, normalizeInviteCode, rankLeagueStandings } from "../leagues/leagues.service.js";
-import { fixtureOutcome, settleWager } from "../wagers/wagers.service.js";
+import { getWagerOutcome } from "../wagers/wagers.service.js";
 
 describe("foundation API", () => {
   it("reports health", async () => {
@@ -25,6 +29,14 @@ describe("foundation API", () => {
     const response = await request(app).post("/api/v1/auth/register-profile").send({ displayName: "Alex", favoriteTeamId: "arsenal" });
     expect(response.status).toBe(401);
     expect(response.body.error.code).toBe("AUTHENTICATION_REQUIRED");
+  });
+
+  it("creates all deterministic default leagues", () => {
+    expect(getDefaultLeagues("season-1", { id: "arsenal", name: "Arsenal", shortName: "ARS", logoUrl: "/team-logos/arsenal.png" }, 4)).toEqual([
+      { id: "season-1_overall", name: "Overall", type: "OVERALL" },
+      { id: "season-1_team_arsenal", name: "Arsenal Supporters", type: "TEAM_DEFAULT", favoriteTeamId: "arsenal" },
+      { id: "season-1_gameweek_4", name: "Gameweek 4", type: "GAMEWEEK_DEFAULT", roundNumber: 4 }
+    ]);
   });
 
   it("derives missing Premier League gameweeks from fixture-date clusters", () => {
@@ -65,6 +77,46 @@ describe("foundation API", () => {
     expect(decodeHtmlEntities("A&#39; Team &#x26; Co")).toBe("A' Team & Co");
   });
 
+  it("scores predictions using exact-score precedence", () => {
+    expect(scorePrediction({ predictedHome: 3, predictedAway: 1, actualHome: 3, actualAway: 1 })).toMatchObject({ points: 5, reason: "EXACT_SCORE" });
+    expect(scorePrediction({ predictedHome: 2, predictedAway: 0, actualHome: 3, actualAway: 1 })).toMatchObject({ points: 3, reason: "CORRECT_GOAL_DIFFERENCE" });
+    expect(scorePrediction({ predictedHome: 2, predictedAway: 1, actualHome: 3, actualAway: 1 })).toMatchObject({ points: 2, reason: "CORRECT_RESULT" });
+    expect(scorePrediction({ predictedHome: 1, predictedAway: 1, actualHome: 3, actualAway: 1 })).toMatchObject({ points: 0, reason: "INCORRECT" });
+  });
+
+  it("awards three points for the correct non-exact draw", () => {
+    expect(scorePrediction({ predictedHome: 0, predictedAway: 0, actualHome: 1, actualAway: 1 })).toMatchObject({ points: 3, reason: "CORRECT_GOAL_DIFFERENCE" });
+  });
+
+  it("doubles a captain prediction's earned points", () => {
+    expect(scorePrediction({ predictedHome: 3, predictedAway: 1, actualHome: 3, actualAway: 1, isCaptain: true })).toMatchObject({ basePoints: 5, points: 10, reason: "EXACT_SCORE", ruleVersion: "2026.2" });
+    expect(scorePrediction({ predictedHome: 2, predictedAway: 1, actualHome: 3, actualAway: 1, isCaptain: true })).toMatchObject({ basePoints: 2, points: 4, reason: "CORRECT_RESULT" });
+    expect(scorePrediction({ predictedHome: 1, predictedAway: 1, actualHome: 3, actualAway: 1, isCaptain: true })).toMatchObject({ basePoints: 0, points: 0, reason: "INCORRECT" });
+  });
+
+  it("protects prediction reads and writes", async () => {
+    const read = await request(app).get("/api/v1/gameweeks/gameweek-1/predictions/me");
+    const write = await request(app).put("/api/v1/gameweeks/gameweek-1/predictions").send({ predictions: [] });
+    expect(read.status).toBe(401);
+    expect(write.status).toBe(401);
+  });
+
+  it("locks a prediction exactly at kickoff", () => {
+    const kickoff = Timestamp.fromMillis(10_000);
+    expect(predictionIsLocked(kickoff, Timestamp.fromMillis(9_999))).toBe(false);
+    expect(predictionIsLocked(kickoff, Timestamp.fromMillis(10_000))).toBe(true);
+  });
+
+  it("sets the gameweek deadline one hour before its first fixture", () => {
+    expect(gameweekLockDeadline("2026-08-10T15:00:00.000Z")).toBe(Date.parse("2026-08-10T14:00:00.000Z"));
+  });
+
+  it("opens predictions only for the current gameweek", () => {
+    expect(isCurrentPredictionGameweek("gw-4", "gw-4")).toBe(true);
+    expect(isCurrentPredictionGameweek("gw-5", "gw-4")).toBe(false);
+    expect(isCurrentPredictionGameweek("gw-4", null)).toBe(false);
+  });
+
   it("keeps a gameweek active until every fixture is settled", () => {
     const startsAt = new Date("2026-08-10T12:00:00Z");
     const now = new Date("2026-08-11T12:00:00Z");
@@ -97,6 +149,11 @@ describe("foundation API", () => {
     expect(response.status).toBe(401);
   });
 
+  it("protects league member prediction history", async () => {
+    const response = await request(app).get("/api/v1/leagues/league-1/members/user-2/predictions");
+    expect(response.status).toBe(401);
+  });
+
   it("normalizes shareable league keys", () => {
     expect(normalizeInviteCode(" abcd-2345 ")).toBe("ABCD2345");
     expect(generateInviteCode()).toMatch(/^[A-HJ-NP-Z2-9]{8}$/);
@@ -121,18 +178,23 @@ describe("foundation API", () => {
     expect(getMembershipStartRound(undefined, Date.parse("2026-08-12T12:00:00.000Z"), gameweeks)).toBe(2);
   });
 
-  it("derives fixture outcomes and returns double the stake for a correct wager", () => {
-    expect(fixtureOutcome(2, 1)).toBe("HOME_WIN");
-    expect(fixtureOutcome(1, 1)).toBe("DRAW");
-    expect(fixtureOutcome(0, 1)).toBe("AWAY_WIN");
-    expect(settleWager("HOME_WIN", 20, 2, 1)).toMatchObject({ status: "WON", returnPoints: 40, netPoints: 20 });
-    expect(settleWager("DRAW", 20, 2, 1)).toMatchObject({ status: "LOST", returnPoints: 0, netPoints: -20 });
+  it("settles wagers using base points and refunds ties", () => {
+    expect(getWagerOutcome(
+      { predictedHomeScore: 2, predictedAwayScore: 1 },
+      { predictedHomeScore: 1, predictedAwayScore: 0 },
+      2, 1,
+    )).toMatchObject({ winner: "CREATOR", creatorPoints: 5, opponentPoints: 3 });
+    expect(getWagerOutcome(
+      { predictedHomeScore: 0, predictedAwayScore: 0 },
+      { predictedHomeScore: 1, predictedAwayScore: 1 },
+      2, 2,
+    ).winner).toBe("TIE");
   });
 
   it("protects wager routes", async () => {
     const [board, create] = await Promise.all([
-      request(app).get("/api/v1/wallet"),
-      request(app).put("/api/v1/fixtures/fixture-1/wager").send({ selection: "HOME_WIN", stakePoints: 5 }),
+      request(app).get("/api/v1/leagues/league-1/wagers"),
+      request(app).post("/api/v1/leagues/league-1/wagers").send({ fixtureId: "fixture-1", stake: 5 }),
     ]);
     expect(board.status).toBe(401);
     expect(create.status).toBe(401);

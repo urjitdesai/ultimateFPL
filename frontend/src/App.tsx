@@ -4,8 +4,6 @@ import { RegisterPage } from "./pages/RegisterPage";
 import { HomePage } from "./pages/HomePage";
 import { LeaguesPage } from "./pages/LeaguesPage";
 import { LeagueStandingsPage } from "./pages/LeagueStandingsPage";
-import { LeaguePlayerPredictionsPage } from "./pages/LeaguePlayerPredictionsPage";
-import { WagerLeaguePage } from "./pages/WagerLeaguePage";
 import { navigate } from "./navigation";
 
 export function App() {
@@ -13,17 +11,13 @@ export function App() {
   useEffect(() => {
     const update = () => setPath(window.location.pathname);
     window.addEventListener("popstate", update);
-    const knownPath = ["/register", "/login", "/dashboard", "/leagues"].includes(path) || /^\/leagues\/[^/]+(?:\/(?:players\/[^/]+|wagers))?$/.test(path);
+    const knownPath = ["/register", "/login", "/dashboard", "/leagues"].includes(path) || /^\/leagues\/[^/]+$/.test(path);
     if (path === "/" || !knownPath) navigate("/register", true);
     return () => window.removeEventListener("popstate", update);
   }, [path]);
   if (path === "/login") return <LoginPage />;
   if (path === "/dashboard") return <HomePage />;
   if (path === "/leagues") return <LeaguesPage />;
-  const playerMatch = path.match(/^\/leagues\/([^/]+)\/players\/([^/]+)$/);
-  if (playerMatch) return <LeaguePlayerPredictionsPage leagueId={decodeURIComponent(playerMatch[1]!)} memberUserId={decodeURIComponent(playerMatch[2]!)} />;
-  const wagerMatch = path.match(/^\/leagues\/([^/]+)\/wagers$/);
-  if (wagerMatch) return <WagerLeaguePage leagueId={decodeURIComponent(wagerMatch[1]!)} />;
   if (path.startsWith("/leagues/")) return <LeagueStandingsPage leagueId={decodeURIComponent(path.slice("/leagues/".length))} />;
   return <RegisterPage />;
 }

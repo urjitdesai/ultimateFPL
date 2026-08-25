@@ -8,3 +8,4 @@ backend/firebase.json
 backend/firestore.rules
 backend/firestore.indexes.json
 backend/docs/schemas
+backend/scripts/

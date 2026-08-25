@@ -6,8 +6,8 @@ import { decodeHtmlEntities } from "../utils/html.js";
 import { scorePrediction } from "../predictions/predictions.scoring.js";
 import { gameweekLockDeadline, isCurrentPredictionGameweek, isUserEligibleForGameweek, predictionIsLocked } from "../predictions/predictions.service.js";
 import { Timestamp } from "firebase-admin/firestore";
-import { getGameweekStatus } from "../gameweeks/gameweeks.service.js";
-import { generateInviteCode, getMembershipStartRound, normalizeInviteCode, rankLeagueStandings } from "../leagues/leagues.service.js";
+import { getGameweekStatus, selectJoinGameweek, type Gameweek } from "../gameweeks/gameweeks.service.js";
+import { defaultLeagueRecords, generateInviteCode, getMembershipStartRound, normalizeInviteCode, rankLeagueStandings } from "../leagues/leagues.service.js";
 
 describe("foundation API", () => {
   it("reports health", async () => {
@@ -167,6 +167,28 @@ describe("foundation API", () => {
     expect(getMembershipStartRound(3, null, gameweeks)).toBe(3);
     expect(getMembershipStartRound(undefined, Date.parse("2026-08-12T12:00:00.000Z"), gameweeks)).toBe(2);
     expect(getMembershipStartRound(2, Date.parse("2026-08-15T11:00:00.000Z"), gameweeks)).toBe(3);
+  });
+
+  it("places users in the cohort for their first scoring-eligible gameweek", () => {
+    const gameweeks = [
+      { id: "gw-2", seasonId: "season-1", roundNumber: 2, startsAt: "2026-08-15T12:00:00.000Z", endsAt: "2026-08-17T20:00:00.000Z", fixtureCount: 10, status: "UPCOMING" },
+      { id: "gw-3", seasonId: "season-1", roundNumber: 3, startsAt: "2026-08-22T12:00:00.000Z", endsAt: "2026-08-24T20:00:00.000Z", fixtureCount: 10, status: "UPCOMING" },
+    ] satisfies Gameweek[];
+    expect(selectJoinGameweek(gameweeks, Date.parse("2026-08-15T10:59:59.000Z"))?.roundNumber).toBe(2);
+    expect(selectJoinGameweek(gameweeks, Date.parse("2026-08-15T11:00:00.000Z"))?.roundNumber).toBe(3);
+  });
+
+  it("creates deterministic overall and team supporter league records", () => {
+    expect(defaultLeagueRecords("season-1", [
+      { id: "arsenal", name: "Arsenal", shortName: "ARS", logoUrl: "" },
+      { id: "chelsea", name: "Chelsea", shortName: "CHE", logoUrl: "" },
+    ], [1, 2])).toEqual([
+      { id: "season-1_overall", name: "Overall", favoriteTeamId: null, roundNumber: null },
+      { id: "season-1_team_arsenal", name: "Arsenal Supporters", favoriteTeamId: "arsenal", roundNumber: null },
+      { id: "season-1_team_chelsea", name: "Chelsea Supporters", favoriteTeamId: "chelsea", roundNumber: null },
+      { id: "season-1_gameweek_1", name: "Gameweek 1", favoriteTeamId: null, roundNumber: 1 },
+      { id: "season-1_gameweek_2", name: "Gameweek 2", favoriteTeamId: null, roundNumber: 2 },
+    ]);
   });
 
   it("does not score gameweeks from before registration or after their deadline", () => {

@@ -30,7 +30,7 @@ The MVP must support:
 
 - Firebase Authentication email/password account creation and login.
 - Selection of one favorite Premier League team.
-- Creation of private leagues using one uniform league model.
+- Automatic Overall, team supporter, and gameweek cohort leagues, plus private leagues using one uniform league model.
 - Joining a league using an invite code.
 - Display of Premier League fixtures grouped by gameweek.
 - Score predictions for every fixture.
@@ -380,7 +380,7 @@ Do not store password hashes in Cloud Firestore.
 
 ### League
 
-The MVP has one private league model. There is no league type or scoring-format discriminator and there are no default, team, gameweek, global, wager, or head-to-head leagues.
+The MVP has one league model with no league type or scoring-format discriminator. On backend startup, the app idempotently creates an Overall league, one supporter league for every active team, and one cohort league for every gameweek in the active season. New users automatically join Overall, the supporter league for their favorite team, and the gameweek league matching their first scoring-eligible gameweek. Private invite-code leagues use the same model. There are no wager or head-to-head leagues.
 
 Fields should include:
 
@@ -1281,8 +1281,11 @@ Firebase Authentication remains the source of truth for the user's email identit
   seasonId: string;
   name: string;
   normalizedName: string;
-  ownerUserId: string;
-  inviteCode: string;
+  ownerUserId: string | null;
+  inviteCode: string | null;
+  isDefault: boolean;
+  favoriteTeamId: string | null;
+  roundNumber: number | null;
   memberCount: number;
   isActive: boolean;
   createdAt: Timestamp;
@@ -1298,6 +1301,7 @@ Firebase Authentication remains the source of truth for the user's email identit
   userId: string;
   seasonId: string;
   role: "OWNER" | "ADMIN" | "MEMBER";
+  joinedGameweek: number;
   joinedAt: Timestamp;
   isActive: boolean;
 }
@@ -1981,7 +1985,7 @@ Codex must:
 
 The MVP is complete when:
 
-1. A user can register and select a favorite team without being automatically placed in a league.
+1. A user can register, select a favorite team, and automatically join Overall, the matching team supporter league, and their first scoring-eligible gameweek league.
 2. A user can log in with Firebase Authentication and access protected Express routes using a verified Firebase ID token.
 3. The Premier League, active season, teams, gameweeks, and all available season fixtures can be imported from Footballdata.io with pagination.
 4. The backend validates the configured league and season IDs and exposes provider coverage or import incompleteness to administrators.
@@ -1992,7 +1996,7 @@ The MVP is complete when:
 9. Predictions from other users are hidden until the relevant fixture begins.
 10. A completed fixture can be synchronized and scored automatically.
 11. Reprocessing a fixture does not duplicate points.
-12. Private leagues show correct gameweek and season rankings.
+12. Overall, supporter, gameweek cohort, and private leagues show correct gameweek and season rankings.
 13. Postponed fixtures can be rescheduled without losing predictions.
 14. The app works on mobile and desktop.
 15. Automated tests cover the scoring and locking rules.
@@ -2123,7 +2127,7 @@ When no other direction is provided, use these defaults:
 - Cloud Firestore + Firebase Admin SDK.
 - Firebase Authentication with email/password.
 - No email verification or password reset initially.
-- One private league model with no league-type or scoring-format field.
+- One league model with no league-type or scoring-format field, including automatic Overall, team supporter, and gameweek cohort leagues.
 - Maximum five created leagues per user.
 - Unlimited memberships for the initial MVP.
 - Per-fixture locking at kickoff.

@@ -72,7 +72,7 @@ export function LeaguesPage() {
       {loading ? <div className="league-loading">Loading league tables…</div> : error ? <div className="home-error" role="alert">{error}<button onClick={() => window.location.reload()}>Retry</button></div> : leagues.map((league) => {
         return <button className="league-directory-row" key={league.id} onClick={() => navigate(`/leagues/${encodeURIComponent(league.id)}`)}>
           <span className="directory-league"><i><Users /></i><span><strong>{league.name}</strong><small>View full standings</small></span></span>
-          <span className="league-type">Private league</span>
+          <span className="league-type">{league.isDefault ? (league.favoriteTeamId ? "Supporters league" : league.roundNumber ? "Gameweek league" : "Overall league") : "Private league"}</span>
           <span className="member-total"><strong>{league.memberCount}</strong> {league.memberCount === 1 ? "player" : "players"}</span>
           <ArrowRight />
         </button>;

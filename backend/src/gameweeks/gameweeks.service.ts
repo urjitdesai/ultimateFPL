@@ -81,10 +81,12 @@ export async function getCurrentGameweek() {
     ?? null;
 }
 
-export async function getJoinGameweek() {
-  const gameweeks = await getGameweeks();
-  const now = Date.now();
-  return gameweeks.find((gameweek) => new Date(gameweek.endsAt).getTime() >= now)
+export function selectJoinGameweek(gameweeks: Gameweek[], now = Date.now()) {
+  return gameweeks.find((gameweek) => new Date(gameweek.startsAt).getTime() - 60 * 60 * 1000 > now)
     ?? gameweeks.at(-1)
     ?? null;
+}
+
+export async function getJoinGameweek() {
+  return selectJoinGameweek(await getGameweeks());
 }

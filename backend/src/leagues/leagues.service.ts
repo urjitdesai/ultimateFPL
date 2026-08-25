@@ -1,9 +1,10 @@
 import crypto from "node:crypto";
-import { FieldValue, Timestamp } from "firebase-admin/firestore";
+import { FieldValue, Timestamp, type Transaction } from "firebase-admin/firestore";
 import { z } from "zod";
 import { firestore } from "../firebase/admin.js";
 import { getGameweeks, getJoinGameweek, type Gameweek } from "../gameweeks/gameweeks.service.js";
 import { getFixturesForGameweek } from "../fixtures/fixtures.service.js";
+import type { Team } from "../teams/teams.service.js";
 import { teamLogoUrl } from "../utils/team-logo.js";
 
 export const createLeagueSchema = z.object({
@@ -20,6 +21,113 @@ function isPrivateLeague(data: FirebaseFirestore.DocumentData | undefined) {
   return data?.isActive === true
     && typeof data.ownerUserId === "string"
     && typeof data.inviteCode === "string";
+}
+
+function isActiveLeague(data: FirebaseFirestore.DocumentData | undefined) {
+  return data?.isActive === true;
+}
+
+export function defaultLeagueRecords(seasonId: string, teams: Team[], roundNumbers: number[]) {
+  return [
+    { id: `${seasonId}_overall`, name: "Overall", favoriteTeamId: null, roundNumber: null },
+    ...teams.map((team) => ({
+      id: `${seasonId}_team_${team.id}`,
+      name: `${team.name} Supporters`,
+      favoriteTeamId: team.id,
+      roundNumber: null,
+    })),
+    ...roundNumbers.map((roundNumber) => ({
+      id: `${seasonId}_gameweek_${roundNumber}`,
+      name: `Gameweek ${roundNumber}`,
+      favoriteTeamId: null,
+      roundNumber,
+    })),
+  ];
+}
+
+export async function ensureDefaultLeagues() {
+  const { ensureFixturesCached } = await import("../fixtures/fixtures.service.js");
+  await ensureFixturesCached();
+  const metadata = await firestore.collection("syncMetadata").doc("fixtures").get();
+  const seasonId = metadata.data()?.seasonId as string | undefined;
+  if (!seasonId) throw new Error("Cannot create default leagues without an active season.");
+
+  const [teamsSnapshot, gameweeksSnapshot] = await Promise.all([
+    firestore.collection("teams").where("isActive", "==", true).get(),
+    firestore.collection("gameweeks").where("seasonId", "==", seasonId).get(),
+  ]);
+  const teams = teamsSnapshot.docs.map((document) => ({
+    id: document.id,
+    name: document.data().name as string,
+    shortName: document.data().shortName as string,
+    logoUrl: teamLogoUrl(document.id),
+  }));
+  const roundNumbers = gameweeksSnapshot.docs
+    .map((document) => Number(document.data().roundNumber))
+    .filter((roundNumber) => Number.isInteger(roundNumber) && roundNumber > 0)
+    .sort((left, right) => left - right);
+  const leagues = defaultLeagueRecords(seasonId, teams, roundNumbers);
+  const leagueRefs = leagues.map((league) => firestore.collection("leagues").doc(league.id));
+  const existingLeagues = await firestore.getAll(...leagueRefs);
+  const batch = firestore.batch();
+  leagues.forEach((league, index) => {
+    const leagueRef = leagueRefs[index]!;
+    const commonFields = {
+      seasonId,
+      name: league.name,
+      normalizedName: league.name.toLowerCase(),
+      favoriteTeamId: league.favoriteTeamId,
+      roundNumber: league.roundNumber,
+      isDefault: true,
+      ownerUserId: null,
+      inviteCode: null,
+      isActive: true,
+      updatedAt: FieldValue.serverTimestamp(),
+    };
+    if (existingLeagues[index]?.exists) batch.set(leagueRef, commonFields, { merge: true });
+    else batch.create(leagueRef, { ...commonFields, memberCount: 0, createdAt: FieldValue.serverTimestamp() });
+  });
+  await batch.commit();
+}
+
+export async function joinDefaultLeagues(
+  transaction: Transaction,
+  userId: string,
+  seasonId: string,
+  favoriteTeamId: string,
+  joinedGameweek: number,
+) {
+  const leagueIds = [
+    `${seasonId}_overall`,
+    `${seasonId}_team_${favoriteTeamId}`,
+    `${seasonId}_gameweek_${joinedGameweek}`,
+  ];
+  const records = await Promise.all(leagueIds.map(async (leagueId) => {
+    const leagueRef = firestore.collection("leagues").doc(leagueId);
+    const membershipRef = firestore.collection("leagueMemberships").doc(membershipId(leagueId, userId));
+    const [league, membership] = await Promise.all([
+      transaction.get(leagueRef),
+      transaction.get(membershipRef),
+    ]);
+    return { leagueId, leagueRef, membershipRef, league, membership };
+  }));
+
+  for (const record of records) {
+    if (!record.league.exists || record.membership.exists) continue;
+    transaction.create(record.membershipRef, {
+      leagueId: record.leagueId,
+      userId,
+      seasonId,
+      role: "MEMBER",
+      joinedGameweek,
+      joinedAt: FieldValue.serverTimestamp(),
+      isActive: true,
+    });
+    transaction.update(record.leagueRef, {
+      memberCount: FieldValue.increment(1),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  }
 }
 
 export function normalizeInviteCode(value: string) {
@@ -147,7 +255,7 @@ export async function getUserLeagues(userId: string) {
       .filter((membership) => membership.data().isActive === true)
       .map((membership) => firestore.collection("leagues").doc(membership.data().leagueId).get()),
   );
-  return leagueSnapshots.filter((snapshot) => snapshot.exists && isPrivateLeague(snapshot.data()))
+  return leagueSnapshots.filter((snapshot) => snapshot.exists && isActiveLeague(snapshot.data()))
     .map((snapshot) => ({ id: snapshot.id, ...snapshot.data() }));
 }
 
@@ -203,7 +311,7 @@ export async function getLeagueStandings(userId: string, leagueId: string) {
     firestore.collection("leagueMemberships").where("leagueId", "==", leagueId).get(),
     getGameweeks(),
   ]);
-  if (!league.exists || !isPrivateLeague(league.data())) {
+  if (!league.exists || !isActiveLeague(league.data())) {
     throw Object.assign(new Error("League not found."), { code: "LEAGUE_NOT_FOUND", status: 404 });
   }
 
@@ -293,7 +401,7 @@ export async function getLeagueMemberPredictions(
     || !memberMembership.exists || memberMembership.data()?.isActive !== true) {
     throw Object.assign(new Error("Both players must be active members of this league."), { code: "LEAGUE_PERMISSION_DENIED", status: 403 });
   }
-  if (!league.exists || !isPrivateLeague(league.data()) || !profile.exists) {
+  if (!league.exists || !isActiveLeague(league.data()) || !profile.exists) {
     throw Object.assign(new Error("League player not found."), { code: "LEAGUE_PLAYER_NOT_FOUND", status: 404 });
   }
 

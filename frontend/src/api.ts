@@ -2,7 +2,7 @@ import type { User } from "firebase/auth";
 
 const baseUrl = import.meta.env.VITE_API_BASE_URL;
 export type Team = { id: string; name: string; shortName: string; logoUrl: string };
-export type League = { id: string; name: string; memberCount: number; inviteCode?: string | null };
+export type League = { id: string; name: string; memberCount: number; inviteCode?: string | null; isDefault?: boolean; favoriteTeamId?: string | null; roundNumber?: number | null };
 export type StandingEntry = { rank: number; previousRank: number; rankChange: number; userId: string; displayName: string; favoriteTeam: Team | null; totalPoints: number; gameweekPoints: number; exactScores: number; correctResults: number; scoringStartedGameweek: number; isCurrentUser: boolean };
 export type LeagueStandings = { league: League; currentGameweek: number; previousGameweek: number | null; standings: StandingEntry[] };
 export type PlayerPredictionFixture = Fixture & { prediction: Pick<Prediction, "predictedHomeScore" | "predictedAwayScore" | "awardedPoints" | "scoringReason" | "isCaptain"> & { isDefault: boolean } };

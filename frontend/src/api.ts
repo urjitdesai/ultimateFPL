@@ -3,17 +3,17 @@ import type { User } from "firebase/auth";
 const baseUrl = import.meta.env.VITE_API_BASE_URL;
 export type Team = { id: string; name: string; shortName: string; logoUrl: string };
 export type League = { id: string; name: string; memberCount: number; inviteCode?: string | null };
-export type StandingEntry = { rank: number; previousRank: number; rankChange: number; userId: string; displayName: string; favoriteTeam: Team | null; totalPoints: number; gameweekPoints: number; exactScores: number; correctResults: number; isCurrentUser: boolean };
+export type StandingEntry = { rank: number; previousRank: number; rankChange: number; userId: string; displayName: string; favoriteTeam: Team | null; totalPoints: number; gameweekPoints: number; exactScores: number; correctResults: number; scoringStartedGameweek: number; isCurrentUser: boolean };
 export type LeagueStandings = { league: League; currentGameweek: number; previousGameweek: number | null; standings: StandingEntry[] };
 export type PlayerPredictionFixture = Fixture & { prediction: Pick<Prediction, "predictedHomeScore" | "predictedAwayScore" | "awardedPoints" | "scoringReason" | "isCaptain"> & { isDefault: boolean } };
-export type LeaguePlayerPredictions = { league: Pick<League, "id" | "name">; player: { userId: string; displayName: string; favoriteTeam: Team | null }; gameweeks: Array<{ id: string; roundNumber: number }>; selectedGameweek: { id: string; roundNumber: number } | null; fixtures: PlayerPredictionFixture[] };
+export type LeaguePlayerPredictions = { league: Pick<League, "id" | "name">; player: { userId: string; displayName: string; favoriteTeam: Team | null }; gameweeks: Array<{ id: string; roundNumber: number }>; selectedGameweek: { id: string; roundNumber: number } | null; eligibility: { startsGameweek: number }; fixtures: PlayerPredictionFixture[] };
 export type Profile = { uid: string; email: string; displayName: string; favoriteTeam: Team; leagues: League[]; activeSeasonId: string; joinedGameweek: number };
 export type Gameweek = { id: string; seasonId: string; roundNumber: number; startsAt: string; endsAt: string; fixtureCount: number; status: "UPCOMING" | "ACTIVE" | "COMPLETE" };
 export type FixtureTeam = Pick<Team, "id" | "name" | "logoUrl">;
 export type Fixture = { id: string; providerMatchId: number; gameweekId: string; roundNumber: number; kickoffAt: string; normalizedStatus: string; homeTeam: FixtureTeam; awayTeam: FixtureTeam; homeScore: number | null; awayScore: number | null };
 export type Prediction = { predictedHomeScore: number; predictedAwayScore: number; basePoints: number | null; awardedPoints: number | null; scoringReason: string | null; isCaptain: boolean; submittedAt: string | null; updatedAt: string | null };
-export type PredictionFixture = Fixture & { prediction: Prediction | null; predictionLocked: boolean; predictionLockReason: "GAMEWEEK_DEADLINE" | null };
-export type PredictionView = { fixtures: PredictionFixture[]; predictionsOpen: boolean; captainedFixtureId: string | null; summary: { totalPoints: number; gameweekPoints: number; submittedCount: number; fixtureCount: number } };
+export type PredictionFixture = Fixture & { prediction: Prediction | null; predictionLocked: boolean; predictionLockReason: "GAMEWEEK_DEADLINE" | "NOT_ELIGIBLE" | null };
+export type PredictionView = { fixtures: PredictionFixture[]; predictionsOpen: boolean; captainedFixtureId: string | null; eligibility: { eligible: boolean; startsGameweek: number }; summary: { totalPoints: number; gameweekPoints: number; submittedCount: number; fixtureCount: number } };
 
 async function request<T>(path: string, init?: RequestInit, user?: User): Promise<T> {
   const token = user ? await user.getIdToken() : null;

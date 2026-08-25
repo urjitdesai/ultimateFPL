@@ -45,7 +45,8 @@ export function LeaguePlayerPredictionsPage({ leagueId, memberUserId }: { league
     </header>
     <section className="player-predictions-content">
       {data?.gameweeks.length ? <label className="gameweek-picker"><CalendarDays /><span>Gameweek</span><select value={gameweekId} onChange={(event) => setGameweekId(event.target.value)}>{data.gameweeks.map((gameweek) => <option value={gameweek.id} key={gameweek.id}>Gameweek {gameweek.roundNumber}</option>)}</select></label> : null}
-      {error ? <div className="home-error" role="alert">{error}</div> : loading ? <div className="league-loading">Loading predictions…</div> : !data?.selectedGameweek ? <div className="fixture-empty"><CalendarDays /><h3>No completed gameweeks</h3><p>Predictions will appear here after fixtures have final scores.</p></div> : <div className="player-prediction-list">
+      {data ? <div className="eligibility-notice compact" role="status"><CalendarDays /><div><strong>Scoring started in Gameweek {data.eligibility.startsGameweek}</strong><p>Earlier gameweeks are excluded because this player had not joined the league yet.</p></div></div> : null}
+      {error ? <div className="home-error" role="alert">{error}</div> : loading ? <div className="league-loading">Loading predictions…</div> : !data?.selectedGameweek ? <div className="fixture-empty"><CalendarDays /><h3>No eligible completed gameweeks</h3><p>This player's history will appear after an eligible gameweek is completed.</p></div> : <div className="player-prediction-list">
         <div className="player-prediction-head"><span>Fixture</span><span>Prediction</span><span>Actual</span><span>Points</span></div>
         {data.fixtures.map((fixture) => <article className="player-prediction-row" key={fixture.id}>
           <div className="player-fixture"><span><img src={fixture.homeTeam.logoUrl} alt="" />{fixture.homeTeam.name}</span><span><img src={fixture.awayTeam.logoUrl} alt="" />{fixture.awayTeam.name}</span></div>

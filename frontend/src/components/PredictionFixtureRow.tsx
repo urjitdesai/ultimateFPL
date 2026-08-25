@@ -28,7 +28,7 @@ export function PredictionFixtureRow({ fixture, draft, kickoff, isCaptain, onCha
     <time dateTime={fixture.kickoffAt}><strong>{kickoff.date}</strong><span>{kickoff.time}</span></time>
     <div className="team home-team"><Crest team={fixture.homeTeam} /><strong>{fixture.homeTeam.name}</strong></div>
     <div className="prediction-cell">
-      {completed ? <div className="result-comparison">
+      {fixture.predictionLockReason === "NOT_ELIGIBLE" ? <div className="not-eligible-result"><LockKeyhole /><strong>Not eligible</strong><span>Before you joined</span></div> : completed ? <div className="result-comparison">
         <div><span>Final</span><strong>{fixture.homeScore}–{fixture.awayScore}</strong></div>
         <div><span>You</span><strong>{prediction ? `${prediction.predictedHomeScore}–${prediction.predictedAwayScore}` : "—"}</strong></div>
         <div className={`points-award points-${prediction?.awardedPoints ?? 0}`}><strong>{prediction?.awardedPoints ?? 0} pts</strong><span>{prediction ? `${prediction.isCaptain ? "Captain · " : ""}${pointsCopy(prediction.scoringReason)}` : "No prediction"}</span></div>

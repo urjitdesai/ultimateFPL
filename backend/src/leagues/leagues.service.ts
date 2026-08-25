@@ -33,10 +33,15 @@ export function generateInviteCode() {
 export function getMembershipStartRound(
   joinedGameweek: unknown,
   joinedAtMillis: number | null,
-  gameweeks: Pick<Gameweek, "roundNumber" | "endsAt">[],
+  gameweeks: Pick<Gameweek, "roundNumber" | "startsAt" | "endsAt">[],
   fallbackRound = 1,
 ) {
   if (typeof joinedGameweek === "number" && Number.isInteger(joinedGameweek) && joinedGameweek > 0) {
+    const joinedRound = gameweeks.find((gameweek) => gameweek.roundNumber === joinedGameweek);
+    if (joinedAtMillis != null && joinedRound
+      && joinedAtMillis >= new Date(joinedRound.startsAt).getTime() - 60 * 60 * 1000) {
+      return joinedGameweek + 1;
+    }
     return joinedGameweek;
   }
   if (joinedAtMillis != null) {
@@ -158,6 +163,7 @@ type StandingCandidate = {
   correctResults: number;
   previousCorrectResults: number;
   joinedAt: number;
+  scoringStartedGameweek: number;
 };
 
 function compareStandings(
@@ -219,12 +225,13 @@ export async function getLeagueStandings(userId: string, leagueId: string) {
     const team = favoriteTeamId ? await firestore.collection("teams").doc(favoriteTeamId).get() : null;
     const membershipData = member.data();
     const joinedAtMillis = membershipData.joinedAt instanceof Timestamp ? membershipData.joinedAt.toMillis() : null;
-    const startRound = getMembershipStartRound(
+    const membershipStartRound = getMembershipStartRound(
       membershipData.joinedGameweek,
       joinedAtMillis,
       gameweeks,
       Number(profileData?.joinedGameweek ?? 1),
     );
+    const startRound = Math.max(Number(profileData?.joinedGameweek ?? 1), membershipStartRound);
     const scored = predictions.docs.map((prediction) => prediction.data())
       .filter((prediction) => prediction.awardedPoints != null
         && (roundByGameweekId.get(prediction.gameweekId) ?? 0) >= startRound);
@@ -248,6 +255,7 @@ export async function getLeagueStandings(userId: string, leagueId: string) {
       correctResults: throughCurrent.filter((prediction) => correctReasons.has(prediction.scoringReason)).length,
       previousCorrectResults: throughPrevious.filter((prediction) => correctReasons.has(prediction.scoringReason)).length,
       joinedAt: joinedAtMillis ?? 0,
+      scoringStartedGameweek: startRound,
     } satisfies StandingCandidate;
   }));
 
@@ -289,7 +297,13 @@ export async function getLeagueMemberPredictions(
     throw Object.assign(new Error("League player not found."), { code: "LEAGUE_PLAYER_NOT_FOUND", status: 404 });
   }
 
-  const availableGameweeks = gameweeks.filter((gameweek) => gameweek.status === "COMPLETE");
+  const membershipData = memberMembership.data()!;
+  const joinedAtMillis = membershipData.joinedAt instanceof Timestamp ? membershipData.joinedAt.toMillis() : null;
+  const startRound = Math.max(
+    Number(profile.data()!.joinedGameweek ?? 1),
+    getMembershipStartRound(membershipData.joinedGameweek, joinedAtMillis, gameweeks, Number(profile.data()!.joinedGameweek ?? 1)),
+  );
+  const availableGameweeks = gameweeks.filter((gameweek) => gameweek.status === "COMPLETE" && gameweek.roundNumber >= startRound);
   const selectedGameweek = requestedGameweekId
     ? availableGameweeks.find((gameweek) => gameweek.id === requestedGameweekId)
     : availableGameweeks.at(-1);
@@ -316,6 +330,7 @@ export async function getLeagueMemberPredictions(
     },
     gameweeks: availableGameweeks.map(({ id, roundNumber }) => ({ id, roundNumber })),
     selectedGameweek: selectedGameweek ? { id: selectedGameweek.id, roundNumber: selectedGameweek.roundNumber } : null,
+    eligibility: { startsGameweek: startRound },
     fixtures: fixtures.map((fixture) => {
       const prediction = predictions.get(fixture.id);
       return {

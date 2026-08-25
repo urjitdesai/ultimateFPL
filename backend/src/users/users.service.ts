@@ -27,6 +27,7 @@ export async function createProfile(input: ProfileInput) {
         role: "USER",
         activeSeasonId: seasonId,
         joinedGameweek: joinGameweek.roundNumber,
+        eligibleFromAt: FieldValue.serverTimestamp(),
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
       });

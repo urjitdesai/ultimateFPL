@@ -156,6 +156,16 @@ input:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 4px rgb
 .fixture-empty p { margin: 0; }
 .home-error { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; color: #9f1c14; background: #fff1f0; border-left: 3px solid #d92d20; }
 .home-error button { border: 0; background: transparent; color: #9f1c14; font-weight: 800; text-decoration: underline; cursor: pointer; }
+.eligibility-notice { display: flex; align-items: flex-start; gap: 12px; margin: 0 0 18px; padding: 15px 17px; border-left: 4px solid #6e8f00; background: #f3f8d7; color: #435320; }
+.eligibility-notice > svg { flex: 0 0 20px; width: 20px; color: #638000; }
+.eligibility-notice > div { display: grid; gap: 4px; }
+.eligibility-notice strong { color: var(--ink); font: 800 13px 'Manrope'; }
+.eligibility-notice p { margin: 0; font-size: 11px; line-height: 1.45; }
+.eligibility-notice.compact { margin-bottom: 24px; }
+.not-eligible-result { display: grid; place-items: center; gap: 3px; color: #748399; text-align: center; }
+.not-eligible-result svg { width: 16px; }
+.not-eligible-result strong { color: #526278; font: 800 11px 'Manrope'; text-transform: uppercase; }
+.not-eligible-result span { font-size: 9px; }
 
 .league-rail { padding: 36px 36px; border-left: 1px solid #e1e6ec; background: #fbfcfd; }
 .league-rail h2 { margin-bottom: 22px; font-size: 22px; }

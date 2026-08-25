@@ -4,7 +4,7 @@ import { app } from "../app.js";
 import { assignGameweeks, selectSeasonByYear } from "../fixtures/fixtures.service.js";
 import { decodeHtmlEntities } from "../utils/html.js";
 import { scorePrediction } from "../predictions/predictions.scoring.js";
-import { gameweekLockDeadline, isCurrentPredictionGameweek, predictionIsLocked } from "../predictions/predictions.service.js";
+import { gameweekLockDeadline, isCurrentPredictionGameweek, isUserEligibleForGameweek, predictionIsLocked } from "../predictions/predictions.service.js";
 import { Timestamp } from "firebase-admin/firestore";
 import { getGameweekStatus } from "../gameweeks/gameweeks.service.js";
 import { generateInviteCode, getMembershipStartRound, normalizeInviteCode, rankLeagueStandings } from "../leagues/leagues.service.js";
@@ -125,7 +125,7 @@ describe("foundation API", () => {
   });
 
   it("calculates league rank movement from the previous gameweek", () => {
-    const base = { favoriteTeam: null, gameweekPoints: 0, exactScores: 0, previousExactScores: 0, correctResults: 0, previousCorrectResults: 0 };
+    const base = { favoriteTeam: null, gameweekPoints: 0, exactScores: 0, previousExactScores: 0, correctResults: 0, previousCorrectResults: 0, scoringStartedGameweek: 1 };
     const standings = rankLeagueStandings([
       { ...base, userId: "alex", displayName: "Alex", points: 12, previousPoints: 5, joinedAt: 1 },
       { ...base, userId: "sam", displayName: "Sam", points: 10, previousPoints: 8, joinedAt: 2 },
@@ -160,12 +160,20 @@ describe("foundation API", () => {
 
   it("uses the league joining gameweek as the scoring boundary", () => {
     const gameweeks = [
-      { roundNumber: 1, endsAt: "2026-08-10T20:00:00.000Z" },
-      { roundNumber: 2, endsAt: "2026-08-17T20:00:00.000Z" },
-      { roundNumber: 3, endsAt: "2026-08-24T20:00:00.000Z" },
+      { roundNumber: 1, startsAt: "2026-08-08T12:00:00.000Z", endsAt: "2026-08-10T20:00:00.000Z" },
+      { roundNumber: 2, startsAt: "2026-08-15T12:00:00.000Z", endsAt: "2026-08-17T20:00:00.000Z" },
+      { roundNumber: 3, startsAt: "2026-08-22T12:00:00.000Z", endsAt: "2026-08-24T20:00:00.000Z" },
     ];
     expect(getMembershipStartRound(3, null, gameweeks)).toBe(3);
     expect(getMembershipStartRound(undefined, Date.parse("2026-08-12T12:00:00.000Z"), gameweeks)).toBe(2);
+    expect(getMembershipStartRound(2, Date.parse("2026-08-15T11:00:00.000Z"), gameweeks)).toBe(3);
+  });
+
+  it("does not score gameweeks from before registration or after their deadline", () => {
+    const gameweek = { roundNumber: 2, startsAt: "2026-08-15T12:00:00.000Z" };
+    expect(isUserEligibleForGameweek(2, Date.parse("2026-08-15T10:59:59.000Z"), gameweek)).toBe(true);
+    expect(isUserEligibleForGameweek(2, Date.parse("2026-08-15T11:00:00.000Z"), gameweek)).toBe(false);
+    expect(isUserEligibleForGameweek(3, Date.parse("2026-08-01T10:00:00.000Z"), gameweek)).toBe(false);
   });
 
 });

@@ -373,6 +373,7 @@ Fields should include:
 - Favorite team ID
 - Role: user or admin
 - Active season ID
+- Joined gameweek and eligibility timestamp
 - Created and updated timestamps
 
 Do not store password hashes in Cloud Firestore.
@@ -645,6 +646,14 @@ This behavior should be controlled by backend authorization, not only hidden in 
 A missing prediction earns zero points.
 
 The UI should clearly indicate fixtures for which the user has not submitted a prediction.
+
+### New-user scoring eligibility
+
+- A user's scoring begins with the first gameweek whose prediction deadline occurs after profile creation.
+- Fixtures from earlier gameweeks must not create default predictions, award points, or contribute to season statistics.
+- If registration occurs after the current gameweek deadline, scoring begins in the next gameweek.
+- League scoring begins no earlier than both the user's eligible gameweek and the membership's eligible gameweek.
+- Earlier gameweeks may remain visible for reference, but the UI must label them as not eligible rather than showing zero points.
 
 ---
 

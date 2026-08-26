@@ -7,7 +7,7 @@ import { scorePrediction } from "../predictions/predictions.scoring.js";
 import { gameweekLockDeadline, isCurrentPredictionGameweek, isUserEligibleForGameweek, predictionIsLocked } from "../predictions/predictions.service.js";
 import { Timestamp } from "firebase-admin/firestore";
 import { getGameweekStatus, selectJoinGameweek, type Gameweek } from "../gameweeks/gameweeks.service.js";
-import { defaultLeagueRecords, generateInviteCode, getMembershipStartRound, normalizeInviteCode, rankLeagueStandings } from "../leagues/leagues.service.js";
+import { defaultLeagueRecords, generateInviteCode, getMembershipStartRound, normalizeInviteCode, rankLeagueStandings, selectStandingsGameweeks } from "../leagues/leagues.service.js";
 import { fixtureOutcome, settleWager, teamsOnCooldown } from "../wagers/wagers.service.js";
 
 describe("foundation API", () => {
@@ -135,6 +135,20 @@ describe("foundation API", () => {
     expect(standings.find((entry) => entry.userId === "sam")).toMatchObject({ rank: 2, previousRank: 1, rankChange: -1 });
   });
 
+  it("gives equal-point players the same competition rank", () => {
+    const base = { favoriteTeam: null, gameweekPoints: 0, exactScores: 0, previousExactScores: 0, correctResults: 0, previousCorrectResults: 0, previousPoints: 20, scoringStartedGameweek: 1 };
+    const standings = rankLeagueStandings([
+      { ...base, userId: "alex", displayName: "Alex", points: 30, joinedAt: 1 },
+      { ...base, userId: "sam", displayName: "Sam", points: 30, joinedAt: 2 },
+      { ...base, userId: "jamie", displayName: "Jamie", points: 10, joinedAt: 3 },
+    ]);
+    expect(standings.map(({ userId, rank }) => ({ userId, rank }))).toEqual([
+      { userId: "alex", rank: 1 },
+      { userId: "sam", rank: 1 },
+      { userId: "jamie", rank: 3 },
+    ]);
+  });
+
   it("protects league standings", async () => {
     const response = await request(app).get("/api/v1/leagues/league-1/standings");
     expect(response.status).toBe(401);
@@ -168,6 +182,19 @@ describe("foundation API", () => {
     expect(getMembershipStartRound(3, null, gameweeks)).toBe(3);
     expect(getMembershipStartRound(undefined, Date.parse("2026-08-12T12:00:00.000Z"), gameweeks)).toBe(2);
     expect(getMembershipStartRound(2, Date.parse("2026-08-15T11:00:00.000Z"), gameweeks)).toBe(3);
+  });
+
+  it("builds standings only through the latest completed gameweek", () => {
+    expect(selectStandingsGameweeks([
+      { roundNumber: 1, status: "COMPLETE" },
+      { roundNumber: 2, status: "COMPLETE" },
+      { roundNumber: 3, status: "ACTIVE" },
+      { roundNumber: 4, status: "UPCOMING" },
+    ])).toEqual({ currentGameweek: 2, previousGameweek: 1 });
+    expect(selectStandingsGameweeks([
+      { roundNumber: 1, status: "ACTIVE" },
+      { roundNumber: 2, status: "UPCOMING" },
+    ])).toEqual({ currentGameweek: 0, previousGameweek: null });
   });
 
   it("protects wager reads and writes", async () => {

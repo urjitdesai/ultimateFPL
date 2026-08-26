@@ -293,12 +293,33 @@ function compareStandings(
 export function rankLeagueStandings(candidates: StandingCandidate[]) {
   const current = [...candidates].sort((left, right) => compareStandings(left, right));
   const previous = [...candidates].sort((left, right) => compareStandings(left, right, true));
-  const previousRanks = new Map(previous.map((candidate, index) => [candidate.userId, index + 1]));
-  return current.map((candidate, index) => {
-    const rank = index + 1;
-    const previousRank = previousRanks.get(candidate.userId) ?? rank;
-    return { ...candidate, rank, previousRank, rankChange: previousRank - rank };
+  const previousRanks = new Map<string, number>();
+  let previousPoints: number | null = null;
+  let previousRank = 0;
+  previous.forEach((candidate, index) => {
+    if (previousPoints == null || candidate.previousPoints !== previousPoints) previousRank = index + 1;
+    previousRanks.set(candidate.userId, previousRank);
+    previousPoints = candidate.previousPoints;
   });
+  let currentPoints: number | null = null;
+  let currentRank = 0;
+  return current.map((candidate, index) => {
+    if (currentPoints == null || candidate.points !== currentPoints) currentRank = index + 1;
+    const candidatePreviousRank = previousRanks.get(candidate.userId) ?? currentRank;
+    currentPoints = candidate.points;
+    return { ...candidate, rank: currentRank, previousRank: candidatePreviousRank, rankChange: candidatePreviousRank - currentRank };
+  });
+}
+
+export function selectStandingsGameweeks(gameweeks: Array<Pick<Gameweek, "roundNumber" | "status">>) {
+  const completedRounds = gameweeks
+    .filter((gameweek) => gameweek.status === "COMPLETE")
+    .map((gameweek) => gameweek.roundNumber);
+  const currentGameweek = completedRounds.reduce((latest, roundNumber) => Math.max(latest, roundNumber), 0);
+  const previousGameweek = completedRounds
+    .filter((roundNumber) => roundNumber < currentGameweek)
+    .reduce((latest, roundNumber) => Math.max(latest, roundNumber), 0);
+  return { currentGameweek, previousGameweek: previousGameweek || null };
 }
 
 export async function getLeagueStandings(userId: string, leagueId: string) {
@@ -317,10 +338,8 @@ export async function getLeagueStandings(userId: string, leagueId: string) {
   }
 
   const activeMemberships = memberships.docs.filter((document) => document.data().isActive === true);
-  const currentGameweek = gameweeks.find((gameweek) => gameweek.status === "ACTIVE")
-    ?? gameweeks.find((gameweek) => gameweek.status === "UPCOMING")
-    ?? gameweeks.at(-1);
-  const currentRound = currentGameweek?.roundNumber ?? 1;
+  const standingsGameweeks = selectStandingsGameweeks(gameweeks);
+  const currentRound = standingsGameweeks.currentGameweek;
   const roundByGameweekId = new Map(gameweeks.map((gameweek) => [gameweek.id, gameweek.roundNumber]));
 
   const candidates = await Promise.all(activeMemberships.map(async (member) => {
@@ -386,7 +405,7 @@ export async function getLeagueStandings(userId: string, leagueId: string) {
       inviteCode: league.data()!.inviteCode as string,
     },
     currentGameweek: currentRound,
-    previousGameweek: currentRound > 1 ? currentRound - 1 : null,
+    previousGameweek: standingsGameweeks.previousGameweek,
     standings: rankLeagueStandings(candidates).map((entry) => ({
       ...entry,
       totalPoints: entry.points,

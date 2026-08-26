@@ -826,7 +826,9 @@ Columns:
 
 ### Ranking order
 
-Recommended tie-breakers:
+Players with equal total points share the same competition rank. For example, scores of `30`, `30`, and `10` produce ranks `1`, `1`, and `3`.
+
+Use the following rules to order players for display within the standings:
 
 1. Total points, descending
 2. Number of exact-score predictions, descending
@@ -834,7 +836,9 @@ Recommended tie-breakers:
 4. Earlier league join date
 5. User ID as a deterministic final tie-breaker
 
-Clearly display when users are tied.
+Rules 2 through 5 do not break a points tie for rank; they only provide deterministic display ordering among players who share that rank. Apply the same competition-ranking behavior to previous-gameweek ranks used for movement.
+
+League standings include prediction points and wager gains or losses only through the latest fully completed gameweek. The gameweek currently open for predictions must not affect total points, gameweek points, rank, or rank movement. Before any gameweek is complete, every eligible member remains on the 100-point starting total.
 
 ### Firestore leaderboard model
 

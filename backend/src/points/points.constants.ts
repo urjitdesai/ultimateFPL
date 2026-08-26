@@ -1,0 +1,1 @@
+export const STARTING_TOTAL_POINTS = 100;

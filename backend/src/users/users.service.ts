@@ -3,6 +3,7 @@ import { firestore } from "../firebase/admin.js";
 import { getJoinGameweek } from "../gameweeks/gameweeks.service.js";
 import { getUserLeagues, joinDefaultLeagues } from "../leagues/leagues.service.js";
 import { getTeamById } from "../teams/teams.service.js";
+import { STARTING_TOTAL_POINTS } from "../points/points.constants.js";
 
 export type ProfileInput = { uid: string; email: string; displayName: string; favoriteTeamId: string };
 
@@ -35,6 +36,15 @@ export async function createProfile(input: ProfileInput) {
         activeSeasonId: seasonId,
         joinedGameweek: joinGameweek.roundNumber,
         eligibleFromAt: FieldValue.serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      transaction.create(firestore.collection("pointWallets").doc(input.uid), {
+        userId: input.uid,
+        availablePoints: STARTING_TOTAL_POINTS,
+        reservedPoints: 0,
+        predictionPoints: 0,
+        predictionSeasonId: seasonId,
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
       });

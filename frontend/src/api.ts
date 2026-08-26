@@ -13,7 +13,11 @@ export type FixtureTeam = Pick<Team, "id" | "name" | "logoUrl">;
 export type Fixture = { id: string; providerMatchId: number; gameweekId: string; roundNumber: number; kickoffAt: string; normalizedStatus: string; homeTeam: FixtureTeam; awayTeam: FixtureTeam; homeScore: number | null; awayScore: number | null };
 export type Prediction = { predictedHomeScore: number; predictedAwayScore: number; basePoints: number | null; awardedPoints: number | null; scoringReason: string | null; isCaptain: boolean; submittedAt: string | null; updatedAt: string | null };
 export type PredictionFixture = Fixture & { prediction: Prediction | null; predictionLocked: boolean; predictionLockReason: "GAMEWEEK_DEADLINE" | "NOT_ELIGIBLE" | null };
-export type PredictionView = { fixtures: PredictionFixture[]; predictionsOpen: boolean; captainedFixtureId: string | null; eligibility: { eligible: boolean; startsGameweek: number }; summary: { totalPoints: number; gameweekPoints: number; submittedCount: number; fixtureCount: number } };
+export type PredictionView = { fixtures: PredictionFixture[]; predictionsOpen: boolean; captainedFixtureId: string | null; eligibility: { eligible: boolean; startsGameweek: number }; summary: { totalPoints: number; gameweekPoints: number; wagerPoints: number; submittedCount: number; fixtureCount: number } };
+export type WagerSelection = "HOME_WIN" | "DRAW" | "AWAY_WIN";
+export type Wager = { id: string; fixtureId: string; gameweekId: string; roundNumber: number; selection: WagerSelection; stakePoints: number; status: "OPEN" | "WON" | "LOST"; returnPoints: number | null };
+export type WagerFixture = Fixture & { wagerUnavailableReason: "TEAM_COOLDOWN" | null };
+export type GameweekWagerView = { wallet: { availablePoints: number; reservedPoints: number }; wager: Wager | null; fixtures: WagerFixture[] };
 
 async function request<T>(path: string, init?: RequestInit, user?: User): Promise<T> {
   const token = user ? await user.getIdToken() : null;
@@ -31,6 +35,9 @@ export const api = {
   fixtures: (user: User, gameweekId: string) => request<Fixture[]>(`/fixtures/gameweek/${gameweekId}`, undefined, user),
   predictions: (user: User, gameweekId: string) => request<PredictionView>(`/gameweeks/${gameweekId}/predictions/me`, undefined, user),
   savePredictions: (user: User, gameweekId: string, predictions: Array<{ fixtureId: string; predictedHomeScore: number; predictedAwayScore: number }>, captainedFixtureId: string | null) => request<PredictionView>(`/gameweeks/${gameweekId}/predictions`, { method: "PUT", body: JSON.stringify({ predictions, captainedFixtureId }) }, user),
+  gameweekWager: (user: User, gameweekId: string) => request<GameweekWagerView>(`/gameweeks/${gameweekId}/wager/me`, undefined, user),
+  saveGameweekWager: (user: User, gameweekId: string, fixtureId: string, selection: WagerSelection, stakePoints: number) => request<GameweekWagerView>(`/gameweeks/${gameweekId}/wager`, { method: "PUT", body: JSON.stringify({ fixtureId, selection, stakePoints }) }, user),
+  deleteGameweekWager: (user: User, gameweekId: string) => request<GameweekWagerView>(`/gameweeks/${gameweekId}/wager`, { method: "DELETE" }, user),
   leagues: (user: User) => request<League[]>("/leagues", undefined, user),
   createLeague: (user: User, name: string) => request<League>("/leagues", { method: "POST", body: JSON.stringify({ name }) }, user),
   joinLeague: (user: User, inviteCode: string) => request<League>("/leagues/join", { method: "POST", body: JSON.stringify({ inviteCode }) }, user),

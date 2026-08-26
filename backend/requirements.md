@@ -34,6 +34,7 @@ The MVP must support:
 - Joining a league using an invite code.
 - Display of Premier League fixtures grouped by gameweek.
 - Score predictions for every fixture.
+- A 100-point starting total with one outcome wager per gameweek funded from that total.
 - Per-fixture prediction locking at kickoff.
 - Automatic scoring after final results are available.
 - Gameweek and season leaderboards for private leagues.
@@ -380,7 +381,7 @@ Do not store password hashes in Cloud Firestore.
 
 ### League
 
-The MVP has one league model with no league type or scoring-format discriminator. On backend startup, the app idempotently creates an Overall league, one supporter league for every active team, and one cohort league for every gameweek in the active season. New users automatically join Overall, the supporter league for their favorite team, and the gameweek league matching their first scoring-eligible gameweek. Private invite-code leagues use the same model. There are no wager or head-to-head leagues.
+The MVP has one league model with no league type or scoring-format discriminator. On backend startup, the app idempotently creates an Overall league, one supporter league for every active team, and one cohort league for every gameweek in the active season. New users automatically join Overall, the supporter league for their favorite team, and the gameweek league matching their first scoring-eligible gameweek. Private invite-code leagues use the same model. Wagers draw from the user's total points and are not a league format. There are no head-to-head leagues.
 
 Fields should include:
 
@@ -654,6 +655,18 @@ The UI should clearly indicate fixtures for which the user has not submitted a p
 - If registration occurs after the current gameweek deadline, scoring begins in the next gameweek.
 - League scoring begins no earlier than both the user's eligible gameweek and the membership's eligible gameweek.
 - Earlier gameweeks may remain visible for reference, but the UI must label them as not eligible rather than showing zero points.
+
+### Outcome wagers
+
+- Every user begins with 100 total points when their profile is created. Prediction awards and settled wager gains or losses all modify this same total.
+- A user may place at most one wager in each scoring-eligible gameweek by explicitly opting in beside a fixture after entering its score prediction. The wager outcome (`HOME_WIN`, `DRAW`, or `AWAY_WIN`) is derived from that prediction.
+- The stake must be an integer from 1 through 20 and cannot exceed the user's available total points.
+- The stake is deducted from the displayed available total immediately. A correct outcome returns twice the stake; an incorrect outcome returns zero.
+- Once a user wagers on a fixture, both participating teams are unavailable to that user for the next three gameweeks.
+- Open wagers may be updated before kickoff. Changing the fixture requires removing the open wager first.
+- The fixture-list UI must expose a compact wager toggle beside Captain. A selected wager is shown only by a green Wager control and its point amount; clicking the green control again removes it and immediately allows another fixture to be selected in the same draft. Wager changes submit through the same Save Predictions action.
+- Wagering is optional: every fixture's wager control is off by default, and entering a score prediction alone must never activate it.
+- Settlement must be transactional and idempotent so repeated fixture synchronization cannot credit the wallet twice.
 
 ---
 
@@ -1308,6 +1321,41 @@ Firebase Authentication remains the source of truth for the user's email identit
 ```
 
 This top-level collection supports queries by either `leagueId` or `userId`.
+
+#### `pointWallets/{userId}`
+
+```ts
+{
+  userId: string;
+  availablePoints: number;
+  reservedPoints: number;
+  predictionPoints: number;
+  predictionSeasonId: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+```
+
+#### `wagers/{userId}_{gameweekId}`
+
+```ts
+{
+  userId: string;
+  fixtureId: string;
+  seasonId: string;
+  gameweekId: string;
+  roundNumber: number;
+  homeTeamId: string;
+  awayTeamId: string;
+  selection: "HOME_WIN" | "DRAW" | "AWAY_WIN";
+  stakePoints: number;
+  status: "OPEN" | "WON" | "LOST";
+  returnPoints: number | null;
+  submittedAt: Timestamp;
+  updatedAt: Timestamp;
+  settledAt: Timestamp | null;
+}
+```
 
 #### `predictions/{userId}_{fixtureId}`
 
@@ -2000,9 +2048,11 @@ The MVP is complete when:
 13. Postponed fixtures can be rescheduled without losing predictions.
 14. The app works on mobile and desktop.
 15. Automated tests cover the scoring and locking rules.
-16. No Footballdata.io API key, Firebase Admin credential, or service-account secret is exposed to the browser.
-17. The app displays an independent/non-affiliation disclaimer.
-18. Club-logo display can be disabled through configuration.
+16. A user starts with 100 total points and can place no more than one 1–20 point outcome wager per eligible gameweek from those points.
+17. Correct wagers return double, incorrect wagers lose their stake, and both teams observe the three-gameweek cooldown.
+18. No Footballdata.io API key, Firebase Admin credential, or service-account secret is exposed to the browser.
+19. The app displays an independent/non-affiliation disclaimer.
+20. Club-logo display can be disabled through configuration.
 ---
 
 ## 26. Out of Scope for the Initial MVP

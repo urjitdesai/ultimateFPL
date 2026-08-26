@@ -106,10 +106,10 @@ input:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 4px rgb
 .save-predictions:disabled { opacity: .45; cursor: not-allowed; }
 .save-predictions.is-saved { background: #e8f7db; color: #287213; }
 .fixture-list { border-top: 1px solid var(--line); }
-.fixture-head, .fixture-row { display: grid; grid-template-columns: 125px minmax(0,1fr) 200px minmax(0,1fr); align-items: center; }
+.fixture-head, .fixture-row { display: grid; grid-template-columns: 110px minmax(0,1fr) 230px minmax(0,1fr); align-items: center; }
 .fixture-head { min-height: 35px; color: #72829a; font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
 .fixture-head span:nth-child(3) { text-align: center; }
-.fixture-head span:last-child { text-align: right; }
+.fixture-head span:nth-child(4) { text-align: right; }
 .fixture-row { min-height: 80px; border-top: 1px solid #e1e7ee; }
 .fixture-row time { display: grid; gap: 3px; color: #52637a; font-size: 12px; }
 .fixture-row time strong { color: #273a53; font-size: 13px; }
@@ -121,8 +121,8 @@ input:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 4px rgb
 .team-crest span { position: absolute; inset: 0; display: grid; place-items: center; color: #13243d; font: 800 10px 'Manrope'; }
 .versus { text-align: center; color: #8492a5; font: 700 11px 'Manrope'; text-transform: uppercase; }
 .prediction-cell { display: grid; place-items: center; min-height: 79px; border-inline: 1px solid #edf0f4; }
-.prediction-row { min-height: 98px; }
-.prediction-row .prediction-cell { min-height: 97px; }
+.prediction-row { min-height: 112px; }
+.prediction-row .prediction-cell { min-height: 111px; }
 .prediction-editor { display: grid; place-items: center; gap: 7px; }
 .score-entry { display: flex; align-items: center; gap: 8px; }
 .score-entry input { width: 48px; height: 45px; padding: 0; border-radius: 5px; text-align: center; font: 800 18px 'Manrope'; appearance: textfield; }
@@ -133,6 +133,18 @@ input:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 4px rgb
 .captain-button:hover:not(:disabled), .captain-button:focus-visible { border-color: #91b900; color: #405400; }
 .captain-button.is-captain { border-color: var(--lime); background: var(--lime); color: var(--navy); }
 .captain-button:disabled { opacity: .42; cursor: not-allowed; }
+.prediction-options { max-width: 220px; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; }
+.wager-button:hover:not(:disabled), .wager-button:focus-visible { border-color: #16834b; color: #176f43; }
+.wager-button.is-wager { border-color: #16834b; background: #16834b; color: #fff; }
+.wager-points-value { color: #397552; font-size: 9px; font-weight: 800; }
+.wager-points-input { height: 24px; display: flex; align-items: center; gap: 3px; padding: 0 6px 0 0; border: 1px solid #b9ccbf; border-radius: 999px; color: #587064; background: #fff; font-size: 8px; font-weight: 800; }
+.wager-points-input input { width: 34px; height: 22px; padding: 0; border: 0; border-right: 1px solid #d6e1da; border-radius: 999px 0 0 999px; color: #17452e; background: #f2faf5; text-align: center; font-size: 10px; font-weight: 800; appearance: textfield; }
+.wager-points-input input::-webkit-inner-spin-button { appearance: none; }
+.completed-prediction, .locked-prediction-wrap { width: 100%; display: grid; place-items: center; gap: 5px; }
+.prediction-wager-summary { display: inline-flex; align-items: center; gap: 4px; color: #397552; font-size: 8px; font-weight: 800; }
+.prediction-wager-summary svg { width: 11px; height: 11px; }
+.prediction-wager-summary.won { color: #08743d; }
+.prediction-wager-summary.lost { color: #a13b3b; }
 .locked-prediction { display: grid; grid-template-columns: 18px auto auto; align-items: center; gap: 6px; color: #6f7e92; }
 .locked-prediction svg { width: 14px; }
 .locked-prediction span { font-size: 10px; font-weight: 700; text-transform: uppercase; }
@@ -345,7 +357,7 @@ input:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 4px rgb
   .save-predictions { min-width: 132px; padding: 0 10px; font-size: 11px; }
   .fixture-head { display: none; }
   .fixture-list { border-top: 1px solid var(--line); }
-  .fixture-row { min-height: 148px; grid-template-columns: minmax(0,1fr) 116px minmax(0,1fr); grid-template-areas: "time time time" "home prediction away"; gap: 8px 5px; padding: 12px 0; }
+  .fixture-row { min-height: 148px; grid-template-columns: minmax(0,1fr) 142px minmax(0,1fr); grid-template-areas: "time time time" "home prediction away"; gap: 8px 5px; padding: 12px 0; }
   .fixture-row time { grid-area: time; display: flex; justify-content: center; gap: 6px; font-size: 10px; }
   .fixture-row time strong { font-size: 11px; }
   .team { min-width: 0; flex-direction: column; justify-content: flex-start; gap: 6px; text-align: center; }
@@ -355,7 +367,8 @@ input:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 4px rgb
   .team-crest { flex-basis: 31px; width: 31px; height: 31px; font-size: 8px; }
   .team-crest img { width: 29px; height: 29px; }
   .prediction-cell { grid-area: prediction; min-height: 91px; border-inline: 0; }
-  .prediction-row .prediction-cell { min-height: 91px; }
+  .prediction-row .prediction-cell { min-height: 105px; }
+  .prediction-options { max-width: 138px; gap: 4px; }
   .captain-button { max-width: 108px; height: auto; min-height: 24px; justify-content: center; padding: 4px 7px; line-height: 1.15; text-align: center; }
   .score-entry { gap: 4px; }
   .score-entry input { width: 39px; height: 41px; font-size: 16px; }

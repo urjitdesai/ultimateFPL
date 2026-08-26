@@ -255,7 +255,11 @@ async function syncFixtures() {
     .map((match) => `footballdataIo_${match.match_id}`);
   if (completedFixtureIds.length > 0) {
     const { settleFixturePredictions } = await import("../predictions/predictions.service.js");
-    await Promise.all(completedFixtureIds.map((fixtureId) => settleFixturePredictions(fixtureId)));
+    const { settleFixtureWagers } = await import("../wagers/wagers.service.js");
+    await Promise.all(completedFixtureIds.flatMap((fixtureId) => [
+      settleFixturePredictions(fixtureId),
+      settleFixtureWagers(fixtureId),
+    ]));
   }
 }
 

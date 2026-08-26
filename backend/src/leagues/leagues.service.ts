@@ -6,6 +6,7 @@ import { getGameweeks, getJoinGameweek, type Gameweek } from "../gameweeks/gamew
 import { getFixturesForGameweek } from "../fixtures/fixtures.service.js";
 import type { Team } from "../teams/teams.service.js";
 import { teamLogoUrl } from "../utils/team-logo.js";
+import { STARTING_TOTAL_POINTS } from "../points/points.constants.js";
 
 export const createLeagueSchema = z.object({
   name: z.string().trim().min(3).max(50),
@@ -324,9 +325,10 @@ export async function getLeagueStandings(userId: string, leagueId: string) {
 
   const candidates = await Promise.all(activeMemberships.map(async (member) => {
     const memberUserId = member.data().userId as string;
-    const [profile, predictions] = await Promise.all([
+    const [profile, predictions, wagers] = await Promise.all([
       firestore.collection("users").doc(memberUserId).get(),
       firestore.collection("predictions").where("userId", "==", memberUserId).get(),
+      firestore.collection("wagers").where("userId", "==", memberUserId).get(),
     ]);
     const profileData = profile.data();
     const favoriteTeamId = profileData?.favoriteTeamId as string | undefined;
@@ -345,6 +347,14 @@ export async function getLeagueStandings(userId: string, leagueId: string) {
         && (roundByGameweekId.get(prediction.gameweekId) ?? 0) >= startRound);
     const throughCurrent = scored.filter((prediction) => roundByGameweekId.get(prediction.gameweekId)! <= currentRound);
     const throughPrevious = scored.filter((prediction) => roundByGameweekId.get(prediction.gameweekId)! < currentRound);
+    const relevantWagers = wagers.docs.map((wager) => wager.data()).filter((wager) =>
+      Number(wager.roundNumber) >= startRound);
+    const wagerNet = (entries: typeof relevantWagers) => entries.reduce(
+      (total, wager) => total + Number(wager.returnPoints ?? 0) - Number(wager.stakePoints),
+      0,
+    );
+    const throughCurrentWagers = relevantWagers.filter((wager) => Number(wager.roundNumber) <= currentRound);
+    const throughPreviousWagers = relevantWagers.filter((wager) => Number(wager.roundNumber) < currentRound);
     const correctReasons = new Set(["EXACT_SCORE", "CORRECT_GOAL_DIFFERENCE", "CORRECT_RESULT"]);
     return {
       userId: memberUserId,
@@ -354,10 +364,11 @@ export async function getLeagueStandings(userId: string, leagueId: string) {
         name: team.data()!.name as string,
         logoUrl: teamLogoUrl(team.id),
       } : null,
-      points: throughCurrent.reduce((total, prediction) => total + Number(prediction.awardedPoints), 0),
-      previousPoints: throughPrevious.reduce((total, prediction) => total + Number(prediction.awardedPoints), 0),
+      points: STARTING_TOTAL_POINTS + throughCurrent.reduce((total, prediction) => total + Number(prediction.awardedPoints), 0) + wagerNet(throughCurrentWagers),
+      previousPoints: STARTING_TOTAL_POINTS + throughPrevious.reduce((total, prediction) => total + Number(prediction.awardedPoints), 0) + wagerNet(throughPreviousWagers),
       gameweekPoints: scored.filter((prediction) => roundByGameweekId.get(prediction.gameweekId) === currentRound)
-        .reduce((total, prediction) => total + Number(prediction.awardedPoints), 0),
+        .reduce((total, prediction) => total + Number(prediction.awardedPoints), 0)
+        + wagerNet(relevantWagers.filter((wager) => Number(wager.roundNumber) === currentRound)),
       exactScores: throughCurrent.filter((prediction) => prediction.scoringReason === "EXACT_SCORE").length,
       previousExactScores: throughPrevious.filter((prediction) => prediction.scoringReason === "EXACT_SCORE").length,
       correctResults: throughCurrent.filter((prediction) => correctReasons.has(prediction.scoringReason)).length,

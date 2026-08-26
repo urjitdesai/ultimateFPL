@@ -4,6 +4,7 @@ import { firestore } from "../firebase/admin.js";
 import { getFixturesForGameweek } from "../fixtures/fixtures.service.js";
 import { getCurrentGameweek } from "../gameweeks/gameweeks.service.js";
 import { scorePrediction } from "./predictions.scoring.js";
+import { STARTING_TOTAL_POINTS } from "../points/points.constants.js";
 
 export const predictionBatchSchema = z.object({
   predictions: z.array(z.object({
@@ -270,12 +271,36 @@ async function rebuildUserStats(userId: string, seasonId: string) {
     updatedAt: FieldValue.serverTimestamp(),
   });
 
+  const seasonTotals = totals(scored);
   const batch = firestore.batch();
-  batch.set(firestore.collection("userSeasonStats").doc(`${seasonId}_${userId}`), { userId, seasonId, ...totals(scored) });
+  batch.set(firestore.collection("userSeasonStats").doc(`${seasonId}_${userId}`), { userId, seasonId, ...seasonTotals });
   for (const [gameweekId, predictions] of byGameweek) {
     batch.set(firestore.collection("userGameweekStats").doc(`${gameweekId}_${userId}`), { userId, seasonId, gameweekId, ...totals(predictions) });
   }
   await batch.commit();
+  const walletRef = firestore.collection("pointWallets").doc(userId);
+  await firestore.runTransaction(async (transaction) => {
+    const wallet = await transaction.get(walletRef);
+    if (!wallet.exists) {
+      transaction.create(walletRef, {
+        userId,
+        availablePoints: STARTING_TOTAL_POINTS + seasonTotals.points,
+        reservedPoints: 0,
+        predictionPoints: seasonTotals.points,
+        predictionSeasonId: seasonId,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      return;
+    }
+    const previousPredictionPoints = Number(wallet.data()!.predictionPoints ?? 0);
+    transaction.update(walletRef, {
+      availablePoints: Number(wallet.data()!.availablePoints) + seasonTotals.points - previousPredictionPoints,
+      predictionPoints: seasonTotals.points,
+      predictionSeasonId: seasonId,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  });
 }
 
 export async function getGameweekPredictions(userId: string, gameweekId: string) {
@@ -294,8 +319,9 @@ export async function getGameweekPredictions(userId: string, gameweekId: string)
   ));
   const deadline = currentGameweek?.id === gameweekId ? gameweekLockDeadline(currentGameweek.startsAt) : 0;
   const predictionsOpen = eligible && isCurrentPredictionGameweek(gameweekId, currentGameweek?.id ?? null) && Date.now() < deadline;
+  const { settleFixtureWagers } = await import("../wagers/wagers.service.js");
   await Promise.all(fixtures.filter((fixture) => fixture.normalizedStatus === "COMPLETED")
-    .map((fixture) => settleFixturePredictions(fixture.id)));
+    .flatMap((fixture) => [settleFixturePredictions(fixture.id), settleFixtureWagers(fixture.id)]));
 
   const predictionSnapshots = await Promise.all(fixtures.map((fixture) =>
     firestore.collection("predictions").doc(predictionId(userId, fixture.id)).get()));
@@ -303,10 +329,15 @@ export async function getGameweekPredictions(userId: string, gameweekId: string)
     .map((snapshot) => [snapshot.data()!.fixtureId as string, serializePrediction(snapshot.data()!)]));
   const seasonId = fixtures[0]?.seasonId as string | undefined;
   if (seasonId) await rebuildUserStats(userId, seasonId);
-  const [seasonStats, gameweekStats] = await Promise.all([
+  const [seasonStats, gameweekStats, wallet, wager] = await Promise.all([
     seasonId ? firestore.collection("userSeasonStats").doc(`${seasonId}_${userId}`).get() : null,
     firestore.collection("userGameweekStats").doc(`${gameweekId}_${userId}`).get(),
+    firestore.collection("pointWallets").doc(userId).get(),
+    firestore.collection("wagers").doc(`${userId}_${gameweekId}`).get(),
   ]);
+  const wagerPoints = wager.exists
+    ? Number(wager.data()!.returnPoints ?? 0) - Number(wager.data()!.stakePoints)
+    : 0;
   return {
     fixtures: fixtures.map((fixture) => ({
       ...fixture,
@@ -321,8 +352,11 @@ export async function getGameweekPredictions(userId: string, gameweekId: string)
       startsGameweek: Number(user.data()!.joinedGameweek ?? 1),
     },
     summary: {
-      totalPoints: Number(seasonStats?.data()?.points ?? 0),
-      gameweekPoints: eligible ? Number(gameweekStats.data()?.points ?? 0) : 0,
+      totalPoints: wallet.exists
+        ? Number(wallet.data()!.availablePoints)
+        : STARTING_TOTAL_POINTS + Number(seasonStats?.data()?.points ?? 0),
+      gameweekPoints: eligible ? Number(gameweekStats.data()?.points ?? 0) + wagerPoints : 0,
+      wagerPoints: eligible ? wagerPoints : 0,
       submittedCount: eligible ? predictions.size : 0,
       fixtureCount: fixtures.length,
     },

@@ -8,6 +8,7 @@ import { gameweekLockDeadline, isCurrentPredictionGameweek, isUserEligibleForGam
 import { Timestamp } from "firebase-admin/firestore";
 import { getGameweekStatus, selectJoinGameweek, type Gameweek } from "../gameweeks/gameweeks.service.js";
 import { defaultLeagueRecords, generateInviteCode, getMembershipStartRound, normalizeInviteCode, rankLeagueStandings } from "../leagues/leagues.service.js";
+import { fixtureOutcome, settleWager, teamsOnCooldown } from "../wagers/wagers.service.js";
 
 describe("foundation API", () => {
   it("reports health", async () => {
@@ -167,6 +168,31 @@ describe("foundation API", () => {
     expect(getMembershipStartRound(3, null, gameweeks)).toBe(3);
     expect(getMembershipStartRound(undefined, Date.parse("2026-08-12T12:00:00.000Z"), gameweeks)).toBe(2);
     expect(getMembershipStartRound(2, Date.parse("2026-08-15T11:00:00.000Z"), gameweeks)).toBe(3);
+  });
+
+  it("protects wager reads and writes", async () => {
+    const [read, write, remove] = await Promise.all([
+      request(app).get("/api/v1/gameweeks/gameweek-1/wager/me"),
+      request(app).put("/api/v1/gameweeks/gameweek-1/wager").send({ fixtureId: "fixture-1", selection: "HOME_WIN", stakePoints: 10 }),
+      request(app).delete("/api/v1/gameweeks/gameweek-1/wager"),
+    ]);
+    expect(read.status).toBe(401);
+    expect(write.status).toBe(401);
+    expect(remove.status).toBe(401);
+  });
+
+  it("settles outcome wagers at double return or a lost stake", () => {
+    expect(fixtureOutcome(2, 1)).toBe("HOME_WIN");
+    expect(fixtureOutcome(1, 1)).toBe("DRAW");
+    expect(settleWager("AWAY_WIN", 20, 0, 2)).toEqual({ status: "WON", returnPoints: 40 });
+    expect(settleWager("DRAW", 12, 1, 0)).toEqual({ status: "LOST", returnPoints: 0 });
+  });
+
+  it("blocks both wagered teams for the next three gameweeks", () => {
+    const history = [{ roundNumber: 2, homeTeamId: "arsenal", awayTeamId: "chelsea" }];
+    expect([...teamsOnCooldown(history, 3)].sort()).toEqual(["arsenal", "chelsea"]);
+    expect([...teamsOnCooldown(history, 5)].sort()).toEqual(["arsenal", "chelsea"]);
+    expect([...teamsOnCooldown(history, 6)]).toEqual([]);
   });
 
   it("places users in the cohort for their first scoring-eligible gameweek", () => {

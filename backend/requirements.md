@@ -648,6 +648,14 @@ A missing prediction earns zero points.
 
 The UI should clearly indicate fixtures for which the user has not submitted a prediction.
 
+### Prediction draft defaults
+
+- Every editable fixture without a saved prediction is initialized to `0–0` in the UI draft.
+- Focusing a score input whose value is `0` clears it for immediate entry; leaving it empty on blur restores `0`.
+- Existing saved predictions always take precedence over the draft default.
+- When no captain has been saved for the gameweek, the editable fixture containing the user's favorite team is selected as Captain by default.
+- These defaults remain client-side until the user presses Save Predictions; loading the fixture list alone must not create prediction records.
+
 ### New-user scoring eligibility
 
 - A user's scoring begins with the first gameweek whose prediction deadline occurs after profile creation.

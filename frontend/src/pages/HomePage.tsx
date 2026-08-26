@@ -33,6 +33,7 @@ function wagerSelectionForScore(score: { home: string; away: string }): WagerSel
 
 export function HomePage() {
   const { user, profile, loading: authLoading } = useAuth();
+  const favoriteTeamId = profile?.favoriteTeam.id ?? "";
   const [gameweeks, setGameweeks] = useState<Gameweek[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [view, setView] = useState<PredictionView>(emptyView);
@@ -63,7 +64,7 @@ export function HomePage() {
   }, [user]);
 
   useEffect(() => {
-    if (!user || !selectedId) return;
+    if (!user || !selectedId || !favoriteTeamId) return;
     let active = true;
     setFixtureLoading(true);
     setWagerView(null);
@@ -75,12 +76,18 @@ export function HomePage() {
       setWagerView(nextWagerView);
       setWagerDraft(null);
       setWagerChanged(false);
-      setCaptainedFixtureId(nextView.captainedFixtureId);
-      setDrafts(Object.fromEntries(nextView.fixtures.map((fixture) => [fixture.id, { home: fixture.prediction ? String(fixture.prediction.predictedHomeScore) : "", away: fixture.prediction ? String(fixture.prediction.predictedAwayScore) : "" }])));
+      const favoriteTeamFixture = nextView.fixtures.find((fixture) => !fixture.predictionLocked
+        && (fixture.homeTeam.id === favoriteTeamId || fixture.awayTeam.id === favoriteTeamId));
+      setCaptainedFixtureId(nextView.captainedFixtureId ?? favoriteTeamFixture?.id ?? null);
+      setDrafts(Object.fromEntries(nextView.fixtures.map((fixture) => [fixture.id, fixture.prediction
+        ? { home: String(fixture.prediction.predictedHomeScore), away: String(fixture.prediction.predictedAwayScore) }
+        : fixture.predictionLocked
+          ? { home: "", away: "" }
+          : { home: "0", away: "0" }])));
       setSaved(false);
     }).catch(() => active && setError("We couldn't load predictions for that gameweek.")).finally(() => active && setFixtureLoading(false));
     return () => { active = false; };
-  }, [selectedId, user]);
+  }, [favoriteTeamId, selectedId, user]);
 
   const selected = useMemo(() => gameweeks.find((gameweek) => gameweek.id === selectedId), [gameweeks, selectedId]);
   const visibleLeagues = leagues;

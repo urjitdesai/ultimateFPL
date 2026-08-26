@@ -16,6 +16,7 @@ type Props = {
   wagerBalance: number;
   wagerEligible: boolean;
   hasOtherWager: boolean;
+  currentWagerStake: number;
   onSetWager: (draft: WagerDraft) => void;
   onRemoveWager: () => void;
 };
@@ -42,7 +43,7 @@ function selectionLabel(selection: WagerSelection, fixture: PredictionFixture) {
   return "Draw";
 }
 
-export function PredictionFixtureRow({ fixture, draft, kickoff, isCaptain, onChange, onCaptain, wager, wagerUnavailableReason, wagerDraft, wagerBalance, wagerEligible, hasOtherWager, onSetWager, onRemoveWager }: Props) {
+export function PredictionFixtureRow({ fixture, draft, kickoff, isCaptain, onChange, onCaptain, wager, wagerUnavailableReason, wagerDraft, wagerBalance, wagerEligible, hasOtherWager, currentWagerStake, onSetWager, onRemoveWager }: Props) {
   const completed = fixture.normalizedStatus === "COMPLETED" && fixture.homeScore != null && fixture.awayScore != null;
   const prediction = fixture.prediction;
   const wagerKickoffLocked = Date.now() >= new Date(fixture.kickoffAt).getTime();
@@ -55,13 +56,13 @@ export function PredictionFixtureRow({ fixture, draft, kickoff, isCaptain, onCha
       : Number(draft.home) < Number(draft.away)
         ? "AWAY_WIN"
         : "DRAW";
-  const canAddWager = Boolean(predictedSelection) && wagerEligible && !hasOtherWager && !wagerKickoffLocked && wagerUnavailableReason == null && maxAvailableStake >= 1;
+  const canAddWager = Boolean(predictedSelection) && wagerEligible && !wagerKickoffLocked && wagerUnavailableReason == null && (hasOtherWager || maxAvailableStake >= 1);
   const wagerButtonTitle = !predictedSelection
     ? "Enter a score prediction first"
     : !wagerEligible
       ? "Wagering starts from your first eligible gameweek"
       : hasOtherWager
-        ? "You already selected a wager for this gameweek"
+        ? "Move your wager to this fixture"
         : wagerKickoffLocked
           ? "Wagering is closed for this fixture"
           : wagerUnavailableReason === "TEAM_COOLDOWN"
@@ -80,7 +81,7 @@ export function PredictionFixtureRow({ fixture, draft, kickoff, isCaptain, onCha
         <div className={`points-award points-${prediction?.awardedPoints ?? 0}`}><strong>{prediction?.awardedPoints ?? 0} pts</strong><span>{prediction ? `${prediction.isCaptain ? "Captain · " : ""}${pointsCopy(prediction.scoringReason)}` : "No prediction"}</span></div>
       </div>{wagerSettled && wager ? <span className={`prediction-wager-summary ${wager.status.toLowerCase()}`}><Coins />{wager.status === "WON" ? `Won ${wager.returnPoints}` : `Lost ${wager.stakePoints}`} · {selectionLabel(wager.selection, fixture)}</span> : null}</div> : fixture.predictionLocked ? <div className="locked-prediction-wrap"><div className="locked-prediction"><LockKeyhole /><span>{prediction ? prediction.isCaptain ? "Captain pick" : "Your pick" : "Predictions closed"}</span><strong>{prediction ? `${prediction.predictedHomeScore}–${prediction.predictedAwayScore}` : "—"}</strong></div>{wager ? <span className="prediction-wager-summary"><Coins />{wager.stakePoints} pts on {selectionLabel(wager.selection, fixture)}</span> : null}</div> : <div className="prediction-editor">
         <div className="score-entry" aria-label={`Prediction for ${fixture.homeTeam.name} against ${fixture.awayTeam.name}`}><input aria-label={`${fixture.homeTeam.name} predicted score`} inputMode="numeric" min="0" max="20" type="number" value={draft.home} onFocus={() => { if (draft.home === "0") onChange(fixture.id, "home", ""); }} onBlur={() => { if (draft.home === "") onChange(fixture.id, "home", "0"); }} onChange={(event) => onChange(fixture.id, "home", event.target.value)} /><span>–</span><input aria-label={`${fixture.awayTeam.name} predicted score`} inputMode="numeric" min="0" max="20" type="number" value={draft.away} onFocus={() => { if (draft.away === "0") onChange(fixture.id, "away", ""); }} onBlur={() => { if (draft.away === "") onChange(fixture.id, "away", "0"); }} onChange={(event) => onChange(fixture.id, "away", event.target.value)} /></div>
-        <div className="prediction-options"><button className={`captain-button ${isCaptain ? "is-captain" : ""}`} type="button" disabled={draft.home === "" || draft.away === ""} aria-pressed={isCaptain} onClick={() => onCaptain(fixture.id)}><Crown />Captain</button>{wagerDraft || wager ? <button className="captain-button wager-button is-wager" type="button" aria-pressed="true" title="Remove wager" onClick={onRemoveWager}><Coins />Wager</button> : <button className="captain-button wager-button" type="button" disabled={!canAddWager} aria-pressed="false" title={wagerButtonTitle} onClick={() => { if (predictedSelection) onSetWager({ fixtureId: fixture.id, selection: predictedSelection, stakePoints: 1 }); }}><Coins />Wager</button>}{wagerDraft ? <label className="wager-points-input"><input aria-label={`Points to wager on ${fixture.homeTeam.name} versus ${fixture.awayTeam.name}`} type="number" inputMode="numeric" min="1" max={Math.min(20, maxAvailableStake)} value={wagerDraft.stakePoints} onChange={(event) => { const stakePoints = Math.min(20, Math.max(1, Number(event.target.value))); onSetWager({ fixtureId: fixture.id, selection: predictedSelection ?? wagerDraft.selection, stakePoints }); }} /><span>pts</span></label> : wager ? <span className="wager-points-value">{wager.stakePoints} pts</span> : null}</div>
+        <div className="prediction-options"><button className={`captain-button ${isCaptain ? "is-captain" : ""}`} type="button" disabled={draft.home === "" || draft.away === ""} aria-pressed={isCaptain} onClick={() => onCaptain(fixture.id)}><Crown />Captain</button>{wagerDraft || wager ? <button className="captain-button wager-button is-wager" type="button" aria-pressed="true" title="Remove wager" onClick={onRemoveWager}><Coins />Wager</button> : <button className="captain-button wager-button" type="button" disabled={!canAddWager} aria-pressed="false" title={wagerButtonTitle} onClick={() => { if (predictedSelection) onSetWager({ fixtureId: fixture.id, selection: predictedSelection, stakePoints: hasOtherWager ? currentWagerStake : 1 }); }}><Coins />Wager</button>}{wagerDraft ? <label className="wager-points-input"><input aria-label={`Points to wager on ${fixture.homeTeam.name} versus ${fixture.awayTeam.name}`} type="number" inputMode="numeric" min="1" max={Math.min(20, maxAvailableStake)} value={wagerDraft.stakePoints} onWheel={(event) => event.currentTarget.blur()} onChange={(event) => { const stakePoints = Math.min(20, Math.max(1, Number(event.target.value))); onSetWager({ fixtureId: fixture.id, selection: predictedSelection ?? wagerDraft.selection, stakePoints }); }} /><span>pts</span></label> : wager ? <span className="wager-points-value">{wager.stakePoints} pts</span> : null}</div>
       </div>}
     </div>
     <div className="team away-team"><strong>{fixture.awayTeam.name}</strong><Crest team={fixture.awayTeam} /></div>

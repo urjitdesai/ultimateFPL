@@ -130,13 +130,10 @@ export function HomePage() {
       const predictionRequest = predictions.length > 0
         ? api.savePredictions(user, selectedId, predictions, captainedFixtureId)
         : Promise.resolve(view);
-      const saveWagerDraft = () => wagerDraft
-        ? api.saveGameweekWager(user, selectedId, wagerDraft.fixtureId, wagerDraft.selection, wagerDraft.stakePoints)
-        : api.deleteGameweekWager(user, selectedId);
       const wagerRequest = wagerHasChanges
-        ? existingWager?.status === "OPEN" && wagerDraft && wagerDraft.fixtureId !== existingWager.fixtureId
-          ? api.deleteGameweekWager(user, selectedId).then(saveWagerDraft)
-          : saveWagerDraft()
+        ? wagerDraft
+          ? api.saveGameweekWager(user, selectedId, wagerDraft.fixtureId, wagerDraft.selection, wagerDraft.stakePoints)
+          : api.deleteGameweekWager(user, selectedId)
         : Promise.resolve(wagerView);
       const [nextView, nextWagerView] = await Promise.all([predictionRequest, wagerRequest]);
       const nextWagerPoints = nextWagerView.wager ? Number(nextWagerView.wager.returnPoints ?? 0) - nextWagerView.wager.stakePoints : 0;
@@ -169,7 +166,7 @@ export function HomePage() {
         {view.fixtures.map((fixture) => {
           const fixtureWager = wagerView?.wager?.fixtureId === fixture.id ? wagerView.wager : null;
           const visibleFixtureWager = wagerChanged && wagerDraft?.fixtureId !== fixture.id ? null : fixtureWager;
-          return <PredictionFixtureRow key={fixture.id} fixture={fixture} draft={drafts[fixture.id] ?? { home: "", away: "" }} kickoff={formatKickoff(fixture.kickoffAt)} isCaptain={captainedFixtureId === fixture.id} onChange={updateDraft} onCaptain={(fixtureId) => { setCaptainedFixtureId((current) => current === fixtureId ? null : fixtureId); setSaved(false); }} wager={visibleFixtureWager} wagerUnavailableReason={wagerView?.fixtures.find((entry) => entry.id === fixture.id)?.wagerUnavailableReason ?? null} wagerDraft={wagerDraft?.fixtureId === fixture.id ? wagerDraft : null} wagerBalance={(wagerView?.wallet.availablePoints ?? 0) + replacementRefund} wagerEligible={view.eligibility.eligible} hasOtherWager={Boolean(activeOpenWager && activeOpenWager.fixtureId !== fixture.id)} onSetWager={(next) => { setWagerDraft(next); setWagerChanged(true); setSaved(false); }} onRemoveWager={() => { setWagerDraft(null); setWagerChanged(true); setSaved(false); }} />;
+          return <PredictionFixtureRow key={fixture.id} fixture={fixture} draft={drafts[fixture.id] ?? { home: "", away: "" }} kickoff={formatKickoff(fixture.kickoffAt)} isCaptain={captainedFixtureId === fixture.id} onChange={updateDraft} onCaptain={(fixtureId) => { setCaptainedFixtureId((current) => current === fixtureId ? null : fixtureId); setSaved(false); }} wager={visibleFixtureWager} wagerUnavailableReason={wagerView?.fixtures.find((entry) => entry.id === fixture.id)?.wagerUnavailableReason ?? null} wagerDraft={wagerDraft?.fixtureId === fixture.id ? wagerDraft : null} wagerBalance={(wagerView?.wallet.availablePoints ?? 0) + replacementRefund} wagerEligible={view.eligibility.eligible} hasOtherWager={Boolean(activeOpenWager && activeOpenWager.fixtureId !== fixture.id)} currentWagerStake={activeOpenWager?.stakePoints ?? 1} onSetWager={(next) => { setWagerDraft(next); setWagerChanged(true); setSaved(false); }} onRemoveWager={() => { setWagerDraft(null); setWagerChanged(true); setSaved(false); }} />;
         })}
       </div>}
     </div><aside className="league-rail" id="leagues"><h2>Your leagues</h2>{visibleLeagues.map((league) => <button className="league-row league-row-button" key={league.id} onClick={() => navigate(`/leagues/${encodeURIComponent(league.id)}`)}><span className="league-icon"><Users /></span><span><strong>{league.name}</strong><small>{league.memberCount} {league.memberCount === 1 ? "member" : "members"}</small></span><ArrowRight /></button>)}<button className="view-all-leagues" onClick={() => navigate("/leagues")}>View all leagues <ArrowRight /></button><div className="season-note"><CalendarDays /><div><strong>Premier League only</strong><p>Your fixtures and leagues follow the active season.</p></div></div></aside></section>

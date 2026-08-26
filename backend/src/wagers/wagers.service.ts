@@ -153,9 +153,6 @@ export async function saveGameweekWager(
     if (existing.exists && existing.data()!.status !== "OPEN") {
       throw Object.assign(new Error("This wager has already been settled."), { code: "WAGER_SETTLED", status: 409 });
     }
-    if (existing.exists && existing.data()!.fixtureId !== input.fixtureId) {
-      throw Object.assign(new Error("Remove your current wager before choosing a different fixture."), { code: "WAGER_FIXTURE_CHANGE_REQUIRES_DELETE", status: 409 });
-    }
     const roundNumber = Number(fixtureData.roundNumber);
     const blockedTeams = teamsOnCooldown(history.docs
       .filter((document) => document.id !== wagerRef.id)

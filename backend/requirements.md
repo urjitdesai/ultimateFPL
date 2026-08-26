@@ -671,8 +671,9 @@ The UI should clearly indicate fixtures for which the user has not submitted a p
 - The stake must be an integer from 1 through 20 and cannot exceed the user's available total points.
 - The stake is deducted from the displayed available total immediately. A correct outcome returns twice the stake; an incorrect outcome returns zero.
 - Once a user wagers on a fixture, both participating teams are unavailable to that user for the next three gameweeks.
-- Open wagers may be updated before kickoff. Changing the fixture requires removing the open wager first.
-- The fixture-list UI must expose a compact wager toggle beside Captain. A selected wager is shown only by a green Wager control and its point amount; clicking the green control again removes it and immediately allows another fixture to be selected in the same draft. Wager changes submit through the same Save Predictions action.
+- Open wagers may be updated before kickoff. Changing the fixture updates the existing gameweek wager atomically after validating the new fixture.
+- The fixture-list UI must expose a compact wager toggle beside Captain. A selected wager is shown only by a green Wager control and its point amount; clicking the green control again removes it, while clicking Wager on another eligible fixture transfers the wager and preserves its stake. Wager changes submit through the same Save Predictions action.
+- Scrolling the page while the wager point input is focused must not change the stake.
 - Wagering is optional: every fixture's wager control is off by default, and entering a score prediction alone must never activate it.
 - Settlement must be transactional and idempotent so repeated fixture synchronization cannot credit the wallet twice.
 

@@ -52,6 +52,18 @@ input:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 4px rgb
 .auth-switch { margin: 23px 0 0; text-align: center; color: #5e6c80; font-size: 14px; }
 .login-card { max-width: 520px; }
 .login-card form { gap: 20px; }
+.forgot-password-link { margin-top: -10px; text-align: right; font-size: 13px; }
+.password-reset-card { position: relative; }
+.auth-back-link { display: inline-flex; align-items: center; gap: 7px; margin: 0 0 28px; padding: 0; border: 0; background: transparent; color: #52647a; font-size: 13px; font-weight: 700; cursor: pointer; }
+.auth-back-link svg { width: 16px; }
+.reset-icon { flex: 0 0 auto; width: 46px; height: 46px; display: grid; place-items: center; border-radius: 50%; color: var(--navy); background: var(--lime); }
+.reset-icon svg { width: 21px; }
+.reset-success { text-align: center; }
+.reset-success > svg { width: 58px; height: 58px; color: #2c8b23; }
+.reset-success h2 { margin: 18px 0 8px; font: 800 38px/1 'Manrope'; letter-spacing: -.05em; }
+.reset-success p { margin: 0 0 28px; color: #66758b; }
+.reset-success p strong { color: #35465c; overflow-wrap: anywhere; }
+.reset-another-email { margin-top: 16px; padding: 5px; border: 0; background: transparent; color: #064fd9; font-size: 13px; font-weight: 700; cursor: pointer; }
 
 .loading-screen { min-height: 100vh; display: grid; place-items: center; background: var(--navy); color: white; font: 700 18px 'Manrope'; }
 

@@ -513,10 +513,13 @@ For security-sensitive administrative cases, the backend may revoke a user's Fir
 
 ### Email verification and password reset
 
-These are optional for the initial MVP and can use native Firebase Authentication capabilities later:
+Email verification remains optional for the initial MVP. Password reset uses Firebase Authentication's native email-link workflow through `sendPasswordResetEmail`.
 
-- `sendEmailVerification`
-- `sendPasswordResetEmail`
+- Firebase generates, expires, and validates the one-time reset action code and applies the new password.
+- Use the Firebase-hosted action page for the initial MVP; a branded custom action handler may be added later.
+- Configure the password-reset email template and authorized production domains in Firebase Console.
+- The UI must show the same successful reset-request response whether or not the email is registered.
+- Login failures must use a shared `Incorrect email or password` message for invalid credentials so the UI does not expose whether an account exists.
 
 ### Roles and authorization
 
@@ -1040,7 +1043,7 @@ Prefix all application routes with:
 
 ### Authentication
 
-Firebase Authentication handles account creation, login, token refresh, logout, email verification, and password reset through the Firebase Web SDK.
+Firebase Authentication handles account creation, login, token refresh, logout, password reset, and optional email verification through the Firebase Web SDK.
 
 The Express API provides application-profile endpoints:
 
@@ -1873,7 +1876,6 @@ SCORING_RULE_VERSION=2026.1
 
 ENABLE_TEAM_LOGOS=false
 ENABLE_EMAIL_VERIFICATION=false
-ENABLE_PASSWORD_RESET=false
 ```
 
 When `FIREBASE_PRIVATE_KEY` is stored as an environment variable, normalize escaped newlines before initializing the Admin SDK:
@@ -2100,7 +2102,6 @@ Unless explicitly added later, exclude:
 - Advanced moderation tools
 - Third-party login
 - Email verification
-- Password reset
 - Public league discovery
 - Real-time WebSocket score updates
 
@@ -2123,7 +2124,6 @@ The product owner should provide the following details before or during implemen
 
 - Email/password only or Google/Apple sign-in.
 - Whether email verification is required.
-- Whether password reset must be part of the MVP.
 - Minimum user age and supported countries.
 
 ### Favorite team
@@ -2200,7 +2200,7 @@ When no other direction is provided, use these defaults:
 - Node.js + Express + TypeScript API.
 - Cloud Firestore + Firebase Admin SDK.
 - Firebase Authentication with email/password.
-- No email verification or password reset initially.
+- No email verification initially; password reset uses Firebase Authentication's native email-link workflow.
 - One league model with no league-type or scoring-format field, including automatic Overall, team supporter, and gameweek cohort leagues.
 - Maximum five created leagues per user.
 - Unlimited memberships for the initial MVP.

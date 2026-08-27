@@ -6,6 +6,7 @@ import { gameweekLockDeadline } from "../gameweeks/gameweek-deadline.js";
 import { getCurrentGameweek } from "../gameweeks/gameweeks.service.js";
 import { scorePrediction } from "./predictions.scoring.js";
 import { STARTING_TOTAL_POINTS } from "../points/points.constants.js";
+import { env } from "../config/env.js";
 
 export const predictionBatchSchema = z.object({
   predictions: z.array(z.object({
@@ -54,7 +55,15 @@ function serializePrediction(data: FirebaseFirestore.DocumentData) {
   };
 }
 
-export async function settleFixturePredictions(fixtureId: string) {
+function chunks<T>(values: T[], size = env.SCORING_BATCH_SIZE) {
+  return Array.from({ length: Math.ceil(values.length / size) }, (_, index) =>
+    values.slice(index * size, (index + 1) * size));
+}
+
+export async function settleFixturePredictions(
+  fixtureId: string,
+  options: { rebuildStats?: boolean } = {},
+) {
   const fixture = await firestore.collection("fixtures").doc(fixtureId).get();
   const fixtureData = fixture.data();
   if (!fixture.exists || fixtureData?.normalizedStatus !== "COMPLETED"
@@ -81,65 +90,74 @@ export async function settleFixturePredictions(fixtureId: string) {
   const eligibleUserIds = new Set(eligibleUsers.map((user) => user.id));
   const missingUsers = eligibleUsers.filter((user) => !existingUserIds.has(user.id));
   if (missingUsers.length > 0) {
-    const defaultBatch = firestore.batch();
-    for (const user of missingUsers) {
-      defaultBatch.create(firestore.collection("predictions").doc(predictionId(user.id, fixtureId)), {
-        userId: user.id,
-        fixtureId,
-        seasonId: fixtureData.seasonId,
-        gameweekId: fixtureData.gameweekId,
-        predictedHomeScore: 0,
-        predictedAwayScore: 0,
-        submittedAt: null,
-        updatedAt: null,
-        lockedAt: fixtureData.kickoffAt,
-        awardedPoints: null,
-        scoringReason: null,
-        scoredAt: null,
-        scoringRuleVersion: null,
-        basePoints: null,
-        isCaptain: false,
-        isDefault: true,
-      });
+    for (const usersChunk of chunks(missingUsers)) {
+      const chunkBatch = firestore.batch();
+      for (const user of usersChunk) {
+        chunkBatch.create(firestore.collection("predictions").doc(predictionId(user.id, fixtureId)), {
+          userId: user.id,
+          fixtureId,
+          seasonId: fixtureData.seasonId,
+          gameweekId: fixtureData.gameweekId,
+          predictedHomeScore: 0,
+          predictedAwayScore: 0,
+          submittedAt: null,
+          updatedAt: null,
+          lockedAt: fixtureData.kickoffAt,
+          awardedPoints: null,
+          scoringReason: null,
+          scoredAt: null,
+          scoringRuleVersion: null,
+          basePoints: null,
+          isCaptain: false,
+          isDefault: true,
+        });
+      }
+      await chunkBatch.commit();
     }
-    await defaultBatch.commit();
   }
 
   const allPredictions = missingUsers.length > 0
     ? await firestore.collection("predictions").where("fixtureId", "==", fixtureId).get()
     : predictions;
-  if (allPredictions.empty) return;
-  const batch = firestore.batch();
+  if (allPredictions.empty) return new Set<string>();
   const userIds = new Set<string>();
-  for (const prediction of allPredictions.docs) {
-    const data = prediction.data();
-    if (!eligibleUserIds.has(data.userId)) continue;
-    const result = scorePrediction({
-      predictedHome: data.predictedHomeScore,
-      predictedAway: data.predictedAwayScore,
-      actualHome: fixtureData.homeScore,
-      actualAway: fixtureData.awayScore,
-      isCaptain: data.isCaptain === true,
-    });
-    batch.update(prediction.ref, {
-      awardedPoints: result.points,
-      basePoints: result.basePoints,
-      scoringReason: result.reason,
-      scoringRuleVersion: result.ruleVersion,
-      lockedAt: fixtureData.kickoffAt,
-      scoredAt: FieldValue.serverTimestamp(),
-    });
-    userIds.add(data.userId);
+  const eligiblePredictions = allPredictions.docs.filter((prediction) =>
+    eligibleUserIds.has(prediction.data().userId));
+  for (const predictionChunk of chunks(eligiblePredictions)) {
+    const batch = firestore.batch();
+    for (const prediction of predictionChunk) {
+      const data = prediction.data();
+      const result = scorePrediction({
+        predictedHome: data.predictedHomeScore,
+        predictedAway: data.predictedAwayScore,
+        actualHome: fixtureData.homeScore,
+        actualAway: fixtureData.awayScore,
+        isCaptain: data.isCaptain === true,
+      });
+      batch.update(prediction.ref, {
+        awardedPoints: result.points,
+        basePoints: result.basePoints,
+        scoringReason: result.reason,
+        scoringRuleVersion: result.ruleVersion,
+        lockedAt: fixtureData.kickoffAt,
+        scoredAt: FieldValue.serverTimestamp(),
+      });
+      userIds.add(data.userId);
+    }
+    await batch.commit();
   }
-  await batch.commit();
-  await Promise.all([...userIds].map((userId) => rebuildUserStats(userId, fixtureData.seasonId)));
+  if (options.rebuildStats !== false) {
+    for (const userId of userIds) await rebuildUserStats(userId, fixtureData.seasonId);
+  }
+  return userIds;
 }
 
-async function rebuildUserStats(userId: string, seasonId: string) {
-  const [snapshot, user, gameweeks] = await Promise.all([
+export async function rebuildUserStats(userId: string, seasonId: string) {
+  const [snapshot, user, gameweeks, wagers] = await Promise.all([
     firestore.collection("predictions").where("userId", "==", userId).get(),
     firestore.collection("users").doc(userId).get(),
     firestore.collection("gameweeks").where("seasonId", "==", seasonId).get(),
+    firestore.collection("wagers").where("userId", "==", userId).get(),
   ]);
   if (!user.exists) return;
   const gameweekById = new Map(gameweeks.docs.map((document) => {
@@ -162,19 +180,33 @@ async function rebuildUserStats(userId: string, seasonId: string) {
     byGameweek.set(prediction.gameweekId, [...(byGameweek.get(prediction.gameweekId) ?? []), prediction]);
   }
 
-  const totals = (predictions: typeof scored) => ({
-    points: predictions.reduce((sum, prediction) => sum + Number(prediction.awardedPoints), 0),
-    scoredFixtures: predictions.length,
-    exactScores: predictions.filter((prediction) => prediction.scoringReason === "EXACT_SCORE").length,
-    correctResults: predictions.filter((prediction) => ["EXACT_SCORE", "CORRECT_GOAL_DIFFERENCE", "CORRECT_RESULT"].includes(prediction.scoringReason)).length,
-    updatedAt: FieldValue.serverTimestamp(),
-  });
+  const settledWagers = wagers.docs.map((document) => document.data())
+    .filter((wager) => wager.seasonId === seasonId && ["WON", "LOST"].includes(wager.status));
+  const wagerPointsForGameweek = (gameweekId: string) => settledWagers
+    .filter((wager) => wager.gameweekId === gameweekId)
+    .reduce((sum, wager) => sum + Number(wager.returnPoints ?? 0) - Number(wager.stakePoints), 0);
+  const totals = (predictions: typeof scored, gameweekId?: string) => {
+    const predictionPoints = predictions.reduce((sum, prediction) => sum + Number(prediction.awardedPoints), 0);
+    const wagerPoints = gameweekId == null
+      ? settledWagers.reduce((sum, wager) => sum + Number(wager.returnPoints ?? 0) - Number(wager.stakePoints), 0)
+      : wagerPointsForGameweek(gameweekId);
+    return {
+      points: predictionPoints,
+      predictionPoints,
+      wagerPoints,
+      totalPoints: predictionPoints + wagerPoints,
+      scoredFixtures: predictions.length,
+      exactScores: predictions.filter((prediction) => prediction.scoringReason === "EXACT_SCORE").length,
+      correctResults: predictions.filter((prediction) => ["EXACT_SCORE", "CORRECT_GOAL_DIFFERENCE", "CORRECT_RESULT"].includes(prediction.scoringReason)).length,
+      updatedAt: FieldValue.serverTimestamp(),
+    };
+  };
 
   const seasonTotals = totals(scored);
   const batch = firestore.batch();
   batch.set(firestore.collection("userSeasonStats").doc(`${seasonId}_${userId}`), { userId, seasonId, ...seasonTotals });
   for (const [gameweekId, predictions] of byGameweek) {
-    batch.set(firestore.collection("userGameweekStats").doc(`${gameweekId}_${userId}`), { userId, seasonId, gameweekId, ...totals(predictions) });
+    batch.set(firestore.collection("userGameweekStats").doc(`${gameweekId}_${userId}`), { userId, seasonId, gameweekId, ...totals(predictions, gameweekId) });
   }
   await batch.commit();
   const walletRef = firestore.collection("pointWallets").doc(userId);
@@ -183,19 +215,20 @@ async function rebuildUserStats(userId: string, seasonId: string) {
     if (!wallet.exists) {
       transaction.create(walletRef, {
         userId,
-        availablePoints: STARTING_TOTAL_POINTS + seasonTotals.points,
+        availablePoints: STARTING_TOTAL_POINTS + seasonTotals.totalPoints,
         reservedPoints: 0,
         predictionPoints: seasonTotals.points,
+        settledWagerPoints: seasonTotals.wagerPoints,
         predictionSeasonId: seasonId,
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
       });
       return;
     }
-    const previousPredictionPoints = Number(wallet.data()!.predictionPoints ?? 0);
     transaction.update(walletRef, {
-      availablePoints: Number(wallet.data()!.availablePoints) + seasonTotals.points - previousPredictionPoints,
+      availablePoints: STARTING_TOTAL_POINTS + seasonTotals.totalPoints - Number(wallet.data()!.reservedPoints ?? 0),
       predictionPoints: seasonTotals.points,
+      settledWagerPoints: seasonTotals.wagerPoints,
       predictionSeasonId: seasonId,
       updatedAt: FieldValue.serverTimestamp(),
     });
@@ -218,16 +251,20 @@ export async function getGameweekPredictions(userId: string, gameweekId: string)
   ));
   const deadline = currentGameweek?.id === gameweekId ? gameweekLockDeadline(currentGameweek.startsAt) : 0;
   const predictionsOpen = eligible && isCurrentPredictionGameweek(gameweekId, currentGameweek?.id ?? null) && Date.now() < deadline;
-  const { settleFixtureWagers } = await import("../wagers/wagers.service.js");
-  await Promise.all(fixtures.filter((fixture) => fixture.normalizedStatus === "COMPLETED")
-    .flatMap((fixture) => [settleFixturePredictions(fixture.id), settleFixtureWagers(fixture.id)]));
+  if (env.SCORING_MODE === "request_driven") {
+    const { settleFixtureWagers } = await import("../wagers/wagers.service.js");
+    for (const fixture of fixtures.filter((candidate) => candidate.normalizedStatus === "COMPLETED")) {
+      await settleFixturePredictions(fixture.id);
+      await settleFixtureWagers(fixture.id);
+    }
+  }
 
   const predictionSnapshots = await Promise.all(fixtures.map((fixture) =>
     firestore.collection("predictions").doc(predictionId(userId, fixture.id)).get()));
   const predictions = new Map(predictionSnapshots.filter((snapshot) => snapshot.exists)
     .map((snapshot) => [snapshot.data()!.fixtureId as string, serializePrediction(snapshot.data()!)]));
   const seasonId = fixtures[0]?.seasonId as string | undefined;
-  if (seasonId) await rebuildUserStats(userId, seasonId);
+  if (seasonId && env.SCORING_MODE === "request_driven") await rebuildUserStats(userId, seasonId);
   const [seasonStats, gameweekStats, wallet, wager] = await Promise.all([
     seasonId ? firestore.collection("userSeasonStats").doc(`${seasonId}_${userId}`).get() : null,
     firestore.collection("userGameweekStats").doc(`${gameweekId}_${userId}`).get(),
@@ -258,6 +295,9 @@ export async function getGameweekPredictions(userId: string, gameweekId: string)
       wagerPoints: eligible ? wagerPoints : 0,
       submittedCount: eligible ? predictions.size : 0,
       fixtureCount: fixtures.length,
+      pointsUpdatedAt: gameweekStats.data()?.updatedAt instanceof Timestamp
+        ? gameweekStats.data()!.updatedAt.toDate().toISOString()
+        : null,
     },
   };
 }

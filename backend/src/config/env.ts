@@ -1,5 +1,9 @@
 import "dotenv/config";
 import { z } from "zod";
+import { scoringJobProjectIsValid } from "./scoring-job-safety.js";
+
+const booleanEnvironmentValue = z.enum(["true", "false"])
+  .transform((value) => value === "true");
 
 const schema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -29,6 +33,15 @@ const schema = z.object({
   PROVIDER_BACKED_READ_RATE_LIMIT: z.coerce.number().int().positive().default(120),
   MAX_CREATED_LEAGUES_PER_USER: z.coerce.number().int().positive().default(50),
   MAX_PRIVATE_LEAGUE_MEMBERS: z.coerce.number().int().min(2).default(100),
+  SCORING_MODE: z.enum(["request_driven", "scheduled"]).default("request_driven"),
+  SCORING_JOB_ENABLED: booleanEnvironmentValue.default(false),
+  SCORING_EXPECTED_PROJECT_ID: z.string().trim().optional(),
+  SCORING_BATCH_SIZE: z.coerce.number().int().min(1).max(400).default(200),
+  SCORING_LEASE_MS: z.coerce.number().int().min(60_000).default(1_200_000),
+  SCORING_RUN_RETENTION_DAYS: z.coerce.number().int().min(1).default(30),
+  SYNC_LIVE_INTERVAL_MS: z.coerce.number().int().min(60_000).default(300_000),
+  SYNC_RECENT_INTERVAL_MS: z.coerce.number().int().min(60_000).default(1_800_000),
+  SYNC_IDLE_INTERVAL_MS: z.coerce.number().int().min(60_000).default(86_400_000),
 }).superRefine((values, context) => {
   if (values.HEADERS_TIMEOUT_MS > values.REQUEST_TIMEOUT_MS) {
     context.addIssue({
@@ -42,6 +55,17 @@ const schema = z.object({
       code: "custom",
       path: ["SERVER_TIMEOUT_MS"],
       message: "SERVER_TIMEOUT_MS must be at least REQUEST_TIMEOUT_MS.",
+    });
+  }
+  if (!scoringJobProjectIsValid(
+    values.SCORING_JOB_ENABLED,
+    values.FIREBASE_PROJECT_ID,
+    values.SCORING_EXPECTED_PROJECT_ID,
+  )) {
+    context.addIssue({
+      code: "custom",
+      path: ["SCORING_EXPECTED_PROJECT_ID"],
+      message: "SCORING_EXPECTED_PROJECT_ID must exactly match FIREBASE_PROJECT_ID when the scoring job is enabled.",
     });
   }
   if (values.NODE_ENV !== "production") return;

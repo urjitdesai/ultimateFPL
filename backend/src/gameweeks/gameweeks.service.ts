@@ -1,5 +1,6 @@
 import { Timestamp } from "firebase-admin/firestore";
 import { firestore } from "../firebase/admin.js";
+import { env } from "../config/env.js";
 import { ensureFixturesCached } from "../fixtures/fixtures.service.js";
 import { gameweekLockDeadline } from "./gameweek-deadline.js";
 
@@ -11,6 +12,7 @@ export type Gameweek = {
   endsAt: string;
   fixtureCount: number;
   status: "UPCOMING" | "ACTIVE" | "COMPLETE";
+  settlementStatus: "PENDING" | "PROCESSING" | "FINALIZED" | "FAILED";
 };
 
 const TERMINAL_FIXTURE_STATUSES = new Set([
@@ -40,6 +42,7 @@ function toGameweek(
 ): Gameweek {
   const startsAt = (data.startsAt as Timestamp).toDate();
   const endsAt = (data.endsAt as Timestamp).toDate();
+  const status = getGameweekStatus(startsAt, fixtureStatuses);
 
   return {
     id,
@@ -48,14 +51,17 @@ function toGameweek(
     startsAt: startsAt.toISOString(),
     endsAt: endsAt.toISOString(),
     fixtureCount: data.fixtureCount as number,
-    status: getGameweekStatus(startsAt, fixtureStatuses),
+    status,
+    settlementStatus: (data.settlementStatus as Gameweek["settlementStatus"] | undefined)
+      ?? (env.SCORING_MODE === "request_driven" && status === "COMPLETE" ? "FINALIZED" : "PENDING"),
   };
 }
 
 export async function getGameweeks() {
   await ensureFixturesCached();
   const metadata = await firestore.collection("syncMetadata").doc("fixtures").get();
-  const seasonId = metadata.data()?.seasonId as string;
+  const seasonId = metadata.data()?.seasonId as string | undefined;
+  if (!seasonId) return [];
   const [gameweeks, fixtures] = await Promise.all([
     firestore.collection("gameweeks").where("seasonId", "==", seasonId).get(),
     firestore.collection("fixtures").where("seasonId", "==", seasonId).get(),

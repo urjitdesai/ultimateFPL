@@ -53,7 +53,7 @@ export async function ensureDefaultLeagues() {
   await ensureFixturesCached();
   const metadata = await firestore.collection("syncMetadata").doc("fixtures").get();
   const seasonId = metadata.data()?.seasonId as string | undefined;
-  if (!seasonId) throw new Error("Cannot create default leagues without an active season.");
+  if (!seasonId) return;
 
   const [teamsSnapshot, gameweeksSnapshot] = await Promise.all([
     firestore.collection("teams").where("isActive", "==", true).get(),
@@ -362,6 +362,51 @@ export async function getLeagueStandings(userId: string, leagueId: string) {
     throw Object.assign(new Error("You are not a member of this league."), { code: "LEAGUE_PERMISSION_DENIED", status: 403 });
   }
 
+  if (env.SCORING_MODE === "scheduled") {
+    const [league, memberships, gameweeks] = await Promise.all([
+      firestore.collection("leagues").doc(leagueId).get(),
+      firestore.collection("leagueMemberships").where("leagueId", "==", leagueId).get(),
+      getGameweeks(),
+    ]);
+    if (!league.exists || !isActiveLeague(league.data())) {
+      throw Object.assign(new Error("League not found."), { code: "LEAGUE_NOT_FOUND", status: 404 });
+    }
+    const activeMemberships = memberships.docs.filter((document) => document.data().isActive === true);
+    const finalized = gameweeks.filter((gameweek) => gameweek.settlementStatus === "FINALIZED")
+      .sort((left, right) => left.roundNumber - right.roundNumber);
+    const latest = finalized.at(-1) ?? null;
+    const hasNewerCompleteGameweek = gameweeks.some((gameweek) =>
+      gameweek.status === "COMPLETE" && gameweek.roundNumber > (latest?.roundNumber ?? 0));
+    if (!latest) {
+      return {
+        league: { id: league.id, name: league.data()!.name as string, memberCount: activeMemberships.length, inviteCode: league.data()!.inviteCode as string },
+        currentGameweek: 0,
+        previousGameweek: null,
+        status: hasNewerCompleteGameweek ? "FINALIZING" as const : "EMPTY" as const,
+        lastUpdatedAt: null,
+        standings: [],
+      };
+    }
+    const snapshotRef = league.ref.collection("gameweeks").doc(latest.id);
+    const [snapshot, entries] = await Promise.all([
+      snapshotRef.get(),
+      snapshotRef.collection("leaderboard").orderBy("rank", "asc").get(),
+    ]);
+    const lastUpdatedAt = snapshot.data()?.finalizedAt;
+    return {
+      league: { id: league.id, name: league.data()!.name as string, memberCount: activeMemberships.length, inviteCode: league.data()!.inviteCode as string },
+      currentGameweek: latest.roundNumber,
+      previousGameweek: finalized.at(-2)?.roundNumber ?? null,
+      status: hasNewerCompleteGameweek || !snapshot.exists ? "FINALIZING" as const : "FINALIZED" as const,
+      lastUpdatedAt: lastUpdatedAt instanceof Timestamp ? lastUpdatedAt.toDate().toISOString() : null,
+      standings: entries.docs.map((entry) => ({
+        ...entry.data(),
+        totalPoints: Number(entry.data().totalPoints ?? entry.data().points ?? STARTING_TOTAL_POINTS),
+        isCurrentUser: entry.id === userId,
+      })),
+    };
+  }
+
   const [league, memberships, gameweeks] = await Promise.all([
     firestore.collection("leagues").doc(leagueId).get(),
     firestore.collection("leagueMemberships").where("leagueId", "==", leagueId).get(),
@@ -440,6 +485,8 @@ export async function getLeagueStandings(userId: string, leagueId: string) {
     },
     currentGameweek: currentRound,
     previousGameweek: standingsGameweeks.previousGameweek,
+    status: currentRound > 0 ? "FINALIZED" as const : "EMPTY" as const,
+    lastUpdatedAt: null,
     standings: rankLeagueStandings(candidates).map((entry) => ({
       ...entry,
       totalPoints: entry.points,

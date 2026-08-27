@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { z } from "zod";
 import { env } from "../config/env.js";
@@ -49,6 +50,18 @@ export type FixtureView = {
 let fixtureSync: Promise<void> | null = null;
 const FIXTURE_CACHE_TTL_MS = 15 * 60 * 1000;
 
+export function fixtureResultVersion(
+  normalizedStatus: string,
+  homeScore: number | null | undefined,
+  awayScore: number | null | undefined,
+) {
+  if (normalizedStatus !== "COMPLETED" || homeScore == null || awayScore == null) return null;
+  return crypto.createHash("sha256")
+    .update(`${normalizedStatus}:${homeScore}:${awayScore}`)
+    .digest("hex")
+    .slice(0, 24);
+}
+
 type ProviderSeason = { season_id: number; year: number; is_current?: boolean };
 
 export function selectSeasonByYear(seasons: ProviderSeason[], year: number) {
@@ -59,7 +72,8 @@ export function selectSeasonByYear(seasons: ProviderSeason[], year: number) {
   return season;
 }
 
-async function providerRequest<T>(path: string): Promise<T> {
+async function providerRequest<T>(path: string, onRequest?: () => void): Promise<T> {
+  onRequest?.();
   const response = await fetch(`${env.BACKEND_API.replace(/\/$/, "")}${path}`, {
     headers: { authorization: `Bearer ${env.BACKEND_API_TOKEN}` },
   });
@@ -74,7 +88,7 @@ async function providerRequest<T>(path: string): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-async function discoverCompetition() {
+async function discoverCompetition(onRequest?: () => void) {
   const leagueId = env.FOOTBALLDATA_IO_LEAGUE_ID;
   const seasonYear = env.FOOTBALLDATA_IO_SEASON_YEAR;
 
@@ -83,7 +97,7 @@ async function discoverCompetition() {
       league: { league_id: number; competition_name?: string; league_name?: string };
       seasons: ProviderSeason[];
     };
-  }>(`/leagues/${leagueId}/seasons`);
+  }>(`/leagues/${leagueId}/seasons`, onRequest);
 
   const competitionName = seasons.data.league.competition_name ?? seasons.data.league.league_name;
   if (seasons.data.league.league_id !== leagueId || competitionName !== "Premier League") {
@@ -95,7 +109,7 @@ async function discoverCompetition() {
   return { leagueId, seasonId: season.season_id, seasonYear: season.year };
 }
 
-async function fetchAllMatches(leagueId: number, seasonId: number) {
+async function fetchAllMatches(leagueId: number, seasonId: number, onRequest?: () => void) {
   const matches: ProviderMatch[] = [];
   let page = 1;
   let totalPages = 1;
@@ -103,6 +117,7 @@ async function fetchAllMatches(leagueId: number, seasonId: number) {
   do {
     const response = await providerRequest<ProviderPage>(
       `/leagues/${leagueId}/matches?season_id=${seasonId}&page=${page}&limit=100`,
+      onRequest,
     );
     const rawMatches = response.data?.matches ?? [];
     matches.push(...rawMatches.map((match) => providerMatchSchema.parse(match)));
@@ -152,12 +167,16 @@ function normalizeStatus(status: string) {
   if (["live", "inplay", "in_progress"].includes(value)) return "LIVE";
   if (value.includes("postpon")) return "POSTPONED";
   if (value.includes("cancel")) return "CANCELLED";
+  if (value.includes("abandon")) return "ABANDONED";
+  if (value.includes("suspend")) return "SUSPENDED";
   return "SCHEDULED";
 }
 
-async function syncFixtures() {
-  const competition = await discoverCompetition();
-  const rawMatches = await fetchAllMatches(competition.leagueId, competition.seasonId);
+export async function refreshFixturesFromProvider(options: { settleCompleted?: boolean } = {}) {
+  let providerRequestCount = 0;
+  const countRequest = () => { providerRequestCount += 1; };
+  const competition = await discoverCompetition(countRequest);
+  const rawMatches = await fetchAllMatches(competition.leagueId, competition.seasonId, countRequest);
   const seasonMatches = rawMatches.filter(
     (match) => match.season.year === env.FOOTBALLDATA_IO_SEASON_YEAR,
   );
@@ -165,6 +184,8 @@ async function syncFixtures() {
   if (matches.length === 0) throw new Error("The provider returned no gameweek fixtures.");
 
   const seasonId = `footballdataIo_${competition.seasonId}`;
+  const existingFixtures = await firestore.collection("fixtures").where("seasonId", "==", seasonId).get();
+  const existingFixtureData = new Map(existingFixtures.docs.map((document) => [document.id, document.data()]));
   const gameweekGroups = new Map<number, typeof matches>();
   const teams = new Map<number, ProviderMatch["home_team"]>();
 
@@ -214,7 +235,11 @@ async function syncFixtures() {
     }, { merge: true });
 
     for (const match of ordered) {
-      batch.set(firestore.collection("fixtures").doc(`footballdataIo_${match.match_id}`), {
+      const fixtureId = `footballdataIo_${match.match_id}`;
+      const normalizedStatus = normalizeStatus(match.status);
+      const resultVersion = fixtureResultVersion(normalizedStatus, match.score?.home, match.score?.away);
+      const existing = existingFixtureData.get(fixtureId);
+      batch.set(firestore.collection("fixtures").doc(fixtureId), {
         provider: "FOOTBALLDATA_IO",
         providerMatchId: match.match_id,
         seasonId,
@@ -232,9 +257,11 @@ async function syncFixtures() {
         },
         kickoffAt: Timestamp.fromMillis(match.date_unix * 1000),
         providerStatus: match.status,
-        normalizedStatus: normalizeStatus(match.status),
+        normalizedStatus,
         homeScore: match.score?.home ?? null,
         awayScore: match.score?.away ?? null,
+        resultVersion,
+        isSettled: resultVersion != null && existing?.settledResultVersion === resultVersion,
         lastSyncedAt: FieldValue.serverTimestamp(),
       }, { merge: true });
     }
@@ -253,18 +280,25 @@ async function syncFixtures() {
     .filter((match) => normalizeStatus(match.status) === "COMPLETED"
       && match.score?.home != null && match.score.away != null)
     .map((match) => `footballdataIo_${match.match_id}`);
-  if (completedFixtureIds.length > 0) {
+  if (options.settleCompleted !== false && completedFixtureIds.length > 0) {
     const { settleFixturePredictions } = await import("../predictions/predictions.service.js");
     const { settleFixtureWagers } = await import("../wagers/wagers.service.js");
-    await Promise.all(completedFixtureIds.flatMap((fixtureId) => [
-      settleFixturePredictions(fixtureId),
-      settleFixtureWagers(fixtureId),
-    ]));
+    for (const fixtureId of completedFixtureIds) {
+      await settleFixturePredictions(fixtureId);
+      await settleFixtureWagers(fixtureId);
+    }
   }
+  return {
+    completedFixtureIds,
+    fixtureCount: matches.length,
+    gameweekCount: gameweekGroups.size,
+    providerRequestCount,
+    seasonId,
+  };
 }
 
 export async function refreshFixturesCache() {
-  await syncFixtures();
+  await refreshFixturesFromProvider();
 }
 
 export async function ensureFixturesCached() {
@@ -282,7 +316,8 @@ export async function ensureFixturesCached() {
       .get();
     if (!cachedFixture.empty) return;
   }
-  fixtureSync ??= syncFixtures().finally(() => { fixtureSync = null; });
+  if (env.SCORING_MODE === "scheduled") return;
+  fixtureSync ??= refreshFixturesFromProvider().then(() => undefined).finally(() => { fixtureSync = null; });
   await fixtureSync;
 }
 

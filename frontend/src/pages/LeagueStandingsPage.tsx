@@ -19,8 +19,16 @@ export function LeagueStandingsPage({ leagueId }: { leagueId: string }) {
 
   useEffect(() => {
     if (!user) return;
+    let active = true;
+    let timer: number | undefined;
     setError("");
-    api.leagueStandings(user, leagueId).then(setData).catch((requestError) => setError(requestError instanceof Error ? requestError.message : "We couldn't load this table."));
+    const load = () => api.leagueStandings(user, leagueId).then((nextData) => {
+      if (!active) return;
+      setData(nextData);
+      if (nextData.status === "FINALIZING") timer = window.setTimeout(load, 30_000);
+    }).catch((requestError) => active && setError(requestError instanceof Error ? requestError.message : "We couldn't load this table."));
+    void load();
+    return () => { active = false; if (timer) window.clearTimeout(timer); };
   }, [leagueId, user]);
 
   if (authLoading) return <div className="loading-screen">Building the table…</div>;
@@ -40,7 +48,7 @@ export function LeagueStandingsPage({ leagueId }: { leagueId: string }) {
     <header className="standings-hero"><button onClick={() => navigate("/leagues")}><ArrowLeft /> All leagues</button><span>League standings</span><h1>{data?.league.name ?? "Loading table"}</h1><div className="standings-hero-meta"><p>{data ? `${data.league.memberCount} competitors · ${data.currentGameweek > 0 ? `Through Gameweek ${data.currentGameweek}` : "No completed gameweeks yet"}` : "Calculating every position and movement…"}</p>{data?.league.inviteCode ? <button className="hero-league-code" onClick={copyLeagueCode}><small>League code</small><code>{data.league.inviteCode}</code>{copied ? <Check /> : <Copy />}<span>{copied ? "Copied" : "Copy"}</span></button> : null}</div></header>
     <section className="standings-content">
       {error ? <div className="home-error" role="alert">{error}<button onClick={() => navigate("/leagues")}>Back to leagues</button></div> : !data ? <div className="league-loading">Loading standings…</div> : <>
-        <div className="standings-meta"><div><Shield /><span><strong>Completed standings</strong><small>Points from the gameweek currently open for predictions are not included.</small></span></div><span className="you-key"><i /> Your position</span></div>
+        <div className="standings-meta"><div><Shield /><span><strong>{data.status === "FINALIZING" ? "Calculating latest standings…" : "Completed standings"}</strong><small>{data.status === "FINALIZING" ? "The last finalized table is shown and will update automatically." : "Points from the gameweek currently open for predictions are not included."}</small></span></div><span className="you-key"><i /> Your position</span></div>
         <div className="standings-table">
           <div className="standings-head"><span>Rank</span><span>Player</span><span>Movement</span><span>GW points</span><span>Total</span></div>
           {data.standings.map((entry) => <button className={`standing-row standing-row-button ${entry.isCurrentUser ? "is-you" : ""}`} key={entry.userId} onClick={() => navigate(`/leagues/${encodeURIComponent(leagueId)}/players/${encodeURIComponent(entry.userId)}`)}>

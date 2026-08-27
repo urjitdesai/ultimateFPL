@@ -14,6 +14,9 @@ import { fixtureOutcome, settleWager, teamsOnCooldown } from "../wagers/wagers.s
 import { gameweekSubmissionSchema } from "../predictions/gameweek-submission.service.js";
 import { validatePurgeTarget } from "../config/purge-safety.js";
 import { createRateLimit } from "../middleware/rate-limits.js";
+import { fixtureResultVersion } from "../fixtures/fixtures.service.js";
+import { gameweekRequiresScoring, providerSyncIsDue, requiredSyncInterval } from "../jobs/sync-policy.js";
+import { scoringJobProjectIsValid } from "../config/scoring-job-safety.js";
 
 describe("foundation API", () => {
   it("reports health", async () => {
@@ -271,8 +274,8 @@ describe("foundation API", () => {
 
   it("places users in the cohort for their first scoring-eligible gameweek", () => {
     const gameweeks = [
-      { id: "gw-2", seasonId: "season-1", roundNumber: 2, startsAt: "2026-08-15T12:00:00.000Z", endsAt: "2026-08-17T20:00:00.000Z", fixtureCount: 10, status: "UPCOMING" },
-      { id: "gw-3", seasonId: "season-1", roundNumber: 3, startsAt: "2026-08-22T12:00:00.000Z", endsAt: "2026-08-24T20:00:00.000Z", fixtureCount: 10, status: "UPCOMING" },
+      { id: "gw-2", seasonId: "season-1", roundNumber: 2, startsAt: "2026-08-15T12:00:00.000Z", endsAt: "2026-08-17T20:00:00.000Z", fixtureCount: 10, status: "UPCOMING", settlementStatus: "PENDING" },
+      { id: "gw-3", seasonId: "season-1", roundNumber: 3, startsAt: "2026-08-22T12:00:00.000Z", endsAt: "2026-08-24T20:00:00.000Z", fixtureCount: 10, status: "UPCOMING", settlementStatus: "PENDING" },
     ] satisfies Gameweek[];
     expect(selectJoinGameweek(gameweeks, Date.parse("2026-08-15T10:59:59.000Z"))?.roundNumber).toBe(2);
     expect(selectJoinGameweek(gameweeks, Date.parse("2026-08-15T11:00:00.000Z"))?.roundNumber).toBe(3);
@@ -289,6 +292,37 @@ describe("foundation API", () => {
       { id: "season-1_gameweek_1", name: "Gameweek 1", favoriteTeamId: null, roundNumber: 1 },
       { id: "season-1_gameweek_2", name: "Gameweek 2", favoriteTeamId: null, roundNumber: 2 },
     ]);
+  });
+
+  it("creates deterministic result versions only for completed scores", () => {
+    expect(fixtureResultVersion("SCHEDULED", null, null)).toBeNull();
+    expect(fixtureResultVersion("COMPLETED", 2, 1)).toBe(fixtureResultVersion("COMPLETED", 2, 1));
+    expect(fixtureResultVersion("COMPLETED", 2, 1)).not.toBe(fixtureResultVersion("COMPLETED", 1, 2));
+  });
+
+  it("uses live, recent, and idle provider synchronization intervals", () => {
+    const now = Date.parse("2026-08-10T18:00:00.000Z");
+    const intervals = { live: 300_000, recent: 1_800_000, idle: 86_400_000 };
+    expect(requiredSyncInterval([{ kickoffAtMillis: now - 60_000 }], now, intervals)).toBe(intervals.live);
+    expect(requiredSyncInterval([{ kickoffAtMillis: now - 6 * 60 * 60 * 1000 }], now, intervals)).toBe(intervals.recent);
+    expect(requiredSyncInterval([], now, intervals)).toBe(intervals.idle);
+    expect(providerSyncIsDue([], null, now, intervals)).toBe(true);
+    expect(providerSyncIsDue([], now - intervals.idle + 1, now, intervals)).toBe(false);
+  });
+
+  it("requires an exact Firebase project match for enabled scoring jobs", () => {
+    expect(scoringJobProjectIsValid(false, "development", undefined)).toBe(true);
+    expect(scoringJobProjectIsValid(true, "development", "development")).toBe(true);
+    expect(scoringJobProjectIsValid(true, "production", "development")).toBe(false);
+    expect(scoringJobProjectIsValid(true, "development", undefined)).toBe(false);
+  });
+
+  it("scores completed fixtures during active rounds and finalizes changed complete rounds", () => {
+    expect(gameweekRequiresScoring("UPCOMING", true, null, "result-1")).toBe(false);
+    expect(gameweekRequiresScoring("ACTIVE", true, null, "result-1")).toBe(true);
+    expect(gameweekRequiresScoring("ACTIVE", false, null, "result-1")).toBe(false);
+    expect(gameweekRequiresScoring("COMPLETE", false, "result-1", "result-1")).toBe(false);
+    expect(gameweekRequiresScoring("COMPLETE", false, "result-1", "result-2")).toBe(true);
   });
 
   it("enforces created-league and private-league member quotas at their boundaries", () => {

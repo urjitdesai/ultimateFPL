@@ -2,6 +2,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { firestore } from "../firebase/admin.js";
 import { getFixturesForGameweek } from "../fixtures/fixtures.service.js";
 import { STARTING_TOTAL_POINTS } from "../points/points.constants.js";
+import { env } from "../config/env.js";
 
 export const MAX_WAGER_POINTS = 20;
 export const TEAM_COOLDOWN_GAMEWEEKS = 3;
@@ -80,9 +81,11 @@ export async function ensureWallet(userId: string) {
 
 export async function getGameweekWager(userId: string, gameweekId: string) {
   const fixtures = await getFixturesForGameweek(gameweekId);
-  await Promise.all(fixtures
-    .filter((fixture) => fixture.normalizedStatus === "COMPLETED")
-    .map((fixture) => settleFixtureWagers(fixture.id)));
+  if (env.SCORING_MODE === "request_driven") {
+    for (const fixture of fixtures.filter((candidate) => candidate.normalizedStatus === "COMPLETED")) {
+      await settleFixtureWagers(fixture.id);
+    }
+  }
   const walletSnapshot = await ensureWallet(userId);
   const [wager, previousWagers] = await Promise.all([
     firestore.collection("wagers").doc(wagerId(userId, gameweekId)).get(),
@@ -112,28 +115,40 @@ export async function settleFixtureWagers(fixtureId: string) {
   if (!fixture.exists || fixture.data()!.normalizedStatus !== "COMPLETED"
     || fixture.data()!.homeScore == null || fixture.data()!.awayScore == null) return;
   const wagers = await firestore.collection("wagers").where("fixtureId", "==", fixtureId).get();
+  const affectedUserIds = new Set<string>();
   for (const wagerSnapshot of wagers.docs) {
     await firestore.runTransaction(async (transaction) => {
       const wager = await transaction.get(wagerSnapshot.ref);
-      if (!wager.exists || wager.data()!.status !== "OPEN") return;
+      if (!wager.exists) return;
+      const resultVersion = fixture.data()!.resultVersion as string | null | undefined;
+      if (resultVersion && wager.data()!.settledResultVersion === resultVersion) return;
       const walletRef = firestore.collection("pointWallets").doc(wager.data()!.userId);
       const wallet = await transaction.get(walletRef);
+      if (!wallet.exists) return;
       const result = settleWager(
         wager.data()!.selection,
         Number(wager.data()!.stakePoints),
         Number(fixture.data()!.homeScore),
         Number(fixture.data()!.awayScore),
       );
+      const wasOpen = wager.data()!.status === "OPEN";
+      const previousReturnPoints = wasOpen ? 0 : Number(wager.data()!.returnPoints ?? 0);
       transaction.update(walletRef, {
-        availablePoints: Number(wallet.data()!.availablePoints) + result.returnPoints,
-        reservedPoints: Number(wallet.data()!.reservedPoints) - Number(wager.data()!.stakePoints),
+        availablePoints: Number(wallet.data()!.availablePoints) + result.returnPoints - previousReturnPoints,
+        reservedPoints: Math.max(
+          0,
+          Number(wallet.data()!.reservedPoints) - (wasOpen ? Number(wager.data()!.stakePoints) : 0),
+        ),
         updatedAt: FieldValue.serverTimestamp(),
       });
       transaction.update(wager.ref, {
         ...result,
+        settledResultVersion: resultVersion ?? null,
         settledAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
       });
+      affectedUserIds.add(wager.data()!.userId);
     });
   }
+  return affectedUserIds;
 }

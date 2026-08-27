@@ -7,6 +7,8 @@
     "dev": "nodemon --watch src --ext ts --exec tsx src/server.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
+    "job:sync-score": "tsx src/jobs/sync-score.ts",
+    "job:sync-score:built": "node dist/jobs/sync-score.js",
     "sync:team-logos": "tsx scripts/download-team-logos.ts",
     "purge": "tsx scripts/purge-development-data.ts",
     "typecheck": "tsc --noEmit",

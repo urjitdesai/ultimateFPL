@@ -6,7 +6,7 @@ import { PredictionFixtureRow } from "../components/PredictionFixtureRow";
 import { AppNav } from "../components/AppNav";
 import { navigate } from "../navigation";
 
-const emptyView: PredictionView = { fixtures: [], predictionsOpen: false, captainedFixtureId: null, eligibility: { eligible: true, startsGameweek: 1 }, summary: { totalPoints: 100, gameweekPoints: 0, wagerPoints: 0, submittedCount: 0, fixtureCount: 0 } };
+const emptyView: PredictionView = { fixtures: [], predictionsOpen: false, captainedFixtureId: null, eligibility: { eligible: true, startsGameweek: 1 }, summary: { totalPoints: 100, gameweekPoints: 0, wagerPoints: 0, submittedCount: 0, fixtureCount: 0, pointsUpdatedAt: null } };
 const GAMEWEEK_LOCK_LEAD_MS = 60 * 60 * 1000;
 
 function formatRange(gameweek: Gameweek) {
@@ -91,6 +91,27 @@ export function HomePage() {
   }, [favoriteTeamId, selectedId, user]);
 
   const selected = useMemo(() => gameweeks.find((gameweek) => gameweek.id === selectedId), [gameweeks, selectedId]);
+
+  useEffect(() => {
+    if (!user || !selectedId || !selected || selected.status === "UPCOMING"
+      || (selected.status === "COMPLETE" && selected.settlementStatus === "FINALIZED")) return;
+    let active = true;
+    const refresh = async () => {
+      try {
+        const [nextGameweeks, nextView, nextWagerView] = await Promise.all([
+          api.gameweeks(user),
+          api.predictions(user, selectedId),
+          api.gameweekWager(user, selectedId),
+        ]);
+        if (!active) return;
+        setGameweeks(nextGameweeks);
+        setView(nextView);
+        setWagerView(nextWagerView);
+      } catch { /* Keep the last successful view while the worker retries. */ }
+    };
+    const timer = window.setInterval(refresh, 30_000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [selected?.settlementStatus, selected?.status, selectedId, user]);
   const visibleLeagues = leagues;
   const savableCount = view.fixtures.filter((fixture) => !fixture.predictionLocked && drafts[fixture.id]?.home !== "" && drafts[fixture.id]?.away !== "").length;
   const currentWagerPoints = wagerView?.wager ? Number(wagerView.wager.returnPoints ?? 0) - wagerView.wager.stakePoints : 0;
@@ -157,7 +178,7 @@ export function HomePage() {
     <AppNav active="home" />
 
     <section className="matchday-band" id="gameweeks">
-      <div className="matchday-overview"><div className="matchday-title"><h1>{selected?.status === "COMPLETE" ? `Gameweek ${selected.roundNumber} results` : view.predictionsOpen ? `Make your calls for Gameweek ${selected?.roundNumber ?? "—"}` : `Gameweek ${selected?.roundNumber ?? "—"} preview`}</h1><p><Clock3 /> {selected ? view.predictionsOpen && predictionDeadline ? `Predictions lock one hour before the first fixture: ${predictionDeadline.date} at ${predictionDeadline.time}` : "Predictions are locked for this gameweek" : "Loading the next round"}</p></div><div className="score-summary"><div><Trophy /><span>Total points</span><strong>{displayedTotal}</strong></div><div><span>Gameweek points</span><strong>{displayedGameweekPoints}</strong></div></div></div>
+      <div className="matchday-overview"><div className="matchday-title"><h1>{selected?.status === "COMPLETE" ? `Gameweek ${selected.roundNumber} results` : view.predictionsOpen ? `Make your calls for Gameweek ${selected?.roundNumber ?? "—"}` : `Gameweek ${selected?.roundNumber ?? "—"} preview`}</h1><p><Clock3 /> {selected?.status === "COMPLETE" && selected.settlementStatus !== "FINALIZED" ? "Calculating points… Results update automatically." : selected ? view.predictionsOpen && predictionDeadline ? `Predictions lock one hour before the first fixture: ${predictionDeadline.date} at ${predictionDeadline.time}` : "Predictions are locked for this gameweek" : "Loading the next round"}</p></div><div className="score-summary"><div><Trophy /><span>Total points</span><strong>{displayedTotal}</strong></div><div><span>Gameweek points</span><strong>{displayedGameweekPoints}</strong></div></div></div>
       <div className="gameweek-navigation"><button className="rail-arrow" aria-label="Earlier gameweeks" onClick={() => railRef.current?.scrollBy({ left: -420, behavior: "smooth" })}><ChevronLeft /></button><div className="gameweek-rail" ref={railRef}>{gameweeks.map((gameweek) => <button key={gameweek.id} className={gameweek.id === selectedId ? "selected" : ""} onClick={() => setSelectedId(gameweek.id)}><strong>Gameweek {gameweek.roundNumber}</strong><span>{formatRange(gameweek)}</span></button>)}</div><button className="rail-arrow" aria-label="Later gameweeks" onClick={() => railRef.current?.scrollBy({ left: 420, behavior: "smooth" })}><ChevronRight /></button></div>
     </section>
 

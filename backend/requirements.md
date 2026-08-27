@@ -1542,7 +1542,7 @@ Preferred production scheduling:
 ```text
 Google Cloud Scheduler
         ↓
-Authenticated Cloud Run or Cloud Function endpoint
+Private Cloud Run sync-and-score job
         ↓
 Footballdata.io provider
         ↓
@@ -1554,6 +1554,13 @@ Cloud Tasks for chunked scoring when needed
 Do not make one provider request per end user. Synchronize shared football data into Cloud Firestore and serve all users from the local application data.
 
 Do not rely solely on `node-cron` inside a horizontally scaled or serverless API because multiple instances may execute the same schedule. Cloud Scheduler should be the production scheduler.
+
+Development uses the same Cloud Run job in a separate Firebase project. The
+job is controlled by `SCORING_JOB_ENABLED` and must confirm that
+`SCORING_EXPECTED_PROJECT_ID` exactly matches `FIREBASE_PROJECT_ID` before
+initializing Firebase. Cloud Scheduler invokes the container every five
+minutes; the worker limits provider calls to five-minute live, thirty-minute
+recent-result, and daily idle intervals.
 
 ### Job behavior
 
@@ -1889,6 +1896,15 @@ PROVIDER_BACKED_READ_RATE_LIMIT=120
 
 MAX_CREATED_LEAGUES_PER_USER=50
 MAX_PRIVATE_LEAGUE_MEMBERS=100
+SCORING_MODE=request_driven
+SCORING_JOB_ENABLED=false
+SCORING_EXPECTED_PROJECT_ID=
+SCORING_BATCH_SIZE=200
+SCORING_LEASE_MS=1200000
+SCORING_RUN_RETENTION_DAYS=30
+SYNC_LIVE_INTERVAL_MS=300000
+SYNC_RECENT_INTERVAL_MS=1800000
+SYNC_IDLE_INTERVAL_MS=86400000
 MAX_PREDICTED_GOALS=20
 SCORING_RULE_VERSION=2026.1
 

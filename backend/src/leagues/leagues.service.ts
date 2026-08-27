@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { FieldValue, Timestamp, type Transaction } from "firebase-admin/firestore";
 import { z } from "zod";
 import { firestore } from "../firebase/admin.js";
+import { gameweekLockDeadline } from "../gameweeks/gameweek-deadline.js";
 import { getGameweeks, getJoinGameweek, type Gameweek } from "../gameweeks/gameweeks.service.js";
 import { getFixturesForGameweek } from "../fixtures/fixtures.service.js";
 import type { Team } from "../teams/teams.service.js";
@@ -148,7 +149,7 @@ export function getMembershipStartRound(
   if (typeof joinedGameweek === "number" && Number.isInteger(joinedGameweek) && joinedGameweek > 0) {
     const joinedRound = gameweeks.find((gameweek) => gameweek.roundNumber === joinedGameweek);
     if (joinedAtMillis != null && joinedRound
-      && joinedAtMillis >= new Date(joinedRound.startsAt).getTime() - 60 * 60 * 1000) {
+      && joinedAtMillis >= gameweekLockDeadline(joinedRound.startsAt)) {
       return joinedGameweek + 1;
     }
     return joinedGameweek;

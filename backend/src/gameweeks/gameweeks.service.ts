@@ -1,6 +1,7 @@
 import { Timestamp } from "firebase-admin/firestore";
 import { firestore } from "../firebase/admin.js";
 import { ensureFixturesCached } from "../fixtures/fixtures.service.js";
+import { gameweekLockDeadline } from "./gameweek-deadline.js";
 
 export type Gameweek = {
   id: string;
@@ -82,7 +83,7 @@ export async function getCurrentGameweek() {
 }
 
 export function selectJoinGameweek(gameweeks: Gameweek[], now = Date.now()) {
-  return gameweeks.find((gameweek) => new Date(gameweek.startsAt).getTime() - 60 * 60 * 1000 > now)
+  return gameweeks.find((gameweek) => gameweekLockDeadline(gameweek.startsAt) > now)
     ?? gameweeks.at(-1)
     ?? null;
 }

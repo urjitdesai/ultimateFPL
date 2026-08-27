@@ -2,6 +2,7 @@ import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { z } from "zod";
 import { firestore } from "../firebase/admin.js";
 import { getFixturesForGameweek } from "../fixtures/fixtures.service.js";
+import { gameweekLockDeadline } from "../gameweeks/gameweek-deadline.js";
 import { getCurrentGameweek } from "../gameweeks/gameweeks.service.js";
 import { scorePrediction } from "./predictions.scoring.js";
 import { STARTING_TOTAL_POINTS } from "../points/points.constants.js";
@@ -17,14 +18,6 @@ export const predictionBatchSchema = z.object({
 
 function predictionId(userId: string, fixtureId: string) {
   return `${userId}_${fixtureId}`;
-}
-
-export function predictionIsLocked(kickoffAt: Timestamp, now = Timestamp.now()) {
-  return now.toMillis() >= kickoffAt.toMillis();
-}
-
-export function gameweekLockDeadline(startsAt: string | Date) {
-  return new Date(startsAt).getTime() - 60 * 60 * 1000;
 }
 
 export function isCurrentPredictionGameweek(requestedGameweekId: string, currentGameweekId: string | null) {

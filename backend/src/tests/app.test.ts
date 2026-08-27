@@ -4,7 +4,8 @@ import { app } from "../app.js";
 import { assignGameweeks, selectSeasonByYear } from "../fixtures/fixtures.service.js";
 import { decodeHtmlEntities } from "../utils/html.js";
 import { scorePrediction } from "../predictions/predictions.scoring.js";
-import { gameweekLockDeadline, isCurrentPredictionGameweek, isUserEligibleForGameweek, predictionIsLocked } from "../predictions/predictions.service.js";
+import { gameweekLockDeadline, gameweekSubmissionIsLocked } from "../gameweeks/gameweek-deadline.js";
+import { isCurrentPredictionGameweek, isUserEligibleForGameweek } from "../predictions/predictions.service.js";
 import { Timestamp } from "firebase-admin/firestore";
 import { getGameweekStatus, selectJoinGameweek, type Gameweek } from "../gameweeks/gameweeks.service.js";
 import { defaultLeagueRecords, generateInviteCode, getMembershipStartRound, normalizeInviteCode, rankLeagueStandings, selectStandingsGameweeks } from "../leagues/leagues.service.js";
@@ -121,14 +122,13 @@ describe("foundation API", () => {
     }).success).toBe(false);
   });
 
-  it("locks a prediction exactly at kickoff", () => {
-    const kickoff = Timestamp.fromMillis(10_000);
-    expect(predictionIsLocked(kickoff, Timestamp.fromMillis(9_999))).toBe(false);
-    expect(predictionIsLocked(kickoff, Timestamp.fromMillis(10_000))).toBe(true);
-  });
-
-  it("sets the gameweek deadline one hour before its first fixture", () => {
-    expect(gameweekLockDeadline("2026-08-10T15:00:00.000Z")).toBe(Date.parse("2026-08-10T14:00:00.000Z"));
+  it("locks the bundled prediction, captain, and wager submission at the gameweek deadline", () => {
+    const startsAt = "2026-08-10T15:00:00.000Z";
+    const deadline = Date.parse("2026-08-10T14:00:00.000Z");
+    expect(gameweekLockDeadline(startsAt)).toBe(deadline);
+    expect(gameweekSubmissionIsLocked(startsAt, deadline - 1)).toBe(false);
+    expect(gameweekSubmissionIsLocked(startsAt, deadline)).toBe(true);
+    expect(gameweekSubmissionIsLocked(startsAt, deadline + 1)).toBe(true);
   });
 
   it("opens predictions only for the current gameweek", () => {

@@ -16,7 +16,7 @@ Users will:
 1. Create an account.
 2. Select their favorite Premier League team.
 3. Create or join private leagues with friends.
-4. Predict the score of every Premier League fixture before kickoff.
+4. Predict the score of every Premier League fixture before the gameweek deadline.
 5. Earn points after each fixture is completed.
 6. Compete on gameweek and season-long leaderboards.
 
@@ -35,7 +35,7 @@ The MVP must support:
 - Display of Premier League fixtures grouped by gameweek.
 - Score predictions for every fixture.
 - A 100-point starting total with one outcome wager per gameweek funded from that total.
-- Per-fixture prediction locking at kickoff.
+- One gameweek-wide prediction deadline one hour before the first fixture.
 - Automatic scoring after final results are available.
 - Gameweek and season leaderboards for private leagues.
 - Responsive desktop and mobile interfaces.
@@ -425,7 +425,7 @@ Fields should include:
 
 The combination of user ID and fixture ID must be unique.
 
-A user makes only one prediction per fixture. Saving again before kickoff updates the existing prediction.
+A user makes only one prediction per fixture. Saving again before the gameweek deadline updates the existing prediction.
 
 ---
 
@@ -602,7 +602,7 @@ Each fixture card must show:
 - Away team
 - Kickoff date and time in the user's local timezone
 - Fixture status
-- Prediction inputs before kickoff
+- Prediction inputs before the gameweek deadline
 - The user's submitted prediction
 - Final score after completion
 - Points awarded after scoring
@@ -623,17 +623,17 @@ The application should default to:
 
 ### Prediction deadline
 
-Predictions lock independently for each fixture at its kickoff time.
+All predictions, the captain selection, and the optional wager for a gameweek lock together one hour before the first fixture in that gameweek begins.
 
 Server time is authoritative.
 
-Frontend disabling is for usability only. The backend must reject prediction creation or updates when:
+Frontend disabling is for usability only. The backend must reject gameweek submission creation or updates when:
 
 ```text
-current server time >= fixture kickoff time
+current server time >= earliest gameweek fixture kickoff time - 1 hour
 ```
 
-Do not lock an entire gameweek when its first fixture starts.
+Later fixture kickoff times do not extend the deadline. Once the gameweek deadline passes, no prediction, captain, or wager in that gameweek may be created, removed, or updated.
 
 ### Prediction visibility
 
@@ -1162,7 +1162,7 @@ match /{document=**} {
 }
 ```
 
-This server-authoritative model ensures that users cannot bypass kickoff deadlines, scoring rules, prediction privacy, or league permissions.
+This server-authoritative model ensures that users cannot bypass gameweek deadlines, scoring rules, prediction privacy, or league permissions.
 
 ### Recommended collections
 
@@ -1774,8 +1774,8 @@ Must cover:
 
 - Registration creates an idempotent user profile without automatic league membership.
 - Duplicate email rejection.
-- Prediction creation before kickoff.
-- Prediction update before kickoff.
+- Prediction creation before the gameweek deadline.
+- Prediction update before the gameweek deadline.
 - Prediction rejection at or after kickoff.
 - Custom league creation.
 - Join by invite code.
@@ -2063,7 +2063,7 @@ The MVP is complete when:
 2. A user can log in with Firebase Authentication and access protected Express routes using a verified Firebase ID token.
 3. The Premier League, active season, teams, gameweeks, and all available season fixtures can be imported from Footballdata.io with pagination.
 4. The backend validates the configured league and season IDs and exposes provider coverage or import incompleteness to administrators.
-5. A user can predict every fixture's score before kickoff.
+5. A user can predict every fixture's score before the gameweek deadline one hour before the first fixture.
 6. The backend rejects prediction changes at or after kickoff.
 7. A user can create a private league using the single league model and invite another user.
 8. Another user can join using the invite code.
@@ -2143,7 +2143,7 @@ The product owner should provide the following details before or during implemen
 ### Prediction rules
 
 - Confirm the `5 / 3 / 2 / 0` scoring model.
-- Whether users can edit predictions until each fixture's kickoff.
+- Confirm that users can edit predictions, the captain, and the wager until one hour before the first fixture in the gameweek.
 - Whether other members' predictions remain hidden until kickoff.
 - Whether one “Joker” or double-points fixture should exist per gameweek.
 - Whether late registrations can predict future fixtures in the current gameweek.
@@ -2204,7 +2204,7 @@ When no other direction is provided, use these defaults:
 - One league model with no league-type or scoring-format field, including automatic Overall, team supporter, and gameweek cohort leagues.
 - Maximum five created leagues per user.
 - Unlimited memberships for the initial MVP.
-- Per-fixture locking at kickoff.
+- One gameweek-wide deadline one hour before the first fixture.
 - Predictions hidden from other users until kickoff.
 - Scoring: exact score 5, correct result and goal difference 3, correct result 2, otherwise 0.
 - No Joker or double-points feature initially.

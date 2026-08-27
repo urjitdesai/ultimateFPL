@@ -1,6 +1,7 @@
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { z } from "zod";
 import { firestore } from "../firebase/admin.js";
+import { gameweekSubmissionIsLocked } from "../gameweeks/gameweek-deadline.js";
 import { getCurrentGameweek } from "../gameweeks/gameweeks.service.js";
 import { STARTING_TOTAL_POINTS } from "../points/points.constants.js";
 import {
@@ -10,7 +11,6 @@ import {
   teamsOnCooldown,
 } from "../wagers/wagers.service.js";
 import {
-  gameweekLockDeadline,
   getGameweekPredictions,
   isCurrentPredictionGameweek,
   isUserEligibleForGameweek,
@@ -131,8 +131,8 @@ export async function saveGameweekSubmission(
     }
 
     const now = Timestamp.now();
-    if (now.toMillis() >= gameweekLockDeadline(currentGameweek.startsAt)) {
-      throw Object.assign(new Error("Predictions lock one hour before the gameweek starts."), {
+    if (gameweekSubmissionIsLocked(currentGameweek.startsAt, now.toMillis())) {
+      throw Object.assign(new Error("Predictions lock one hour before the gameweek's first fixture."), {
         code: "PREDICTION_LOCKED",
         status: 409,
       });

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { authenticate } from "../middleware/authenticate.js";
+import { providerBackedReadRateLimit } from "../middleware/rate-limits.js";
 import { showGameweekWager } from "./wagers.controller.js";
 
 export const wagersRouter = Router();
-wagersRouter.get("/gameweeks/:gameweekId/wager/me", authenticate, showGameweekWager);
+wagersRouter.get("/gameweeks/:gameweekId/wager/me", authenticate, providerBackedReadRateLimit, showGameweekWager);

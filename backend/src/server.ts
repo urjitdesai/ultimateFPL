@@ -4,7 +4,10 @@ import { ensureDefaultLeagues } from "./leagues/leagues.service.js";
 
 async function start() {
   await ensureDefaultLeagues();
-  app.listen(env.PORT, () => console.log(`Ultimate FPL API listening on http://localhost:${env.PORT}`));
+  const server = app.listen(env.PORT, () => console.log(`Ultimate FPL API listening on port ${env.PORT}`));
+  server.requestTimeout = env.REQUEST_TIMEOUT_MS;
+  server.headersTimeout = env.HEADERS_TIMEOUT_MS;
+  server.setTimeout(env.SERVER_TIMEOUT_MS);
 }
 
 start().catch((error) => {

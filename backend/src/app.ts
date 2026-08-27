@@ -14,6 +14,8 @@ import { wagersRouter } from "./wagers/index.js";
 
 export const app = express();
 
+if (env.TRUST_PROXY_HOPS > 0) app.set("trust proxy", env.TRUST_PROXY_HOPS);
+
 // Attach a request ID early so every response and error can be correlated with
 // server logs. Preserve a caller-provided ID when one is available.
 app.use((req, res, next) => {
@@ -28,15 +30,13 @@ app.use((req, res, next) => {
 app.use(helmet());
 app.use(
   cors({
-    origin: [
-      env.FRONTEND_URL,
-      "http://localhost:5173",
-      "http://127.0.0.1:5173",
-    ],
+    origin: env.NODE_ENV === "production"
+      ? [env.FRONTEND_URL]
+      : [env.FRONTEND_URL, "http://localhost:5173", "http://127.0.0.1:5173"],
     credentials: false,
   }),
 );
-app.use(express.json({ limit: "32kb" }));
+app.use(express.json({ limit: env.REQUEST_BODY_LIMIT }));
 
 // Infrastructure probes used by local tooling and deployment platforms.
 app.get("/health", (_req, res) => res.json({ status: "ok" }));

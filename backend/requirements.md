@@ -573,7 +573,7 @@ Validation must cover:
 - Code does not exist
 - League belongs to an inactive season
 - User is already a member
-- League has reached a configured member limit, if a limit is introduced
+- League has reached the configured 100-member private-league limit
 
 ### Manage league
 
@@ -586,7 +586,7 @@ For the MVP:
 - Members can leave a league.
 - The owner cannot leave without transferring ownership or deleting the league.
 
-The initial implementation may restrict each user to a configurable number of created leagues, such as five.
+Each user may create a maximum of 50 private leagues. Default Overall, supporter, and gameweek cohort leagues do not count toward this quota.
 
 ---
 
@@ -1711,7 +1711,11 @@ PROVIDER_UNAVAILABLE
 - Enable HTTPS in production.
 - Configure CORS to allow only approved frontend origins.
 - Use Helmet.
-- Rate-limit profile completion, invite-code attempts, prediction writes, and admin endpoints.
+- Rate-limit profile completion, league creation, invite-code attempts, prediction and wager submissions, provider-backed reads, standings reads, and admin endpoints.
+- Key authenticated limits by Firebase user ID and unauthenticated limits by normalized client IP.
+- Use a shared Firestore-backed rate-limit store in production so quotas apply across Cloud Run instances; configure a TTL policy on `rateLimitCounters.expiresAt`.
+- Trust only the configured number of reverse-proxy hops and reject localhost frontend origins in production.
+- Enforce request-body, header, request, and server timeout limits.
 - Validate and sanitize every request with Zod.
 - Do not expose stack traces or secrets.
 - Add CSRF protection if authentication is later moved to custom cookies.
@@ -1856,6 +1860,11 @@ NODE_ENV=development
 PORT=4000
 
 FRONTEND_URL=http://localhost:5173
+TRUST_PROXY_HOPS=0
+REQUEST_BODY_LIMIT=32kb
+REQUEST_TIMEOUT_MS=60000
+HEADERS_TIMEOUT_MS=15000
+SERVER_TIMEOUT_MS=65000
 
 FIREBASE_PROJECT_ID=ultimate-fantasy-league
 FIREBASE_CLIENT_EMAIL=
@@ -1870,7 +1879,16 @@ FOOTBALLDATA_IO_API_KEY=
 FOOTBALLDATA_IO_LEAGUE_ID=
 FOOTBALLDATA_IO_SEASON_ID=
 
-MAX_CREATED_LEAGUES_PER_USER=5
+RATE_LIMIT_WINDOW_MS=60000
+PROFILE_RATE_LIMIT=10
+LEAGUE_CREATE_RATE_LIMIT=10
+LEAGUE_JOIN_RATE_LIMIT=20
+GAMEWEEK_SUBMISSION_RATE_LIMIT=30
+STANDINGS_READ_RATE_LIMIT=60
+PROVIDER_BACKED_READ_RATE_LIMIT=120
+
+MAX_CREATED_LEAGUES_PER_USER=50
+MAX_PRIVATE_LEAGUE_MEMBERS=100
 MAX_PREDICTED_GOALS=20
 SCORING_RULE_VERSION=2026.1
 
@@ -2202,7 +2220,8 @@ When no other direction is provided, use these defaults:
 - Firebase Authentication with email/password.
 - No email verification initially; password reset uses Firebase Authentication's native email-link workflow.
 - One league model with no league-type or scoring-format field, including automatic Overall, team supporter, and gameweek cohort leagues.
-- Maximum five created leagues per user.
+- Maximum 50 created private leagues per user.
+- Maximum 100 active members per private league.
 - Unlimited memberships for the initial MVP.
 - One gameweek-wide deadline one hour before the first fixture.
 - Predictions hidden from other users until kickoff.

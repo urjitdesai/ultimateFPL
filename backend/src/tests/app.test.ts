@@ -1,3 +1,4 @@
+import express from "express";
 import request from "supertest";
 import { describe, expect, it } from "vitest";
 import { app } from "../app.js";
@@ -8,9 +9,11 @@ import { gameweekLockDeadline, gameweekSubmissionIsLocked } from "../gameweeks/g
 import { isCurrentPredictionGameweek, isUserEligibleForGameweek } from "../predictions/predictions.service.js";
 import { Timestamp } from "firebase-admin/firestore";
 import { getGameweekStatus, selectJoinGameweek, type Gameweek } from "../gameweeks/gameweeks.service.js";
-import { defaultLeagueRecords, generateInviteCode, getMembershipStartRound, normalizeInviteCode, rankLeagueStandings, selectStandingsGameweeks } from "../leagues/leagues.service.js";
+import { createdLeagueLimitReached, defaultLeagueRecords, generateInviteCode, getMembershipStartRound, normalizeInviteCode, privateLeagueMemberLimitReached, rankLeagueStandings, selectStandingsGameweeks } from "../leagues/leagues.service.js";
 import { fixtureOutcome, settleWager, teamsOnCooldown } from "../wagers/wagers.service.js";
 import { gameweekSubmissionSchema } from "../predictions/gameweek-submission.service.js";
+import { validatePurgeTarget } from "../config/purge-safety.js";
+import { createRateLimit } from "../middleware/rate-limits.js";
 
 describe("foundation API", () => {
   it("reports health", async () => {
@@ -129,6 +132,23 @@ describe("foundation API", () => {
     expect(gameweekSubmissionIsLocked(startsAt, deadline - 1)).toBe(false);
     expect(gameweekSubmissionIsLocked(startsAt, deadline)).toBe(true);
     expect(gameweekSubmissionIsLocked(startsAt, deadline + 1)).toBe(true);
+  });
+
+  it("returns a consistent 429 response when an API quota is exceeded", async () => {
+    const limitedApp = express();
+    limitedApp.get("/limited", createRateLimit({
+      code: "TEST_RATE_LIMITED",
+      limit: 1,
+      message: "Wait before trying again.",
+    }), (_req, res) => res.json({ data: true }));
+
+    expect((await request(limitedApp).get("/limited")).status).toBe(200);
+    const limited = await request(limitedApp).get("/limited");
+    expect(limited.status).toBe(429);
+    expect(limited.body.error).toMatchObject({
+      code: "TEST_RATE_LIMITED",
+      message: "Wait before trying again.",
+    });
   });
 
   it("opens predictions only for the current gameweek", () => {
@@ -269,6 +289,31 @@ describe("foundation API", () => {
       { id: "season-1_gameweek_1", name: "Gameweek 1", favoriteTeamId: null, roundNumber: 1 },
       { id: "season-1_gameweek_2", name: "Gameweek 2", favoriteTeamId: null, roundNumber: 2 },
     ]);
+  });
+
+  it("enforces created-league and private-league member quotas at their boundaries", () => {
+    expect(createdLeagueLimitReached(49, 50)).toBe(false);
+    expect(createdLeagueLimitReached(50, 50)).toBe(true);
+    expect(privateLeagueMemberLimitReached(99, 100)).toBe(false);
+    expect(privateLeagueMemberLimitReached(100, 100)).toBe(true);
+  });
+
+  it("allows purges only for an explicitly allowlisted and confirmed non-production project", () => {
+    const allowedProjectIds = new Set(["ultimatefpl-development"]);
+    const base = {
+      allowedProjectIds,
+      confirmationToken: "PURGE-ultimatefpl-development",
+      configuredProjectId: "ultimatefpl-development",
+      confirmedProjectId: "ultimatefpl-development",
+      nodeEnvironment: "development",
+      protectedProjectIds: new Set(["ultimatefpl-production"]),
+    };
+    expect(validatePurgeTarget(base)).toBe("ultimatefpl-development");
+    expect(() => validatePurgeTarget({ ...base, nodeEnvironment: "production" })).toThrow(/NODE_ENV=production/);
+    expect(() => validatePurgeTarget({ ...base, configuredProjectId: "ultimatefpl-production", confirmedProjectId: "ultimatefpl-production" })).toThrow(/protected/);
+    expect(() => validatePurgeTarget({ ...base, configuredProjectId: "unknown", confirmedProjectId: "unknown" })).toThrow(/not in PURGE_ALLOWED_PROJECT_IDS/);
+    expect(() => validatePurgeTarget({ ...base, confirmedProjectId: "wrong-project" })).toThrow(/Confirm the exact target/);
+    expect(() => validatePurgeTarget({ ...base, confirmationToken: "" })).toThrow(/Explicit confirmation is required/);
   });
 
   it("does not score gameweeks from before registration or after their deadline", () => {

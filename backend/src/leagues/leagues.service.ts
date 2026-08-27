@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { FieldValue, Timestamp, type Transaction } from "firebase-admin/firestore";
 import { z } from "zod";
+import { env } from "../config/env.js";
 import { firestore } from "../firebase/admin.js";
 import { gameweekLockDeadline } from "../gameweeks/gameweek-deadline.js";
 import { getGameweeks, getJoinGameweek, type Gameweek } from "../gameweeks/gameweeks.service.js";
@@ -140,6 +141,20 @@ export function generateInviteCode() {
   return Array.from(crypto.randomBytes(8), (byte) => INVITE_ALPHABET[byte % INVITE_ALPHABET.length]).join("");
 }
 
+export function createdLeagueLimitReached(
+  activeCreatedLeagueCount: number,
+  maximum = env.MAX_CREATED_LEAGUES_PER_USER,
+) {
+  return activeCreatedLeagueCount >= maximum;
+}
+
+export function privateLeagueMemberLimitReached(
+  memberCount: number,
+  maximum = env.MAX_PRIVATE_LEAGUE_MEMBERS,
+) {
+  return memberCount >= maximum;
+}
+
 export function getMembershipStartRound(
   joinedGameweek: unknown,
   joinedAtMillis: number | null,
@@ -164,6 +179,7 @@ export function getMembershipStartRound(
 
 export async function createLeague(userId: string, name: string) {
   const userRef = firestore.collection("users").doc(userId);
+  const ownedLeaguesQuery = firestore.collection("leagues").where("ownerUserId", "==", userId);
   const joinGameweek = await getJoinGameweek();
   if (!joinGameweek) throw new Error("No Premier League gameweek is available.");
   for (let attempt = 0; attempt < 5; attempt += 1) {
@@ -171,8 +187,19 @@ export async function createLeague(userId: string, name: string) {
     const inviteCode = generateInviteCode();
     const inviteRef = firestore.collection("leagueInvites").doc(inviteCode);
     const created = await firestore.runTransaction(async (transaction) => {
-      const [user, invite] = await Promise.all([transaction.get(userRef), transaction.get(inviteRef)]);
+      const [user, invite, ownedLeagues] = await Promise.all([
+        transaction.get(userRef),
+        transaction.get(inviteRef),
+        transaction.get(ownedLeaguesQuery),
+      ]);
       if (!user.exists) throw Object.assign(new Error("Complete your profile first."), { code: "PROFILE_REQUIRED", status: 409 });
+      const activeCreatedLeagueCount = ownedLeagues.docs.filter((league) => league.data().isActive === true).length;
+      if (createdLeagueLimitReached(activeCreatedLeagueCount)) {
+        throw Object.assign(
+          new Error(`You can create up to ${env.MAX_CREATED_LEAGUES_PER_USER} leagues.`),
+          { code: "LEAGUE_CREATION_LIMIT_REACHED", status: 409 },
+        );
+      }
       if (invite.exists) return false;
       const seasonId = user.data()!.activeSeasonId as string;
       transaction.create(leagueRef, {
@@ -232,6 +259,12 @@ export async function joinLeague(userId: string, rawInviteCode: string) {
     }
     if (membership.exists && membership.data()?.isActive === true) {
       return { id: league.id, ...league.data() };
+    }
+    if (privateLeagueMemberLimitReached(Number(league.data()!.memberCount ?? 0))) {
+      throw Object.assign(
+        new Error("That league has reached its member limit."),
+        { code: "LEAGUE_MEMBER_LIMIT_REACHED", status: 409 },
+      );
     }
     transaction.set(membershipRef, {
       leagueId,

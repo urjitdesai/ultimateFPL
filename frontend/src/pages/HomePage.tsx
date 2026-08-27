@@ -100,12 +100,15 @@ export function HomePage() {
     ? wagerDraft == null || wagerDraft.fixtureId !== existingWager.fixtureId || wagerDraft.selection !== existingWager.selection || wagerDraft.stakePoints !== existingWager.stakePoints
     : existingWager == null && wagerDraft != null);
   const activeOpenWager = wagerChanged ? wagerDraft : existingWager?.status === "OPEN" ? existingWager : null;
+  const wagerSubmission = activeOpenWager
+    ? { fixtureId: activeOpenWager.fixtureId, stakePoints: activeOpenWager.stakePoints }
+    : null;
   const replacementRefund = wagerChanged && existingWager?.status === "OPEN" && wagerDraft?.fixtureId !== existingWager.fixtureId
     ? existingWager.stakePoints
     : 0;
-  const wagerDraftValid = wagerDraft == null || (wagerDraft.stakePoints >= 1 && wagerDraft.stakePoints <= 20
-    && wagerDraft.stakePoints <= (wagerView?.wallet.availablePoints ?? 0) + (existingWager?.stakePoints ?? 0)
-    && wagerSelectionForScore(drafts[wagerDraft.fixtureId] ?? { home: "", away: "" }) === wagerDraft.selection);
+  const wagerDraftValid = wagerSubmission == null || (wagerSubmission.stakePoints >= 1 && wagerSubmission.stakePoints <= 20
+    && wagerSubmission.stakePoints <= (wagerView?.wallet.availablePoints ?? 0) + (existingWager?.stakePoints ?? 0)
+    && wagerSelectionForScore(drafts[wagerSubmission.fixtureId] ?? { home: "", away: "" }) != null);
   const hasSaveableWork = savableCount > 0 || wagerHasChanges;
 
   if (authLoading) return <div className="loading-screen">Preparing matchday…</div>;
@@ -127,15 +130,15 @@ export function HomePage() {
     if (!user || !wagerView || !hasSaveableWork || !wagerDraftValid) return;
     setSaving(true); setError("");
     try {
-      const predictionRequest = predictions.length > 0
-        ? api.savePredictions(user, selectedId, predictions, captainedFixtureId)
-        : Promise.resolve(view);
-      const wagerRequest = wagerHasChanges
-        ? wagerDraft
-          ? api.saveGameweekWager(user, selectedId, wagerDraft.fixtureId, wagerDraft.selection, wagerDraft.stakePoints)
-          : api.deleteGameweekWager(user, selectedId)
-        : Promise.resolve(wagerView);
-      const [nextView, nextWagerView] = await Promise.all([predictionRequest, wagerRequest]);
+      const submission = await api.saveGameweekSubmission(
+        user,
+        selectedId,
+        predictions,
+        captainedFixtureId,
+        wagerSubmission,
+      );
+      const nextView = submission.predictions;
+      const nextWagerView = submission.wager;
       const nextWagerPoints = nextWagerView.wager ? Number(nextWagerView.wager.returnPoints ?? 0) - nextWagerView.wager.stakePoints : 0;
       setView({ ...nextView, summary: { ...nextView.summary, totalPoints: nextWagerView.wallet.availablePoints, gameweekPoints: nextView.summary.gameweekPoints - nextView.summary.wagerPoints + nextWagerPoints, wagerPoints: nextWagerPoints } });
       setWagerView(nextWagerView);

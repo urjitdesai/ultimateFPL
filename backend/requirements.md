@@ -671,7 +671,7 @@ The UI should clearly indicate fixtures for which the user has not submitted a p
 - The stake must be an integer from 1 through 20 and cannot exceed the user's available total points.
 - The stake is deducted from the displayed available total immediately. A correct outcome returns twice the stake; an incorrect outcome returns zero.
 - Once a user wagers on a fixture, both participating teams are unavailable to that user for the next three gameweeks.
-- Open wagers may be updated before kickoff. Changing the fixture updates the existing gameweek wager atomically after validating the new fixture.
+- Open wagers may be updated before the gameweek prediction deadline. Changing the fixture updates the existing gameweek wager atomically after validating the new fixture.
 - The fixture-list UI must expose a compact wager toggle beside Captain. A selected wager is shown only by a green Wager control and its point amount; clicking the green control again removes it, while clicking Wager on another eligible fixture transfers the wager and preserves its stake. Wager changes submit through the same Save Predictions action.
 - Scrolling the page while the wager point input is focused must not change the stake.
 - Wagering is optional: every fixture's wager control is off by default, and entering a score prediction alone must never activate it.
@@ -1074,19 +1074,30 @@ GET /api/v1/fixtures/:fixtureId
 
 ```http
 GET /api/v1/gameweeks/:gameweekId/predictions/me
-PUT /api/v1/fixtures/:fixtureId/prediction
-DELETE /api/v1/fixtures/:fixtureId/prediction
+PUT /api/v1/gameweeks/:gameweekId/submission
 GET /api/v1/fixtures/:fixtureId/predictions
 ```
 
 `GET /fixtures/:fixtureId/predictions` must enforce the visibility rule and reject access before kickoff except for the requesting user's own prediction.
 
-Example prediction request:
+The submission endpoint is the only public mutation for predictions and wagers. It writes the submitted predictions, captain choice, wager, and point-wallet reservation in one Firestore transaction. The wager field contains the desired final state: an object creates or updates the wager, while `null` removes it. The backend derives the wager selection from the submitted prediction instead of trusting a client-provided outcome.
+
+Example gameweek submission request:
 
 ```json
 {
-  "homeScore": 2,
-  "awayScore": 1
+  "predictions": [
+    {
+      "fixtureId": "fixture-1",
+      "predictedHomeScore": 2,
+      "predictedAwayScore": 1
+    }
+  ],
+  "captainedFixtureId": "fixture-1",
+  "wager": {
+    "fixtureId": "fixture-1",
+    "stakePoints": 10
+  }
 }
 ```
 

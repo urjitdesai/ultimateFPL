@@ -9,6 +9,7 @@ import { Timestamp } from "firebase-admin/firestore";
 import { getGameweekStatus, selectJoinGameweek, type Gameweek } from "../gameweeks/gameweeks.service.js";
 import { defaultLeagueRecords, generateInviteCode, getMembershipStartRound, normalizeInviteCode, rankLeagueStandings, selectStandingsGameweeks } from "../leagues/leagues.service.js";
 import { fixtureOutcome, settleWager, teamsOnCooldown } from "../wagers/wagers.service.js";
+import { gameweekSubmissionSchema } from "../predictions/gameweek-submission.service.js";
 
 describe("foundation API", () => {
   it("reports health", async () => {
@@ -85,11 +86,39 @@ describe("foundation API", () => {
     expect(scorePrediction({ predictedHome: 1, predictedAway: 1, actualHome: 3, actualAway: 1, isCaptain: true })).toMatchObject({ basePoints: 0, points: 0, reason: "INCORRECT" });
   });
 
-  it("protects prediction reads and writes", async () => {
+  it("protects prediction reads and atomic gameweek submissions", async () => {
     const read = await request(app).get("/api/v1/gameweeks/gameweek-1/predictions/me");
-    const write = await request(app).put("/api/v1/gameweeks/gameweek-1/predictions").send({ predictions: [] });
+    const write = await request(app).put("/api/v1/gameweeks/gameweek-1/submission").send({ predictions: [], wager: null });
+    const legacyWrite = await request(app).put("/api/v1/gameweeks/gameweek-1/predictions").send({ predictions: [] });
     expect(read.status).toBe(401);
     expect(write.status).toBe(401);
+    expect(legacyWrite.status).toBe(404);
+  });
+
+  it("requires captain and wager choices to reference submitted predictions", () => {
+    const predictions = [{ fixtureId: "fixture-1", predictedHomeScore: 2, predictedAwayScore: 1 }];
+    const valid = gameweekSubmissionSchema.safeParse({
+      predictions,
+      captainedFixtureId: "fixture-1",
+      wager: { fixtureId: "fixture-1", selection: "AWAY_WIN", stakePoints: 20 },
+    });
+    expect(valid.success).toBe(true);
+    if (valid.success) expect(valid.data.wager).toEqual({ fixtureId: "fixture-1", stakePoints: 20 });
+    expect(gameweekSubmissionSchema.safeParse({
+      predictions,
+      captainedFixtureId: "fixture-2",
+      wager: null,
+    }).success).toBe(false);
+    expect(gameweekSubmissionSchema.safeParse({
+      predictions,
+      captainedFixtureId: null,
+      wager: { fixtureId: "fixture-2", stakePoints: 10 },
+    }).success).toBe(false);
+    expect(gameweekSubmissionSchema.safeParse({
+      predictions,
+      captainedFixtureId: null,
+      wager: { fixtureId: "fixture-1", stakePoints: 21 },
+    }).success).toBe(false);
   });
 
   it("locks a prediction exactly at kickoff", () => {
@@ -197,15 +226,13 @@ describe("foundation API", () => {
     ])).toEqual({ currentGameweek: 0, previousGameweek: null });
   });
 
-  it("protects wager reads and writes", async () => {
-    const [read, write, remove] = await Promise.all([
-      request(app).get("/api/v1/gameweeks/gameweek-1/wager/me"),
-      request(app).put("/api/v1/gameweeks/gameweek-1/wager").send({ fixtureId: "fixture-1", selection: "HOME_WIN", stakePoints: 10 }),
-      request(app).delete("/api/v1/gameweeks/gameweek-1/wager"),
-    ]);
+  it("protects wager reads and does not expose standalone wager mutations", async () => {
+    const read = await request(app).get("/api/v1/gameweeks/gameweek-1/wager/me");
+    const write = await request(app).put("/api/v1/gameweeks/gameweek-1/wager").send({ fixtureId: "fixture-1", stakePoints: 10 });
+    const remove = await request(app).delete("/api/v1/gameweeks/gameweek-1/wager");
     expect(read.status).toBe(401);
-    expect(write.status).toBe(401);
-    expect(remove.status).toBe(401);
+    expect(write.status).toBe(404);
+    expect(remove.status).toBe(404);
   });
 
   it("settles outcome wagers at double return or a lost stake", () => {

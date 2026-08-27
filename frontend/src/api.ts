@@ -18,6 +18,7 @@ export type WagerSelection = "HOME_WIN" | "DRAW" | "AWAY_WIN";
 export type Wager = { id: string; fixtureId: string; gameweekId: string; roundNumber: number; selection: WagerSelection; stakePoints: number; status: "OPEN" | "WON" | "LOST"; returnPoints: number | null };
 export type WagerFixture = Fixture & { wagerUnavailableReason: "TEAM_COOLDOWN" | null };
 export type GameweekWagerView = { wallet: { availablePoints: number; reservedPoints: number }; wager: Wager | null; fixtures: WagerFixture[] };
+export type GameweekSubmission = { predictions: PredictionView; wager: GameweekWagerView };
 
 async function request<T>(path: string, init?: RequestInit, user?: User): Promise<T> {
   const token = user ? await user.getIdToken() : null;
@@ -34,10 +35,8 @@ export const api = {
   gameweeks: (user: User) => request<Gameweek[]>("/gameweeks", undefined, user),
   fixtures: (user: User, gameweekId: string) => request<Fixture[]>(`/fixtures/gameweek/${gameweekId}`, undefined, user),
   predictions: (user: User, gameweekId: string) => request<PredictionView>(`/gameweeks/${gameweekId}/predictions/me`, undefined, user),
-  savePredictions: (user: User, gameweekId: string, predictions: Array<{ fixtureId: string; predictedHomeScore: number; predictedAwayScore: number }>, captainedFixtureId: string | null) => request<PredictionView>(`/gameweeks/${gameweekId}/predictions`, { method: "PUT", body: JSON.stringify({ predictions, captainedFixtureId }) }, user),
+  saveGameweekSubmission: (user: User, gameweekId: string, predictions: Array<{ fixtureId: string; predictedHomeScore: number; predictedAwayScore: number }>, captainedFixtureId: string | null, wager: { fixtureId: string; stakePoints: number } | null) => request<GameweekSubmission>(`/gameweeks/${gameweekId}/submission`, { method: "PUT", body: JSON.stringify({ predictions, captainedFixtureId, wager }) }, user),
   gameweekWager: (user: User, gameweekId: string) => request<GameweekWagerView>(`/gameweeks/${gameweekId}/wager/me`, undefined, user),
-  saveGameweekWager: (user: User, gameweekId: string, fixtureId: string, selection: WagerSelection, stakePoints: number) => request<GameweekWagerView>(`/gameweeks/${gameweekId}/wager`, { method: "PUT", body: JSON.stringify({ fixtureId, selection, stakePoints }) }, user),
-  deleteGameweekWager: (user: User, gameweekId: string) => request<GameweekWagerView>(`/gameweeks/${gameweekId}/wager`, { method: "DELETE" }, user),
   leagues: (user: User) => request<League[]>("/leagues", undefined, user),
   createLeague: (user: User, name: string) => request<League>("/leagues", { method: "POST", body: JSON.stringify({ name }) }, user),
   joinLeague: (user: User, inviteCode: string) => request<League>("/leagues/join", { method: "POST", body: JSON.stringify({ inviteCode }) }, user),

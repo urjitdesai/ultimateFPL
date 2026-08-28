@@ -4,8 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
+    "dev": "vite --mode localhost",
+    "build": "npm run build:production",
+    "build:local": "tsc -b && vite build --mode localhost",
+    "build:development": "tsc -b && vite build --mode development",
+    "build:production": "tsc -b && vite build --mode production",
+    "deploy:frontend:development": "npm --prefix .. run deploy:frontend:development",
+    "deploy:frontend:production": "npm --prefix .. run deploy:frontend:production",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },

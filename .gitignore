@@ -1,8 +1,37 @@
-backend/node_modules
-frontend/node_modules
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build and test output
+dist/
+**/dist/
+coverage/
+**/coverage/
+test-results/
+**/test-results/
+playwright-report/
+**/playwright-report/
+*.tsbuildinfo
+
+# Tool caches and logs
+.firebase/
+**/.firebase/
+.vite/
+**/.vite/
+firebase-debug.log*
+*.log
+
+# Local environment and credentials
 .env
+.env.*
+**/.env
+**/.env.*
+!**/.env.example
+!**/*.env.example
 backend/env/*.env
 backend/firebase-service-account-key.json
+
+# Local development-only project files
 backend/firebaserc
 backend/firebase.js
 backend/firebase.json
@@ -11,3 +40,7 @@ backend/firestore.indexes.json
 backend/docs/schemas
 backend/scripts/
 production_ready.md
+
+# Operating-system files
+.DS_Store
+Thumbs.db

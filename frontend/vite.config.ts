@@ -5,7 +5,11 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 export default defineConfig(({ mode }) => {
-  const fileName = mode === "production" ? "prod.env" : "dev.env";
+  const fileName = ["prod", "production"].includes(mode)
+    ? "prod.env"
+    : ["dev", "development"].includes(mode)
+      ? "dev.env"
+      : "local.env";
   const filePath = fileURLToPath(new URL(`../backend/env/${fileName}`, import.meta.url));
   const fileEnvironment = existsSync(filePath) ? parse(readFileSync(filePath)) : {};
   const value = (name: string) => process.env[name] ?? fileEnvironment[name] ?? "";

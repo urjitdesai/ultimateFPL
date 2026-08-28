@@ -4,7 +4,8 @@ The same container runs the API and the private `sync-score` job. Development
 and production use separate Google Cloud projects, service accounts, secrets,
 jobs, and Scheduler triggers.
 
-Local development execution reads `backend/env/dev.env`:
+Local development execution reads `backend/env/local.env` and therefore uses
+the development Firebase data with localhost URLs:
 
 ```powershell
 npm run job:sync-score

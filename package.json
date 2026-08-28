@@ -1,0 +1,15 @@
+{
+  "name": "ultimate-fpl",
+  "private": true,
+  "scripts": {
+    "build:frontend": "npm run build:frontend:production",
+    "build:frontend:local": "npm --prefix frontend run build:local",
+    "build:frontend:development": "npm --prefix frontend run build:development",
+    "build:frontend:production": "npm --prefix frontend run build:production",
+    "deploy:frontend:development": "firebase deploy --config firebase.dev.json --only hosting --project ultimatefpl-cffba",
+    "deploy:frontend:production": "firebase deploy --config firebase.json --only hosting --project production"
+  },
+  "devDependencies": {
+    "firebase-tools": "^15.28.2"
+  }
+}

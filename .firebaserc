@@ -1,0 +1,7 @@
+{
+  "projects": {
+    "default": "ultimatefpl-cffba",
+    "development": "ultimatefpl-cffba",
+    "production": "ultimate-fpl"
+  }
+}

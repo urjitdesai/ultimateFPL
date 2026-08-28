@@ -4,10 +4,16 @@ import path from "node:path";
 import { config } from "dotenv";
 
 function selectedEnvironmentFile() {
-  const selectedEnvironment = (process.env.APP_ENV ?? process.env.NODE_ENV ?? "development")
-    .trim()
-    .toLowerCase();
-  return ["prod", "production"].includes(selectedEnvironment) ? "prod.env" : "dev.env";
+  const appEnvironment = process.env.APP_ENV?.trim().toLowerCase();
+  if (["prod", "production"].includes(appEnvironment ?? "")) return "prod.env";
+  if (["dev", "development"].includes(appEnvironment ?? "")) return "dev.env";
+  if (appEnvironment === "local") return "local.env";
+
+  // Cloud Run supplies NODE_ENV=production directly. Local commands do not
+  // need an environment selector and therefore default to local.env.
+  return process.env.NODE_ENV?.trim().toLowerCase() === "production"
+    ? "prod.env"
+    : "local.env";
 }
 
 const environmentFile = fileURLToPath(

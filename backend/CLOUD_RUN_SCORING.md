@@ -4,11 +4,21 @@ The same container runs the API and the private `sync-score` job. Development
 and production use separate Google Cloud projects, service accounts, secrets,
 jobs, and Scheduler triggers.
 
-Local execution reads `backend/.env`:
+Local development execution reads `backend/env/dev.env`:
 
 ```powershell
 npm run job:sync-score
 ```
+
+Local production-mode recovery reads `backend/env/prod.env` after a build:
+
+```powershell
+npm run build
+npm run job:sync-score:prod
+```
+
+The deployed job continues to use variables and Secret Manager values injected
+by Cloud Run; it does not require an environment file in the image.
 
 `SCORING_JOB_ENABLED=false` exits before Firebase or the provider is loaded.
 Set `SCORING_EXPECTED_PROJECT_ID` to the exact `FIREBASE_PROJECT_ID`; the job

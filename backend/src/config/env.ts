@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "./load-env.js";
 import { z } from "zod";
 import { scoringJobProjectIsValid } from "./scoring-job-safety.js";
 

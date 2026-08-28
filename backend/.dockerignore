@@ -3,6 +3,7 @@ dist
 .env
 .env.*
 !.env.example
+env/*.env
 firebase-service-account-key.json
 scripts
 *.log

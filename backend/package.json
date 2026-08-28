@@ -6,8 +6,10 @@
   "scripts": {
     "dev": "nodemon --watch src --ext ts --exec tsx src/server.ts",
     "build": "tsc -p tsconfig.json",
-    "start": "node dist/server.js",
+    "start": "node --env-file-if-exists=env/prod.env dist/server.js",
+    "start:dev": "node --env-file=env/dev.env dist/server.js",
     "job:sync-score": "tsx src/jobs/sync-score.ts",
+    "job:sync-score:prod": "node --env-file-if-exists=env/prod.env dist/jobs/sync-score.js",
     "job:sync-score:built": "node dist/jobs/sync-score.js",
     "sync:team-logos": "tsx scripts/download-team-logos.ts",
     "purge": "tsx scripts/purge-development-data.ts",

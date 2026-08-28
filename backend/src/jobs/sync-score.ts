@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "../config/load-env.js";
 
 const enabled = process.env.SCORING_JOB_ENABLED?.trim().toLowerCase() === "true";
 

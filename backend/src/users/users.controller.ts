@@ -3,7 +3,12 @@ import { z } from "zod";
 import type { AuthenticatedRequest } from "../middleware/authenticate.js";
 import { createProfile, getProfile } from "./users.service.js";
 
-const registration = z.object({ displayName: z.string().trim().min(2).max(40), favoriteTeamId: z.string().trim().min(1) });
+export const registration = z.object({
+  firstName: z.string().trim().min(1).max(50),
+  lastName: z.string().trim().min(1).max(50),
+  managerName: z.string().trim().min(2).max(40),
+  favoriteTeamId: z.string().trim().min(1),
+});
 
 export async function registerProfile(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {

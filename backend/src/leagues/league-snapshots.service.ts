@@ -4,6 +4,7 @@ import { firestore } from "../firebase/admin.js";
 import type { Gameweek } from "../gameweeks/gameweeks.service.js";
 import { STARTING_TOTAL_POINTS } from "../points/points.constants.js";
 import { teamLogoUrl } from "../utils/team-logo.js";
+import { publicProfileNames } from "../users/profile-names.js";
 import { getMembershipStartRound, rankLeagueStandings } from "./leagues.service.js";
 
 function chunks<T>(values: T[]) {
@@ -70,9 +71,10 @@ async function calculateLeagueSnapshot(
     const joinedAtMillis = membership.data().joinedAt instanceof Timestamp
       ? membership.data().joinedAt.toMillis()
       : 0;
+    const names = publicProfileNames(profileData);
     return {
       userId: memberUserId,
-      displayName: (profileData?.displayName as string | undefined) ?? "UFL Player",
+      ...names,
       favoriteTeam: team?.exists ? {
         id: team.id,
         name: team.data()!.name as string,

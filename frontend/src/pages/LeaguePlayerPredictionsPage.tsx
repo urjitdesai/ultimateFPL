@@ -40,8 +40,8 @@ export function LeaguePlayerPredictionsPage({ leagueId, memberUserId }: { league
     <AppNav active="leagues" />
     <header className="standings-hero player-predictions-hero">
       <button onClick={() => navigate(`/leagues/${encodeURIComponent(leagueId)}`)}><ArrowLeft /> Back to standings</button>
-      <span>Player predictions</span><h1>{data?.player.displayName ?? "Loading player"}</h1>
-      <p>{data ? `${data.league.name} · ${gameweekPoints} points in Gameweek ${data.selectedGameweek?.roundNumber ?? "—"}` : "Loading completed predictions…"}</p>
+      <span>Player predictions</span><h1>{data?.player.managerName ?? "Loading player"}</h1>
+      <p>{data ? `${data.player.userName} · ${data.league.name} · ${gameweekPoints} points in Gameweek ${data.selectedGameweek?.roundNumber ?? "—"}` : "Loading completed predictions…"}</p>
     </header>
     <section className="player-predictions-content">
       {data?.gameweeks.length ? <label className="gameweek-picker"><CalendarDays /><span>Gameweek</span><select value={gameweekId} onChange={(event) => setGameweekId(event.target.value)}>{data.gameweeks.map((gameweek) => <option value={gameweek.id} key={gameweek.id}>Gameweek {gameweek.roundNumber}</option>)}</select></label> : null}

@@ -53,7 +53,7 @@ export function LeagueStandingsPage({ leagueId }: { leagueId: string }) {
           <div className="standings-head"><span>Rank</span><span>Player</span><span>Movement</span><span>GW points</span><span>Total</span></div>
           {data.standings.map((entry) => <button className={`standing-row standing-row-button ${entry.isCurrentUser ? "is-you" : ""}`} key={entry.userId} onClick={() => navigate(`/leagues/${encodeURIComponent(leagueId)}/players/${encodeURIComponent(entry.userId)}`)}>
             <strong className="rank-number">{entry.rank}</strong>
-            <span className="standing-player">{entry.favoriteTeam?.logoUrl ? <img src={entry.favoriteTeam.logoUrl} alt="" /> : <i>{entry.displayName.charAt(0)}</i>}<span><strong>{entry.displayName}{entry.isCurrentUser ? " (You)" : ""}</strong><small>Scoring since Gameweek {entry.scoringStartedGameweek}</small></span></span>
+            <span className="standing-player">{entry.favoriteTeam?.logoUrl ? <img src={entry.favoriteTeam.logoUrl} alt="" /> : <i>{entry.managerName.charAt(0)}</i>}<span><strong>{entry.managerName}{entry.isCurrentUser ? " (You)" : ""}</strong><small><span className="standing-user-name">{entry.userName}</span><span className="scoring-start">Scoring since Gameweek {entry.scoringStartedGameweek}</span></small></span></span>
             <Movement entry={entry} />
             <strong className="gw-points">{entry.gameweekPoints}</strong>
             <strong className="total-points">{entry.totalPoints}</strong>

@@ -13,7 +13,14 @@ import { AuthShell } from "../components/AuthShell";
 import { GoogleMark } from "../components/GoogleMark";
 import { auth, googleProvider } from "../firebase/client";
 
-const schema = z.object({ displayName: z.string().trim().min(2, "Use at least 2 characters."), email: z.string().email("Enter a valid email address."), password: z.string().min(8, "Use at least 8 characters.").regex(/[A-Za-z]/, "Include at least one letter.").regex(/\d/, "Include at least one number."), favoriteTeamId: z.string().min(1, "Choose your club.") });
+const schema = z.object({
+  firstName: z.string().trim().min(1, "Enter your first name.").max(50, "Use 50 characters or fewer."),
+  lastName: z.string().trim().min(1, "Enter your last name.").max(50, "Use 50 characters or fewer."),
+  managerName: z.string().trim().min(2, "Use at least 2 characters.").max(40, "Use 40 characters or fewer."),
+  email: z.string().email("Enter a valid email address."),
+  password: z.string().min(8, "Use at least 8 characters.").regex(/[A-Za-z]/, "Include at least one letter.").regex(/\d/, "Include at least one number."),
+  favoriteTeamId: z.string().min(1, "Choose your club."),
+});
 type Form = z.infer<typeof schema>;
 
 export function RegisterPage() {
@@ -21,7 +28,7 @@ export function RegisterPage() {
   const [pageError, setPageError] = useState("");
   const [googleLoading, setGoogleLoading] = useState(false);
   const { setProfile, logout } = useAuth();
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<Form>({ resolver: zodResolver(schema), defaultValues: { displayName: "", email: "", password: "", favoriteTeamId: "" } });
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<Form>({ resolver: zodResolver(schema), defaultValues: { firstName: "", lastName: "", managerName: "", email: "", password: "", favoriteTeamId: "" } });
 
   useEffect(() => { api.teams().then(setTeams).catch(() => setPageError("We couldn't load the clubs. Check that the API is running, then refresh.")); }, []);
 
@@ -30,7 +37,12 @@ export function RegisterPage() {
     try {
       const existing = auth.currentUser?.email === values.email ? auth.currentUser : null;
       const user = existing ?? (await createUserWithEmailAndPassword(auth, values.email, values.password)).user;
-      const profile = await api.registerProfile(user, values.displayName, values.favoriteTeamId);
+      const profile = await api.registerProfile(user, {
+        firstName: values.firstName,
+        lastName: values.lastName,
+        managerName: values.managerName,
+        favoriteTeamId: values.favoriteTeamId,
+      });
       setProfile(profile);
       navigate("/dashboard");
     } catch (error) { setPageError(error instanceof Error ? error.message.replace("Firebase: ", "") : "We couldn't create your account."); }
@@ -66,8 +78,8 @@ export function RegisterPage() {
     <button className="google-signin-button" type="button" onClick={signUpWithGoogle} disabled={googleLoading || isSubmitting}><GoogleMark />{googleLoading ? "Signing up with Google…" : "Sign up with Google"}</button>
     <div className="auth-divider"><span>or sign up with email</span></div>
     <form onSubmit={submit} noValidate>
-      <div className="field-row"><label>Display name<input autoComplete="nickname" placeholder="How players will see you" {...register("displayName")} /></label><label>Email address<input type="email" autoComplete="email" placeholder="you@example.com" {...register("email")} /></label></div>
-      <div className="error-row"><span>{errors.displayName?.message}</span><span>{errors.email?.message}</span></div>
+      <div className="field-row"><label>First name<input autoComplete="given-name" placeholder="Your first name" {...register("firstName")} />{errors.firstName ? <span className="field-message">{errors.firstName.message}</span> : null}</label><label>Last name<input autoComplete="family-name" placeholder="Your last name" {...register("lastName")} />{errors.lastName ? <span className="field-message">{errors.lastName.message}</span> : null}</label></div>
+      <div className="field-row"><label>Manager name<input autoComplete="nickname" placeholder="How you appear in leagues" {...register("managerName")} />{errors.managerName ? <span className="field-message">{errors.managerName.message}</span> : null}</label><label>Email address<input type="email" autoComplete="email" placeholder="you@example.com" {...register("email")} />{errors.email ? <span className="field-message">{errors.email.message}</span> : null}</label></div>
       <label>Password<input type="password" autoComplete="new-password" placeholder="At least 8 characters" {...register("password")} /></label>{errors.password ? <p className="field-error">{errors.password.message}</p> : <p className="field-help"><Check /> 8+ characters with a letter and number</p>}
       <label>Your club<select {...register("favoriteTeamId")}><option value="">Choose the team you back</option>{teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label>{errors.favoriteTeamId && <p className="field-error">{errors.favoriteTeamId.message}</p>}
       <button className="primary-button" disabled={isSubmitting || googleLoading}>{isSubmitting ? "Joining the game…" : <>Join the game <ArrowRight /></>}</button>

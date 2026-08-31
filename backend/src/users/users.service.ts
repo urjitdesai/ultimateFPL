@@ -4,8 +4,16 @@ import { getJoinGameweek } from "../gameweeks/gameweeks.service.js";
 import { getUserLeagues, joinDefaultLeagues } from "../leagues/leagues.service.js";
 import { getTeamById } from "../teams/teams.service.js";
 import { STARTING_TOTAL_POINTS } from "../points/points.constants.js";
+import { publicProfileNames } from "./profile-names.js";
 
-export type ProfileInput = { uid: string; email: string; displayName: string; favoriteTeamId: string };
+export type ProfileInput = {
+  uid: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  managerName: string;
+  favoriteTeamId: string;
+};
 
 export async function createProfile(input: ProfileInput) {
   const requestedTeam = await getTeamById(input.favoriteTeamId);
@@ -30,7 +38,10 @@ export async function createProfile(input: ProfileInput) {
       );
       transaction.create(userRef, {
         email: input.email,
-        displayName: input.displayName,
+        firstName: input.firstName,
+        lastName: input.lastName,
+        managerName: input.managerName,
+        displayName: input.managerName,
         favoriteTeamId: profileTeam.id,
         role: "USER",
         activeSeasonId: seasonId,
@@ -60,5 +71,5 @@ export async function getProfile(uid: string) {
   const data = snapshot.data()!;
   const team = await getTeamById(data.favoriteTeamId as string);
   const leagues = await getUserLeagues(uid);
-  return { uid, ...data, favoriteTeam: team, leagues };
+  return { uid, ...data, ...publicProfileNames(data), favoriteTeam: team, leagues };
 }

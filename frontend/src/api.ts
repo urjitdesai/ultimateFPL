@@ -3,11 +3,12 @@ import type { User } from "firebase/auth";
 const baseUrl = import.meta.env.VITE_API_BASE_URL;
 export type Team = { id: string; name: string; shortName: string; logoUrl: string };
 export type League = { id: string; name: string; memberCount: number; inviteCode?: string | null; isDefault?: boolean; favoriteTeamId?: string | null; roundNumber?: number | null };
-export type StandingEntry = { rank: number; previousRank: number; rankChange: number; userId: string; displayName: string; favoriteTeam: Team | null; totalPoints: number; gameweekPoints: number; exactScores: number; correctResults: number; scoringStartedGameweek: number; isCurrentUser: boolean };
+export type StandingEntry = { rank: number; previousRank: number; rankChange: number; userId: string; displayName: string; managerName: string; userName: string; favoriteTeam: Team | null; totalPoints: number; gameweekPoints: number; exactScores: number; correctResults: number; scoringStartedGameweek: number; isCurrentUser: boolean };
 export type LeagueStandings = { league: League; currentGameweek: number; previousGameweek: number | null; status: "EMPTY" | "FINALIZING" | "FINALIZED"; lastUpdatedAt: string | null; standings: StandingEntry[] };
 export type PlayerPredictionFixture = Fixture & { prediction: Pick<Prediction, "predictedHomeScore" | "predictedAwayScore" | "awardedPoints" | "scoringReason" | "isCaptain"> & { isDefault: boolean } };
-export type LeaguePlayerPredictions = { league: Pick<League, "id" | "name">; player: { userId: string; displayName: string; favoriteTeam: Team | null }; gameweeks: Array<{ id: string; roundNumber: number }>; selectedGameweek: { id: string; roundNumber: number } | null; eligibility: { startsGameweek: number }; fixtures: PlayerPredictionFixture[] };
-export type Profile = { uid: string; email: string; displayName: string; favoriteTeam: Team; leagues: League[]; activeSeasonId: string; joinedGameweek: number };
+export type LeaguePlayerPredictions = { league: Pick<League, "id" | "name">; player: { userId: string; displayName: string; managerName: string; userName: string; favoriteTeam: Team | null }; gameweeks: Array<{ id: string; roundNumber: number }>; selectedGameweek: { id: string; roundNumber: number } | null; eligibility: { startsGameweek: number }; fixtures: PlayerPredictionFixture[] };
+export type Profile = { uid: string; email: string; firstName: string; lastName: string; managerName: string; userName: string; displayName: string; favoriteTeam: Team; leagues: League[]; activeSeasonId: string; joinedGameweek: number };
+export type RegisterProfileInput = { firstName: string; lastName: string; managerName: string; favoriteTeamId: string };
 export type Gameweek = { id: string; seasonId: string; roundNumber: number; startsAt: string; endsAt: string; fixtureCount: number; status: "UPCOMING" | "ACTIVE" | "COMPLETE"; settlementStatus: "PENDING" | "PROCESSING" | "FINALIZED" | "FAILED" };
 export type FixtureTeam = Pick<Team, "id" | "name" | "logoUrl">;
 export type Fixture = { id: string; providerMatchId: number; gameweekId: string; roundNumber: number; kickoffAt: string; normalizedStatus: string; homeTeam: FixtureTeam; awayTeam: FixtureTeam; homeScore: number | null; awayScore: number | null };
@@ -42,7 +43,7 @@ async function request<T>(path: string, init?: RequestInit, user?: User): Promis
 export const api = {
   teams: () => request<Team[]>("/teams"),
   profile: (user: User) => request<Profile>("/auth/me", undefined, user),
-  registerProfile: (user: User, displayName: string, favoriteTeamId: string) => request<Profile>("/auth/register-profile", { method: "POST", body: JSON.stringify({ displayName, favoriteTeamId }) }, user),
+  registerProfile: (user: User, input: RegisterProfileInput) => request<Profile>("/auth/register-profile", { method: "POST", body: JSON.stringify(input) }, user),
   gameweeks: (user: User) => request<Gameweek[]>("/gameweeks", undefined, user),
   fixtures: (user: User, gameweekId: string) => request<Fixture[]>(`/fixtures/gameweek/${gameweekId}`, undefined, user),
   predictions: (user: User, gameweekId: string) => request<PredictionView>(`/gameweeks/${gameweekId}/predictions/me`, undefined, user),

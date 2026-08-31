@@ -9,6 +9,7 @@ import { getFixturesForGameweek } from "../fixtures/fixtures.service.js";
 import type { Team } from "../teams/teams.service.js";
 import { teamLogoUrl } from "../utils/team-logo.js";
 import { STARTING_TOTAL_POINTS } from "../points/points.constants.js";
+import { publicProfileNames } from "../users/profile-names.js";
 
 export const createLeagueSchema = z.object({
   name: z.string().trim().min(3).max(50),
@@ -297,6 +298,8 @@ export async function getUserLeagues(userId: string) {
 type StandingCandidate = {
   userId: string;
   displayName: string;
+  managerName: string;
+  userName: string;
   favoriteTeam: { id: string; name: string; logoUrl: string } | null;
   points: number;
   previousPoints: number;
@@ -399,11 +402,15 @@ export async function getLeagueStandings(userId: string, leagueId: string) {
       previousGameweek: finalized.at(-2)?.roundNumber ?? null,
       status: hasNewerCompleteGameweek || !snapshot.exists ? "FINALIZING" as const : "FINALIZED" as const,
       lastUpdatedAt: lastUpdatedAt instanceof Timestamp ? lastUpdatedAt.toDate().toISOString() : null,
-      standings: entries.docs.map((entry) => ({
-        ...entry.data(),
-        totalPoints: Number(entry.data().totalPoints ?? entry.data().points ?? STARTING_TOTAL_POINTS),
-        isCurrentUser: entry.id === userId,
-      })),
+      standings: entries.docs.map((entry) => {
+        const data = entry.data();
+        return {
+          ...data,
+          ...publicProfileNames(data),
+          totalPoints: Number(data.totalPoints ?? data.points ?? STARTING_TOTAL_POINTS),
+          isCurrentUser: entry.id === userId,
+        };
+      }),
     };
   }
 
@@ -454,9 +461,10 @@ export async function getLeagueStandings(userId: string, leagueId: string) {
     const throughCurrentWagers = relevantWagers.filter((wager) => Number(wager.roundNumber) <= currentRound);
     const throughPreviousWagers = relevantWagers.filter((wager) => Number(wager.roundNumber) < currentRound);
     const correctReasons = new Set(["EXACT_SCORE", "CORRECT_GOAL_DIFFERENCE", "CORRECT_RESULT"]);
+    const names = publicProfileNames(profileData);
     return {
       userId: memberUserId,
-      displayName: (profileData?.displayName as string | undefined) ?? "UFL Player",
+      ...names,
       favoriteTeam: team?.exists ? {
         id: team.id,
         name: team.data()!.name as string,
@@ -530,6 +538,7 @@ export async function getLeagueMemberPredictions(
     throw Object.assign(new Error("Only completed gameweeks can be viewed."), { code: "GAMEWEEK_NOT_COMPLETE", status: 409 });
   }
   const profileData = profile.data()!;
+  const names = publicProfileNames(profileData);
   const favoriteTeamId = profileData.favoriteTeamId as string | undefined;
   const [fixtures, team] = await Promise.all([
     selectedGameweek ? getFixturesForGameweek(selectedGameweek.id) : Promise.resolve([]),
@@ -544,7 +553,7 @@ export async function getLeagueMemberPredictions(
     league: { id: league.id, name: league.data()!.name as string },
     player: {
       userId: memberUserId,
-      displayName: (profileData.displayName as string | undefined) ?? "UFL Player",
+      ...names,
       favoriteTeam: team?.exists ? { id: team.id, name: team.data()!.name as string, logoUrl: teamLogoUrl(team.id) } : null,
     },
     gameweeks: availableGameweeks.map(({ id, roundNumber }) => ({ id, roundNumber })),

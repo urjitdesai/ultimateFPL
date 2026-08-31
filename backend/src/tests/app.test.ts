@@ -17,6 +17,8 @@ import { createRateLimit } from "../middleware/rate-limits.js";
 import { fixtureResultVersion } from "../fixtures/fixtures.service.js";
 import { gameweekRequiresScoring, providerSyncIsDue, requiredSyncInterval } from "../jobs/sync-policy.js";
 import { scoringJobProjectIsValid } from "../config/scoring-job-safety.js";
+import { publicProfileNames } from "../users/profile-names.js";
+import { registration } from "../users/users.controller.js";
 
 describe("foundation API", () => {
   it("reports health", async () => {
@@ -33,7 +35,7 @@ describe("foundation API", () => {
   });
 
   it("protects profile registration", async () => {
-    const response = await request(app).post("/api/v1/auth/register-profile").send({ displayName: "Alex", favoriteTeamId: "arsenal" });
+    const response = await request(app).post("/api/v1/auth/register-profile").send({ firstName: "Alex", lastName: "Smith", managerName: "The Gaffer", favoriteTeamId: "arsenal" });
     expect(response.status).toBe(401);
     expect(response.body.error.code).toBe("AUTHENTICATION_REQUIRED");
   });
@@ -137,6 +139,19 @@ describe("foundation API", () => {
     expect(gameweekSubmissionIsLocked(startsAt, deadline + 1)).toBe(true);
   });
 
+  it("validates personal and manager names during profile registration", () => {
+    expect(registration.parse({ firstName: "Alex", lastName: "Smith", managerName: "The Gaffer", favoriteTeamId: "arsenal" }))
+      .toEqual({ firstName: "Alex", lastName: "Smith", managerName: "The Gaffer", favoriteTeamId: "arsenal" });
+    expect(() => registration.parse({ firstName: "", lastName: "Smith", managerName: "A", favoriteTeamId: "arsenal" })).toThrow();
+  });
+
+  it("normalizes new and legacy profile names", () => {
+    expect(publicProfileNames({ firstName: "Alex", lastName: "Smith", managerName: "The Gaffer" }))
+      .toMatchObject({ managerName: "The Gaffer", userName: "Alex Smith", displayName: "The Gaffer" });
+    expect(publicProfileNames({ displayName: "Legacy Boss" }))
+      .toMatchObject({ managerName: "Legacy Boss", userName: "Legacy Boss" });
+  });
+
   it("returns a consistent 429 response when an API quota is exceeded", async () => {
     const limitedApp = express();
     limitedApp.get("/limited", createRateLimit({
@@ -178,7 +193,7 @@ describe("foundation API", () => {
   });
 
   it("calculates league rank movement from the previous gameweek", () => {
-    const base = { favoriteTeam: null, gameweekPoints: 0, exactScores: 0, previousExactScores: 0, correctResults: 0, previousCorrectResults: 0, scoringStartedGameweek: 1 };
+    const base = { managerName: "Manager", userName: "User Name", favoriteTeam: null, gameweekPoints: 0, exactScores: 0, previousExactScores: 0, correctResults: 0, previousCorrectResults: 0, scoringStartedGameweek: 1 };
     const standings = rankLeagueStandings([
       { ...base, userId: "alex", displayName: "Alex", points: 12, previousPoints: 5, joinedAt: 1 },
       { ...base, userId: "sam", displayName: "Sam", points: 10, previousPoints: 8, joinedAt: 2 },
@@ -188,7 +203,7 @@ describe("foundation API", () => {
   });
 
   it("gives equal-point players the same competition rank", () => {
-    const base = { favoriteTeam: null, gameweekPoints: 0, exactScores: 0, previousExactScores: 0, correctResults: 0, previousCorrectResults: 0, previousPoints: 20, scoringStartedGameweek: 1 };
+    const base = { managerName: "Manager", userName: "User Name", favoriteTeam: null, gameweekPoints: 0, exactScores: 0, previousExactScores: 0, correctResults: 0, previousCorrectResults: 0, previousPoints: 20, scoringStartedGameweek: 1 };
     const standings = rankLeagueStandings([
       { ...base, userId: "alex", displayName: "Alex", points: 30, joinedAt: 1 },
       { ...base, userId: "sam", displayName: "Sam", points: 30, joinedAt: 2 },

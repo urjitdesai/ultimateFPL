@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   googleSignInErrorMessage,
+  googleSignUpErrorMessage,
   isUnknownPasswordResetEmail,
   loginErrorMessage,
   passwordResetErrorMessage,
@@ -22,6 +23,11 @@ describe("login error messages", () => {
     expect(googleSignInErrorMessage({ code: "auth/popup-blocked" })).toContain("Allow popups");
     expect(googleSignInErrorMessage({ code: "auth/popup-closed-by-user" })).toContain("closed");
     expect(googleSignInErrorMessage({ code: "auth/unauthorized-domain" })).toContain("not enabled");
+  });
+
+  it("uses sign-up wording for Google registration failures", () => {
+    expect(googleSignUpErrorMessage({ code: "auth/popup-blocked" })).toContain("sign-up window");
+    expect(googleSignUpErrorMessage({ code: "auth/network-request-failed" })).toContain("Google sign-up");
   });
 
   it("keeps unknown password-reset emails private and explains recoverable failures", () => {

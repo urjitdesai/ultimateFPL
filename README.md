@@ -47,6 +47,9 @@ any custom frontend hostname under **Authentication > Settings > Authorized
 domains**. The Firebase Hosting domains configured above use the same Firebase
 web-app credentials as their corresponding environments.
 
-New Google users are sent to `/complete-profile` to choose their favorite team.
-Returning Google users with an existing player profile go directly to the
-dashboard.
+On the registration page, new Google users are sent to `/complete-profile` to
+choose their favorite team. Existing Google users are directed to log in.
+
+On the login page, Google login is accepted only when the Google user already
+has an Ultimate FPL player profile. A user without a profile is signed out and
+shown an error directing them to register first.

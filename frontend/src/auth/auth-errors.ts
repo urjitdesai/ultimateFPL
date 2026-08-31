@@ -15,13 +15,21 @@ export function loginErrorMessage(error: unknown) {
 }
 
 export function googleSignInErrorMessage(error: unknown) {
+  return googleAuthErrorMessage(error, "sign-in");
+}
+
+export function googleSignUpErrorMessage(error: unknown) {
+  return googleAuthErrorMessage(error, "sign-up");
+}
+
+function googleAuthErrorMessage(error: unknown, flow: "sign-in" | "sign-up") {
   const code = firebaseErrorCode(error);
-  if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") return "Google sign-in was closed before it finished.";
-  if (code === "auth/popup-blocked") return "Your browser blocked the Google sign-in window. Allow popups and try again.";
+  if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") return `Google ${flow} was closed before it finished.`;
+  if (code === "auth/popup-blocked") return `Your browser blocked the Google ${flow} window. Allow popups and try again.`;
   if (code === "auth/account-exists-with-different-credential") return "An account already exists for this email. Log in with your email and password instead.";
-  if (code === "auth/unauthorized-domain") return "Google sign-in is not enabled for this website yet.";
-  if (code === "auth/network-request-failed") return "We couldn't reach Google sign-in. Check your connection and try again.";
-  return "We couldn't sign you in with Google. Try again.";
+  if (code === "auth/unauthorized-domain") return `Google ${flow} is not enabled for this website yet.`;
+  if (code === "auth/network-request-failed") return `We couldn't reach Google ${flow}. Check your connection and try again.`;
+  return `We couldn't complete Google ${flow}. Try again.`;
 }
 
 function firebaseErrorCode(error: unknown) {

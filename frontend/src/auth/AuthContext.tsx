@@ -11,12 +11,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => onAuthStateChanged(auth, async (nextUser) => {
-    setUser(nextUser);
-    if (!nextUser) { setProfile(null); setLoading(false); return; }
-    try { setProfile(await api.profile(nextUser)); } catch { setProfile(null); }
-    finally { setLoading(false); }
-  }), []);
+  useEffect(() => {
+    let currentUid: string | null = null;
+    return onAuthStateChanged(auth, async (nextUser) => {
+      currentUid = nextUser?.uid ?? null;
+      const requestedUid = currentUid;
+      setUser(nextUser);
+      setProfile(null);
+      if (!nextUser) { setLoading(false); return; }
+      setLoading(true);
+      try {
+        const nextProfile = await api.profile(nextUser);
+        if (currentUid === requestedUid) setProfile(nextProfile);
+      } catch {
+        if (currentUid === requestedUid) setProfile(null);
+      } finally {
+        if (currentUid === requestedUid) setLoading(false);
+      }
+    });
+  }, []);
 
   const value = useMemo(() => ({ user, profile, loading, setProfile, logout: async () => { await signOut(auth); setProfile(null); } }), [user, profile, loading]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { ArrowRight, Check, ShieldCheck, Users } from "lucide-react";
+import { ArrowRight, Check, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -17,8 +17,7 @@ export function RegisterPage() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [pageError, setPageError] = useState("");
   const { setProfile } = useAuth();
-  const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm<Form>({ resolver: zodResolver(schema), defaultValues: { displayName: "", email: "", password: "", favoriteTeamId: "" } });
-  const selected = teams.find((team) => team.id === watch("favoriteTeamId"));
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<Form>({ resolver: zodResolver(schema), defaultValues: { displayName: "", email: "", password: "", favoriteTeamId: "" } });
 
   useEffect(() => { api.teams().then(setTeams).catch(() => setPageError("We couldn't load the clubs. Check that the API is running, then refresh.")); }, []);
 
@@ -40,7 +39,6 @@ export function RegisterPage() {
       <div className="error-row"><span>{errors.displayName?.message}</span><span>{errors.email?.message}</span></div>
       <label>Password<input type="password" autoComplete="new-password" placeholder="At least 8 characters" {...register("password")} /></label>{errors.password ? <p className="field-error">{errors.password.message}</p> : <p className="field-help"><Check /> 8+ characters with a letter and number</p>}
       <label>Your club<select {...register("favoriteTeamId")}><option value="">Choose the team you back</option>{teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label>{errors.favoriteTeamId && <p className="field-error">{errors.favoriteTeamId.message}</p>}
-      <div className={`league-preview ${selected ? "selected" : ""}`}><span className="team-monogram">{selected?.shortName ?? "UFL"}</span><div><strong>{selected ? `${selected.name} Supporters` : "Your supporters league"}</strong><p><Users /> You’ll join automatically after signup.</p></div></div>
       {pageError && <div className="form-error" role="alert">{pageError}</div>}
       <button className="primary-button" disabled={isSubmitting}>{isSubmitting ? "Joining the game…" : <>Join the game <ArrowRight /></>}</button>
     </form>

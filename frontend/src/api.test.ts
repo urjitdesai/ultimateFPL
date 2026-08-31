@@ -1,6 +1,6 @@
 import type { User } from "firebase/auth";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { api } from "./api";
+import { api, ApiError } from "./api";
 
 describe("gameweek submission API", () => {
   afterEach(() => {
@@ -43,5 +43,21 @@ describe("gameweek submission API", () => {
       captainedFixtureId: "fixture-1",
       wager: { fixtureId: "fixture-1", stakePoints: 10 },
     });
+  });
+
+  it("preserves API error status and code for profile onboarding", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      json: async () => ({ error: { code: "PROFILE_NOT_FOUND", message: "Complete your profile to continue." } }),
+    }));
+    const user = { getIdToken: vi.fn().mockResolvedValue("firebase-token") } as unknown as User;
+
+    await expect(api.profile(user)).rejects.toEqual(expect.objectContaining<ApiError>({
+      name: "ApiError",
+      status: 404,
+      code: "PROFILE_NOT_FOUND",
+      message: "Complete your profile to continue.",
+    }));
   });
 });

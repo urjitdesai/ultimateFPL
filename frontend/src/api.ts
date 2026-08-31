@@ -20,11 +20,22 @@ export type WagerFixture = Fixture & { wagerUnavailableReason: "TEAM_COOLDOWN" |
 export type GameweekWagerView = { wallet: { availablePoints: number; reservedPoints: number }; wager: Wager | null; fixtures: WagerFixture[] };
 export type GameweekSubmission = { predictions: PredictionView; wager: GameweekWagerView };
 
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly code: string,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit, user?: User): Promise<T> {
   const token = user ? await user.getIdToken() : null;
   const response = await fetch(`${baseUrl}${path}`, { ...init, headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}), ...init?.headers } });
   const body = await response.json();
-  if (!response.ok) throw new Error(body.error?.message ?? "Something went wrong.");
+  if (!response.ok) throw new ApiError(body.error?.message ?? "Something went wrong.", response.status, body.error?.code ?? "UNKNOWN_ERROR");
   return body.data as T;
 }
 

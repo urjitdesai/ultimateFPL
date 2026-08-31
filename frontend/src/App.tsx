@@ -6,6 +6,7 @@ import { LeaguesPage } from "./pages/LeaguesPage";
 import { LeagueStandingsPage } from "./pages/LeagueStandingsPage";
 import { LeaguePlayerPredictionsPage } from "./pages/LeaguePlayerPredictionsPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
+import { CompleteProfilePage } from "./pages/CompleteProfilePage";
 import { navigate } from "./navigation";
 
 export function App() {
@@ -13,12 +14,13 @@ export function App() {
   useEffect(() => {
     const update = () => setPath(window.location.pathname);
     window.addEventListener("popstate", update);
-    const knownPath = ["/register", "/login", "/forgot-password", "/dashboard", "/leagues"].includes(path) || /^\/leagues\/[^/]+(?:\/players\/[^/]+)?$/.test(path);
+    const knownPath = ["/register", "/login", "/forgot-password", "/complete-profile", "/dashboard", "/leagues"].includes(path) || /^\/leagues\/[^/]+(?:\/players\/[^/]+)?$/.test(path);
     if (path === "/" || !knownPath) navigate("/register", true);
     return () => window.removeEventListener("popstate", update);
   }, [path]);
   if (path === "/login") return <LoginPage />;
   if (path === "/forgot-password") return <ForgotPasswordPage />;
+  if (path === "/complete-profile") return <CompleteProfilePage />;
   if (path === "/dashboard") return <HomePage />;
   if (path === "/leagues") return <LeaguesPage />;
   const playerMatch = path.match(/^\/leagues\/([^/]+)\/players\/([^/]+)$/);

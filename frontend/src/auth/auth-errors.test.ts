@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  googleSignInErrorMessage,
   isUnknownPasswordResetEmail,
   loginErrorMessage,
   passwordResetErrorMessage,
@@ -15,6 +16,12 @@ describe("login error messages", () => {
   it("explains throttling and network failures", () => {
     expect(loginErrorMessage({ code: "auth/too-many-requests" })).toContain("Too many unsuccessful attempts");
     expect(loginErrorMessage({ code: "auth/network-request-failed" })).toContain("Check your connection");
+  });
+
+  it("explains recoverable Google sign-in failures", () => {
+    expect(googleSignInErrorMessage({ code: "auth/popup-blocked" })).toContain("Allow popups");
+    expect(googleSignInErrorMessage({ code: "auth/popup-closed-by-user" })).toContain("closed");
+    expect(googleSignInErrorMessage({ code: "auth/unauthorized-domain" })).toContain("not enabled");
   });
 
   it("keeps unknown password-reset emails private and explains recoverable failures", () => {

@@ -8,6 +8,7 @@ import { api, type Team } from "../api";
 import { useAuth } from "../auth/AuthContext";
 import { googleProfileNameDefaults } from "../auth/profile-names";
 import { AuthShell } from "../components/AuthShell";
+import { LoadingIndicator } from "../components/LoadingIndicator";
 import { OnboardingProgress } from "../components/OnboardingProgress";
 import { auth } from "../firebase/client";
 import { navigate } from "../navigation";
@@ -22,6 +23,7 @@ type Form = z.infer<typeof schema>;
 
 export function CompleteProfilePage() {
   const [teams, setTeams] = useState<Team[]>([]);
+  const [teamsLoading, setTeamsLoading] = useState(true);
   const [pageError, setPageError] = useState("");
   const { user, profile, loading, pendingEmailSignup, setPendingEmailSignup, setProfile, logout } = useAuth();
   const pendingEmail = pendingEmailSignup?.email;
@@ -43,9 +45,11 @@ export function CompleteProfilePage() {
   useEffect(() => {
     if ((!user && !pendingEmail) || profile) return;
     let active = true;
+    setTeamsLoading(true);
     api.teams()
       .then((nextTeams) => { if (active) setTeams(nextTeams); })
-      .catch(() => { if (active) setPageError("We couldn't load the teams. Refresh the page and try again."); });
+      .catch(() => { if (active) setPageError("We couldn't load the teams. Refresh the page and try again."); })
+      .finally(() => { if (active) setTeamsLoading(false); });
     return () => { active = false; };
   }, [pendingEmail, profile, user]);
 
@@ -70,7 +74,7 @@ export function CompleteProfilePage() {
     }
   });
 
-  if (loading || (!user && !pendingEmailSignup) || profile) return <div className="loading-screen">Loading your account…</div>;
+  if (loading || (!user && !pendingEmailSignup) || profile) return <div className="loading-screen"><LoadingIndicator label="Loading your account…" /></div>;
 
   return <AuthShell><div className="auth-card login-card complete-profile-card">
     <header className="form-header"><div><h2>Complete your profile</h2><p>Tell us who you are and choose your team.</p></div></header>
@@ -78,12 +82,13 @@ export function CompleteProfilePage() {
     <div className="google-account-note"><span>{isGoogleUser ? "Signed up with Google" : "Email signup"}</span><strong>{pendingEmail ?? user?.email}</strong></div>
     <form onSubmit={submit} noValidate>
       <div className="field-row"><label><span className="field-label">First name <small>Required</small></span><input autoFocus={!isGoogleUser} autoComplete="given-name" {...register("firstName")} />{errors.firstName ? <span className="field-message">{errors.firstName.message}</span> : null}</label><label><span className="field-label">Last name <small>Optional</small></span><input autoComplete="family-name" {...register("lastName")} />{errors.lastName ? <span className="field-message">{errors.lastName.message}</span> : null}</label></div>
-      <label>Manager name<input autoFocus={isGoogleUser} autoComplete="nickname" placeholder="How you appear in leagues" {...register("managerName")} /></label>
+      <label>Manager name<input autoFocus={isGoogleUser} autoComplete="nickname" placeholder="How you appear in leagues" {...register("managerName")} /><span className="field-hint">Shown as your manager identity in league tables.</span></label>
       {errors.managerName ? <p className="field-error">{errors.managerName.message}</p> : null}
-      <label>Favorite team<select {...register("favoriteTeamId")}><option value="">Choose the team you back</option>{teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label>
+      <label>Favorite team<select disabled={teamsLoading} aria-busy={teamsLoading} {...register("favoriteTeamId")}><option value="">{teamsLoading ? "Loading teams…" : "Choose the team you back"}</option>{teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label>
+      {teamsLoading ? <LoadingIndicator compact label="Loading teams…" /> : null}
       {errors.favoriteTeamId ? <p className="field-error">{errors.favoriteTeamId.message}</p> : null}
       {pageError ? <div className="form-error" role="alert">{pageError}</div> : null}
-      <button className="primary-button" disabled={isSubmitting || teams.length === 0}>{isSubmitting ? pendingEmailSignup ? "Creating account…" : "Finishing setup…" : <>Finish setup <ArrowRight /></>}</button>
+      <button className="primary-button" disabled={isSubmitting || teamsLoading || teams.length === 0}>{isSubmitting ? <LoadingIndicator compact label={pendingEmailSignup ? "Creating account…" : "Finishing setup…"} /> : <>Finish setup <ArrowRight /></>}</button>
     </form>
     <button className="change-google-account" type="button" onClick={async () => { await logout(); navigate("/register", true); }}><LogOut /> Start over with another account</button>
   </div></AuthShell>;

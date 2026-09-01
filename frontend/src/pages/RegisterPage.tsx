@@ -10,6 +10,7 @@ import { lookupGoogleProfile } from "../auth/google-profile";
 import { emailRegistrationSchema, type EmailRegistrationForm } from "../auth/registration";
 import { AuthShell } from "../components/AuthShell";
 import { GoogleMark } from "../components/GoogleMark";
+import { LoadingIndicator } from "../components/LoadingIndicator";
 import { auth, googleProvider } from "../firebase/client";
 
 export function RegisterPage() {
@@ -74,7 +75,7 @@ export function RegisterPage() {
       <div className="password-validation" id="password-validation" aria-live="polite">{passwordChecks.map((check) => <span className={passwordStarted ? check.valid ? "is-valid" : "is-invalid" : "is-pending"} key={check.label}>{passwordStarted ? check.valid ? <Check /> : <X /> : <i />}{check.label}</span>)}</div>
       <label>Confirm password<input className={confirmationStarted ? passwordsMatch ? "validation-valid" : "validation-invalid" : ""} type="password" autoComplete="new-password" placeholder="Enter it again" aria-invalid={confirmationStarted && !passwordsMatch} aria-describedby="confirm-password-validation" {...register("confirmPassword")} /></label>
       <p className={`confirm-password-validation ${confirmationStarted ? passwordsMatch ? "is-valid" : "is-invalid" : errors.confirmPassword ? "is-invalid" : "is-pending"}`} id="confirm-password-validation" aria-live="polite">{confirmationStarted ? passwordsMatch ? <><Check /> Passwords match.</> : <><X /> Passwords do not match.</> : errors.confirmPassword ? <><X /> Confirm your password.</> : "Enter the same password again."}</p>
-      <button className="primary-button" disabled={isSubmitting || googleLoading}>{isSubmitting ? "Continuing…" : <>Continue to profile <ArrowRight /></>}</button>
+      <button className="primary-button" disabled={isSubmitting || googleLoading}>{isSubmitting ? <LoadingIndicator compact label="Continuing to profile…" /> : <>Continue to profile <ArrowRight /></>}</button>
     </form>
     <p className="auth-switch">Already playing? <a href="/login" onClick={(event) => { event.preventDefault(); navigate("/login"); }}>Log in</a></p>
   </div></AuthShell>;

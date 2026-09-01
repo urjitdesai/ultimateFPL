@@ -16,6 +16,7 @@ export function LeaguesPage() {
   const [actionError, setActionError] = useState("");
   const [submitting, setSubmitting] = useState<"create" | "join" | null>(null);
   const [copied, setCopied] = useState(false);
+  const [activeAction, setActiveAction] = useState<"create" | "join" | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -31,6 +32,7 @@ export function LeaguesPage() {
       setLeagues((current) => [league, ...current]);
       setCreatedCode(league.inviteCode ?? "");
       setName("");
+      setActiveAction(null);
     } catch (requestError) { setActionError(requestError instanceof Error ? requestError.message : "We couldn't create the league."); }
     finally { setSubmitting(null); }
   };
@@ -61,9 +63,13 @@ export function LeaguesPage() {
     <AppNav active="leagues" />
     <header className="league-hero"><span>Your competition</span><h1>Your leagues</h1><p>Every table. Every rival. One place to see where you stand.</p></header>
     <section className="league-directory">
+      <div className="mobile-league-actions" aria-label="League actions">
+        <button type="button" className={activeAction === "create" ? "is-active" : ""} aria-expanded={activeAction === "create"} aria-controls="create-league-form" onClick={() => setActiveAction((current) => current === "create" ? null : "create")}><span><Plus /></span><strong>Create</strong><small>Start a private league</small></button>
+        <button type="button" className={activeAction === "join" ? "is-active" : ""} aria-expanded={activeAction === "join"} aria-controls="join-league-form" onClick={() => setActiveAction((current) => current === "join" ? null : "join")}><span><KeyRound /></span><strong>Join</strong><small>Use an invite key</small></button>
+      </div>
       <div className="league-actions">
-        <form className="league-action-card" onSubmit={createCustomLeague}><span className="league-action-icon"><Plus /></span><div><h2>Create a league</h2><p>Name your private competition and get a key to share.</p><label><span>League name</span><input value={name} maxLength={50} placeholder="Friday Night Rivals" onChange={(event) => setName(event.target.value)} /></label><button disabled={submitting !== null || name.trim().length < 3}>{submitting === "create" ? "Creating…" : "Create league"}</button></div></form>
-        <form className="league-action-card" onSubmit={joinCustomLeague}><span className="league-action-icon"><KeyRound /></span><div><h2>Join a league</h2><p>Enter the key shared by the league creator.</p><label><span>League key</span><input className="invite-code-input" value={inviteCode} maxLength={12} autoCapitalize="characters" placeholder="ABCD2345" onChange={(event) => setInviteCode(event.target.value.toUpperCase())} /></label><button disabled={submitting !== null || inviteCode.trim().length < 6}>{submitting === "join" ? "Joining…" : "Join league"}</button></div></form>
+        <form id="create-league-form" className={`league-action-card ${activeAction === "create" ? "is-mobile-active" : ""}`} onSubmit={createCustomLeague}><span className="league-action-icon"><Plus /></span><div><h2>Create a league</h2><p>Name your private competition and get a key to share.</p><label><span>League name</span><input value={name} maxLength={50} placeholder="Friday Night Rivals" onChange={(event) => setName(event.target.value)} /></label><button disabled={submitting !== null || name.trim().length < 3}>{submitting === "create" ? "Creating…" : "Create league"}</button></div></form>
+        <form id="join-league-form" className={`league-action-card ${activeAction === "join" ? "is-mobile-active" : ""}`} onSubmit={joinCustomLeague}><span className="league-action-icon"><KeyRound /></span><div><h2>Join a league</h2><p>Enter the key shared by the league creator.</p><label><span>League key</span><input className="invite-code-input" value={inviteCode} maxLength={12} autoCapitalize="characters" placeholder="ABCD2345" onChange={(event) => setInviteCode(event.target.value.toUpperCase())} /></label><button disabled={submitting !== null || inviteCode.trim().length < 6}>{submitting === "join" ? "Joining…" : "Join league"}</button></div></form>
       </div>
       {createdCode ? <div className="invite-success" role="status"><Check /><span><strong>League created</strong><small>Share this key with anyone you want to invite.</small></span><code>{createdCode}</code><button onClick={copyCreatedCode}>{copied ? <Check /> : <Copy />}{copied ? "Copied" : "Copy key"}</button></div> : null}
       {actionError ? <div className="home-error league-action-error" role="alert">{actionError}</div> : null}

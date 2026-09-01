@@ -9,7 +9,7 @@ import { gameweekLockDeadline, gameweekSubmissionIsLocked } from "../gameweeks/g
 import { isCurrentPredictionGameweek, isUserEligibleForGameweek } from "../predictions/predictions.service.js";
 import { Timestamp } from "firebase-admin/firestore";
 import { getGameweekStatus, selectJoinGameweek, type Gameweek } from "../gameweeks/gameweeks.service.js";
-import { createdLeagueLimitReached, defaultLeagueRecords, generateInviteCode, getMembershipStartRound, normalizeInviteCode, privateLeagueMemberLimitReached, rankLeagueStandings, selectStandingsGameweeks } from "../leagues/leagues.service.js";
+import { createdLeagueLimitReached, defaultLeagueRecords, generateInviteCode, getMembershipStartRound, normalizeInviteCode, privateLeagueMemberLimitReached, rankLeagueStandings, selectStandingsGameweeks, selectStandingsSnapshot } from "../leagues/leagues.service.js";
 import { fixtureOutcome, settleWager, teamsOnCooldown } from "../wagers/wagers.service.js";
 import { gameweekSubmissionSchema } from "../predictions/gameweek-submission.service.js";
 import { validatePurgeTarget } from "../config/purge-safety.js";
@@ -262,6 +262,25 @@ describe("foundation API", () => {
       { roundNumber: 1, status: "ACTIVE" },
       { roundNumber: 2, status: "UPCOMING" },
     ])).toEqual({ currentGameweek: 0, previousGameweek: null });
+  });
+
+  it("selects latest and historical finalized standings snapshots", () => {
+    const gameweeks = [
+      { id: "gameweek-3", roundNumber: 3 },
+      { id: "gameweek-1", roundNumber: 1 },
+      { id: "gameweek-2", roundNumber: 2 },
+    ];
+    expect(selectStandingsSnapshot(gameweeks)).toEqual({
+      gameweeks: [gameweeks[1], gameweeks[2], gameweeks[0]],
+      selectedGameweek: gameweeks[0],
+      previousGameweek: 2,
+    });
+    expect(selectStandingsSnapshot(gameweeks, "gameweek-2")).toEqual({
+      gameweeks: [gameweeks[1], gameweeks[2], gameweeks[0]],
+      selectedGameweek: gameweeks[2],
+      previousGameweek: 1,
+    });
+    expect(selectStandingsSnapshot(gameweeks, "gameweek-4").selectedGameweek).toBeNull();
   });
 
   it("protects wager reads and does not expose standalone wager mutations", async () => {

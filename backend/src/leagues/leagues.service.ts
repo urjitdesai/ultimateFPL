@@ -359,48 +359,84 @@ export function selectStandingsGameweeks(gameweeks: Array<Pick<Gameweek, "roundN
   return { currentGameweek, previousGameweek: previousGameweek || null };
 }
 
-export async function getLeagueStandings(userId: string, leagueId: string) {
+type StandingsGameweekOption = { id: string; roundNumber: number };
+
+export function selectStandingsSnapshot(
+  gameweeks: StandingsGameweekOption[],
+  requestedGameweekId?: string,
+) {
+  const orderedGameweeks = [...gameweeks].sort((left, right) => left.roundNumber - right.roundNumber);
+  const selectedGameweek = requestedGameweekId
+    ? orderedGameweeks.find((gameweek) => gameweek.id === requestedGameweekId) ?? null
+    : orderedGameweeks.at(-1) ?? null;
+  const selectedIndex = selectedGameweek
+    ? orderedGameweeks.findIndex((gameweek) => gameweek.id === selectedGameweek.id)
+    : -1;
+  return {
+    gameweeks: orderedGameweeks,
+    selectedGameweek,
+    previousGameweek: selectedIndex > 0 ? orderedGameweeks[selectedIndex - 1]!.roundNumber : null,
+  };
+}
+
+export async function getLeagueStandings(userId: string, leagueId: string, requestedGameweekId?: string) {
   const membership = await firestore.collection("leagueMemberships").doc(membershipId(leagueId, userId)).get();
   if (!membership.exists || membership.data()?.isActive !== true) {
     throw Object.assign(new Error("You are not a member of this league."), { code: "LEAGUE_PERMISSION_DENIED", status: 403 });
   }
 
   if (env.SCORING_MODE === "scheduled") {
-    const [league, memberships, gameweeks] = await Promise.all([
+    const [league, memberships, gameweeks, leagueGameweeks] = await Promise.all([
       firestore.collection("leagues").doc(leagueId).get(),
       firestore.collection("leagueMemberships").where("leagueId", "==", leagueId).get(),
       getGameweeks(),
+      firestore.collection("leagues").doc(leagueId).collection("gameweeks").get(),
     ]);
     if (!league.exists || !isActiveLeague(league.data())) {
       throw Object.assign(new Error("League not found."), { code: "LEAGUE_NOT_FOUND", status: 404 });
     }
     const activeMemberships = memberships.docs.filter((document) => document.data().isActive === true);
-    const finalized = gameweeks.filter((gameweek) => gameweek.settlementStatus === "FINALIZED")
-      .sort((left, right) => left.roundNumber - right.roundNumber);
-    const latest = finalized.at(-1) ?? null;
+    const availableGameweeks = leagueGameweeks.docs
+      .filter((document) => document.data().status === "FINALIZED")
+      .map((document) => ({
+        id: String(document.data().gameweekId ?? document.id),
+        roundNumber: Number(document.data().roundNumber),
+      }))
+      .filter((gameweek) => Number.isFinite(gameweek.roundNumber));
+    const selection = selectStandingsSnapshot(availableGameweeks, requestedGameweekId);
+    if (requestedGameweekId && !selection.selectedGameweek) {
+      throw Object.assign(
+        new Error("Only finalized league gameweeks can be viewed."),
+        { code: "LEAGUE_GAMEWEEK_NOT_FINALIZED", status: 409 },
+      );
+    }
+    const latest = selection.gameweeks.at(-1) ?? null;
     const hasNewerCompleteGameweek = gameweeks.some((gameweek) =>
       gameweek.status === "COMPLETE" && gameweek.roundNumber > (latest?.roundNumber ?? 0));
-    if (!latest) {
+    if (!selection.selectedGameweek) {
       return {
         league: { id: league.id, name: league.data()!.name as string, memberCount: activeMemberships.length, inviteCode: league.data()!.inviteCode as string },
         currentGameweek: 0,
         previousGameweek: null,
+        gameweeks: selection.gameweeks,
+        selectedGameweek: null,
         status: hasNewerCompleteGameweek ? "FINALIZING" as const : "EMPTY" as const,
         lastUpdatedAt: null,
         standings: [],
       };
     }
-    const snapshotRef = league.ref.collection("gameweeks").doc(latest.id);
-    const [snapshot, entries] = await Promise.all([
-      snapshotRef.get(),
-      snapshotRef.collection("leaderboard").orderBy("rank", "asc").get(),
-    ]);
-    const lastUpdatedAt = snapshot.data()?.finalizedAt;
+    const selectedSnapshot = leagueGameweeks.docs.find((document) =>
+      String(document.data().gameweekId ?? document.id) === selection.selectedGameweek!.id)!;
+    const entries = await selectedSnapshot.ref.collection("leaderboard").orderBy("rank", "asc").get();
+    const lastUpdatedAt = selectedSnapshot.data().finalizedAt;
+    const isLatestSelection = selection.selectedGameweek.id === latest?.id;
     return {
       league: { id: league.id, name: league.data()!.name as string, memberCount: activeMemberships.length, inviteCode: league.data()!.inviteCode as string },
-      currentGameweek: latest.roundNumber,
-      previousGameweek: finalized.at(-2)?.roundNumber ?? null,
-      status: hasNewerCompleteGameweek || !snapshot.exists ? "FINALIZING" as const : "FINALIZED" as const,
+      currentGameweek: selection.selectedGameweek.roundNumber,
+      previousGameweek: selection.previousGameweek,
+      gameweeks: selection.gameweeks,
+      selectedGameweek: selection.selectedGameweek,
+      status: isLatestSelection && hasNewerCompleteGameweek ? "FINALIZING" as const : "FINALIZED" as const,
       lastUpdatedAt: lastUpdatedAt instanceof Timestamp ? lastUpdatedAt.toDate().toISOString() : null,
       standings: entries.docs.map((entry) => {
         const data = entry.data();
@@ -424,8 +460,17 @@ export async function getLeagueStandings(userId: string, leagueId: string) {
   }
 
   const activeMemberships = memberships.docs.filter((document) => document.data().isActive === true);
-  const standingsGameweeks = selectStandingsGameweeks(gameweeks);
-  const currentRound = standingsGameweeks.currentGameweek;
+  const availableGameweeks = gameweeks
+    .filter((gameweek) => gameweek.status === "COMPLETE")
+    .map(({ id, roundNumber }) => ({ id, roundNumber }));
+  const selection = selectStandingsSnapshot(availableGameweeks, requestedGameweekId);
+  if (requestedGameweekId && !selection.selectedGameweek) {
+    throw Object.assign(
+      new Error("Only completed gameweeks can be viewed."),
+      { code: "GAMEWEEK_NOT_COMPLETE", status: 409 },
+    );
+  }
+  const currentRound = selection.selectedGameweek?.roundNumber ?? 0;
   const roundByGameweekId = new Map(gameweeks.map((gameweek) => [gameweek.id, gameweek.roundNumber]));
 
   const candidates = await Promise.all(activeMemberships.map(async (member) => {
@@ -492,7 +537,9 @@ export async function getLeagueStandings(userId: string, leagueId: string) {
       inviteCode: league.data()!.inviteCode as string,
     },
     currentGameweek: currentRound,
-    previousGameweek: standingsGameweeks.previousGameweek,
+    previousGameweek: selection.previousGameweek,
+    gameweeks: selection.gameweeks,
+    selectedGameweek: selection.selectedGameweek,
     status: currentRound > 0 ? "FINALIZED" as const : "EMPTY" as const,
     lastUpdatedAt: null,
     standings: rankLeagueStandings(candidates).map((entry) => ({

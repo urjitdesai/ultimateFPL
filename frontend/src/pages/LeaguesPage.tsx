@@ -68,11 +68,10 @@ export function LeaguesPage() {
       {createdCode ? <div className="invite-success" role="status"><Check /><span><strong>League created</strong><small>Share this key with anyone you want to invite.</small></span><code>{createdCode}</code><button onClick={copyCreatedCode}>{copied ? <Check /> : <Copy />}{copied ? "Copied" : "Copy key"}</button></div> : null}
       {actionError ? <div className="home-error league-action-error" role="alert">{actionError}</div> : null}
       <div className="section-kicker"><Users /> {leagues.length} joined leagues</div>
-      <div className="league-directory-head"><span>League</span><span>Format</span><span>Members</span><span /></div>
+      <div className="league-directory-head"><span>League</span><span>Members</span><span /></div>
       {loading ? <div className="league-loading">Loading league tables…</div> : error ? <div className="home-error" role="alert">{error}<button onClick={() => window.location.reload()}>Retry</button></div> : leagues.map((league) => {
         return <button className="league-directory-row" key={league.id} onClick={() => navigate(`/leagues/${encodeURIComponent(league.id)}`)}>
           <span className="directory-league"><i><Users /></i><span><strong>{league.name}</strong><small>View full standings</small></span></span>
-          <span className="league-type">{league.isDefault ? (league.favoriteTeamId ? "Supporters league" : league.roundNumber ? "Gameweek league" : "Overall league") : "Private league"}</span>
           <span className="member-total"><strong>{league.memberCount}</strong> {league.memberCount === 1 ? "player" : "players"}</span>
           <ArrowRight />
         </button>;

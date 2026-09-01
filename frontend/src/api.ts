@@ -4,7 +4,7 @@ const baseUrl = import.meta.env.VITE_API_BASE_URL;
 export type Team = { id: string; name: string; shortName: string; logoUrl: string };
 export type League = { id: string; name: string; memberCount: number; inviteCode?: string | null; isDefault?: boolean; favoriteTeamId?: string | null; roundNumber?: number | null };
 export type StandingEntry = { rank: number; previousRank: number; rankChange: number; userId: string; displayName: string; managerName: string; userName: string; favoriteTeam: Team | null; totalPoints: number; gameweekPoints: number; exactScores: number; correctResults: number; scoringStartedGameweek: number; isCurrentUser: boolean };
-export type LeagueStandings = { league: League; currentGameweek: number; previousGameweek: number | null; status: "EMPTY" | "FINALIZING" | "FINALIZED"; lastUpdatedAt: string | null; standings: StandingEntry[] };
+export type LeagueStandings = { league: League; currentGameweek: number; previousGameweek: number | null; gameweeks: Array<{ id: string; roundNumber: number }>; selectedGameweek: { id: string; roundNumber: number } | null; status: "EMPTY" | "FINALIZING" | "FINALIZED"; lastUpdatedAt: string | null; standings: StandingEntry[] };
 export type PlayerPredictionFixture = Fixture & { prediction: Pick<Prediction, "predictedHomeScore" | "predictedAwayScore" | "awardedPoints" | "scoringReason" | "isCaptain"> & { isDefault: boolean } };
 export type LeaguePlayerPredictions = { league: Pick<League, "id" | "name">; player: { userId: string; displayName: string; managerName: string; userName: string; favoriteTeam: Team | null }; gameweeks: Array<{ id: string; roundNumber: number }>; selectedGameweek: { id: string; roundNumber: number } | null; eligibility: { startsGameweek: number }; fixtures: PlayerPredictionFixture[] };
 export type Profile = { uid: string; email: string; firstName: string; lastName: string; managerName: string; userName: string; displayName: string; favoriteTeam: Team; leagues: League[]; activeSeasonId: string; joinedGameweek: number };
@@ -52,6 +52,6 @@ export const api = {
   leagues: (user: User) => request<League[]>("/leagues", undefined, user),
   createLeague: (user: User, name: string) => request<League>("/leagues", { method: "POST", body: JSON.stringify({ name }) }, user),
   joinLeague: (user: User, inviteCode: string) => request<League>("/leagues/join", { method: "POST", body: JSON.stringify({ inviteCode }) }, user),
-  leagueStandings: (user: User, leagueId: string) => request<LeagueStandings>(`/leagues/${encodeURIComponent(leagueId)}/standings`, undefined, user),
+  leagueStandings: (user: User, leagueId: string, gameweekId?: string) => request<LeagueStandings>(`/leagues/${encodeURIComponent(leagueId)}/standings${gameweekId ? `?gameweekId=${encodeURIComponent(gameweekId)}` : ""}`, undefined, user),
   leaguePlayerPredictions: (user: User, leagueId: string, memberUserId: string, gameweekId?: string) => request<LeaguePlayerPredictions>(`/leagues/${encodeURIComponent(leagueId)}/members/${encodeURIComponent(memberUserId)}/predictions${gameweekId ? `?gameweekId=${encodeURIComponent(gameweekId)}` : ""}`, undefined, user)
 };

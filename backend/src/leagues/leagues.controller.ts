@@ -32,6 +32,12 @@ export async function showLeagueMemberPredictions(req: AuthenticatedRequest, res
 }
 
 export async function showLeagueStandings(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-  try { res.json({ data: await getLeagueStandings(req.user!.uid, String(req.params.leagueId)) }); }
+  try {
+    res.json({ data: await getLeagueStandings(
+      req.user!.uid,
+      String(req.params.leagueId),
+      typeof req.query.gameweekId === "string" ? req.query.gameweekId : undefined,
+    ) });
+  }
   catch (error) { next(error); }
 }

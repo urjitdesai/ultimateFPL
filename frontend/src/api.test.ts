@@ -72,6 +72,17 @@ describe("gameweek submission API", () => {
     expect(JSON.parse(String(fetchMock.mock.calls[0]![1].body))).toEqual(input);
   });
 
+  it("allows profile registration without a last name", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data: {} }) });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = { getIdToken: vi.fn().mockResolvedValue("firebase-token") } as unknown as User;
+    const input = { firstName: "Alex", managerName: "The Gaffer", favoriteTeamId: "arsenal" };
+
+    await api.registerProfile(user, input);
+
+    expect(JSON.parse(String(fetchMock.mock.calls[0]![1].body))).toEqual(input);
+  });
+
   it("requests a specific finalized league gameweek", async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data: {} }) });
     vi.stubGlobal("fetch", fetchMock);

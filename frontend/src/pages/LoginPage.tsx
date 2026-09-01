@@ -1,7 +1,7 @@
 import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
 import { ArrowRight } from "lucide-react";
 import { useState } from "react";
-import { api } from "../api";
+import { api, ApiError } from "../api";
 import { googleSignInErrorMessage, loginErrorMessage } from "../auth/auth-errors";
 import { useAuth } from "../auth/AuthContext";
 import { lookupGoogleProfile } from "../auth/google-profile";
@@ -27,7 +27,11 @@ export function LoginPage() {
         const profile = await api.profile(user);
         setProfile(profile);
         navigate("/dashboard");
-      } catch {
+      } catch (profileError) {
+        if (profileError instanceof ApiError && profileError.code === "PROFILE_NOT_FOUND") {
+          navigate("/complete-profile");
+          return;
+        }
         setError("Your login is valid, but your player profile could not be loaded. Try again in a moment.");
       }
     } catch (loginError) {

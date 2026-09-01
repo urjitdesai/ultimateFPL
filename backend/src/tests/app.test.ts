@@ -142,6 +142,10 @@ describe("foundation API", () => {
   it("validates personal and manager names during profile registration", () => {
     expect(registration.parse({ firstName: "Alex", lastName: "Smith", managerName: "The Gaffer", favoriteTeamId: "arsenal" }))
       .toEqual({ firstName: "Alex", lastName: "Smith", managerName: "The Gaffer", favoriteTeamId: "arsenal" });
+    expect(registration.parse({ firstName: "Alex", managerName: "The Gaffer", favoriteTeamId: "arsenal" }))
+      .toEqual({ firstName: "Alex", lastName: "", managerName: "The Gaffer", favoriteTeamId: "arsenal" });
+    expect(registration.parse({ firstName: "Alex", lastName: "", managerName: "The Gaffer", favoriteTeamId: "arsenal" }).lastName)
+      .toBe("");
     expect(() => registration.parse({ firstName: "", lastName: "Smith", managerName: "A", favoriteTeamId: "arsenal" })).toThrow();
   });
 

@@ -3,13 +3,16 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import { api, type Profile } from "../api";
 import { auth } from "../firebase/client";
 
-type AuthValue = { user: User | null; profile: Profile | null; loading: boolean; setProfile: (profile: Profile | null) => void; logout: () => Promise<void> };
+export type PendingEmailSignup = { email: string; password: string };
+type AuthValue = { user: User | null; profile: Profile | null; loading: boolean; pendingEmailSignup: PendingEmailSignup | null; setPendingEmailSignup: (signup: PendingEmailSignup | null) => void; setProfile: (profile: Profile | null) => void; logout: () => Promise<void> };
 const AuthContext = createContext<AuthValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [pendingEmailSignup, setPendingEmailSignup] = useState<PendingEmailSignup | null>(null);
+  const pendingEmail = pendingEmailSignup?.email;
 
   useEffect(() => {
     let currentUid: string | null = null;
@@ -17,8 +20,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       currentUid = nextUser?.uid ?? null;
       const requestedUid = currentUid;
       setUser(nextUser);
-      setProfile(null);
+      setProfile((currentProfile) => nextUser && currentProfile?.uid === nextUser.uid ? currentProfile : null);
       if (!nextUser) { setLoading(false); return; }
+      if (pendingEmail && nextUser.email?.toLowerCase() === pendingEmail.toLowerCase()) { setLoading(false); return; }
       setLoading(true);
       try {
         const nextProfile = await api.profile(nextUser);
@@ -29,9 +33,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (currentUid === requestedUid) setLoading(false);
       }
     });
-  }, []);
+  }, [pendingEmail]);
 
-  const value = useMemo(() => ({ user, profile, loading, setProfile, logout: async () => { await signOut(auth); setProfile(null); } }), [user, profile, loading]);
+  const value = useMemo(() => ({ user, profile, loading, pendingEmailSignup, setPendingEmailSignup, setProfile, logout: async () => { await signOut(auth); setProfile(null); setPendingEmailSignup(null); } }), [user, profile, loading, pendingEmailSignup]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

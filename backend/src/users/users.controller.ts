@@ -5,7 +5,7 @@ import { createProfile, getProfile } from "./users.service.js";
 
 export const registration = z.object({
   firstName: z.string().trim().min(1).max(50),
-  lastName: z.string().trim().min(1).max(50),
+  lastName: z.string().trim().max(50).optional().default(""),
   managerName: z.string().trim().min(2).max(40),
   favoriteTeamId: z.string().trim().min(1),
 });

@@ -11,4 +11,9 @@ describe("Google profile name defaults", () => {
     expect(googleProfileNameDefaults(null, "alex@example.com"))
       .toEqual({ firstName: "alex", lastName: "" });
   });
+
+  it("leaves names empty when Google supplies no usable details", () => {
+    expect(googleProfileNameDefaults(null, null))
+      .toEqual({ firstName: "", lastName: "" });
+  });
 });

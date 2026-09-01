@@ -25,14 +25,36 @@ a { color: #064fd9; font-weight: 700; text-underline-offset: 3px; }
 .form-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 30px; margin-bottom: 28px; }
 .form-header h2 { margin: 0 0 8px; font: 800 clamp(34px,3vw,48px)/1 'Manrope'; letter-spacing: -.055em; }
 .form-header p { margin: 0; color: #66758b; font-size: 16px; }
+.onboarding-progress { margin: -4px 0 24px; }
+.onboarding-progress-copy { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 9px; }
+.onboarding-progress-copy span { color: #6b7b90; font: 700 11px 'Manrope'; letter-spacing: .06em; text-transform: uppercase; }
+.onboarding-progress-copy strong { color: #2b405a; font: 800 12px 'Manrope'; }
+.onboarding-progress-track { height: 7px; overflow: hidden; border-radius: 999px; background: #e2e8f0; }
+.onboarding-progress-track span { display: block; width: 50%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #9dcc00, var(--lime)); transition: width .25s ease; }
+.onboarding-progress-step-2 .onboarding-progress-track span { width: 100%; }
+.onboarding-progress-labels { display: flex; justify-content: space-between; margin-top: 7px; color: #8996a7; font-size: 10px; font-weight: 700; }
+.onboarding-progress-labels .is-complete { color: #4f6f00; }
 .secure-note { display: flex; gap: 7px; align-items: center; color: #496076; font-size: 12px; font-weight: 700; white-space: nowrap; margin-top: 8px; }
 .secure-note svg { width: 17px; }
 form { display: grid; gap: 17px; }
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
 label { display: grid; gap: 8px; color: #17283f; font-size: 13px; font-weight: 700; }
+.field-label { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.field-label small { color: #78879a; font-size: 10px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; }
 input, select { width: 100%; height: 51px; padding: 0 15px; color: var(--ink); background: #fff; border: 1px solid #cbd6e2; border-radius: 8px; outline: none; transition: box-shadow .15s, border-color .15s; }
 input::placeholder { color: #8896a8; }
 input:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 4px rgba(21,94,239,.13); }
+input.validation-valid { border-color: #399125; }
+input.validation-valid:focus { border-color: #399125; box-shadow: 0 0 0 4px rgba(57,145,37,.13); }
+input.validation-invalid { border-color: #d0443a; }
+input.validation-invalid:focus { border-color: #d0443a; box-shadow: 0 0 0 4px rgba(208,68,58,.12); }
+.password-validation { display: flex; flex-wrap: wrap; gap: 7px 14px; margin-top: -10px; }
+.password-validation span, .confirm-password-validation { display: flex; align-items: center; gap: 5px; color: #738297; font-size: 11px; font-weight: 600; }
+.password-validation svg, .confirm-password-validation svg { width: 13px; height: 13px; }
+.password-validation i { width: 7px; height: 7px; margin: 0 3px; border-radius: 50%; background: #adb8c5; }
+.password-validation .is-valid, .confirm-password-validation.is-valid { color: #2c7e1d; }
+.password-validation .is-invalid, .confirm-password-validation.is-invalid { color: #b42318; }
+.confirm-password-validation { min-height: 16px; margin: -10px 0 0; }
 .error-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; min-height: 0; margin-top: -12px; color: #b42318; font-size: 12px; }
 .field-error { margin: -10px 0 0; color: #b42318; font-size: 12px; }
 .field-message { color: #b42318; font-size: 12px; font-weight: 500; }

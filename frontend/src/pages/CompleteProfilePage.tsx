@@ -86,8 +86,8 @@ export function CompleteProfilePage() {
       <div className="field-row"><label><span className="field-label">First name <small>Required</small></span><input autoFocus={!isGoogleUser} autoComplete="given-name" {...register("firstName")} />{errors.firstName ? <span className="field-message">{errors.firstName.message}</span> : null}</label><label><span className="field-label">Last name <small>Optional</small></span><input autoComplete="family-name" {...register("lastName")} />{errors.lastName ? <span className="field-message">{errors.lastName.message}</span> : null}</label></div>
       <label>Manager name<input autoFocus={isGoogleUser} autoComplete="nickname" placeholder="How you appear in leagues" {...register("managerName")} /><span className="field-hint">Shown as your manager identity in league tables.</span></label>
       {errors.managerName ? <p className="field-error">{errors.managerName.message}</p> : null}
-      <label>Favorite team<select disabled={teamsLoading} aria-busy={teamsLoading} {...register("favoriteTeamId")}><option value="">{teamsLoading ? "Loading teams…" : "Choose the team you back"}</option>{teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label>
-      {teamsLoading ? <LoadingIndicator compact label="Loading teams…" /> : null}
+      <label>Favorite team<select disabled={teamsLoading} aria-busy={teamsLoading} {...register("favoriteTeamId")}><option value="">{teamsLoading ? "Preparing team options…" : "Choose the team you back"}</option>{teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label>
+      {teamsLoading ? <LoadingIndicator compact label="Preparing team options…" /> : null}
       {errors.favoriteTeamId ? <p className="field-error">{errors.favoriteTeamId.message}</p> : null}
       {pageError ? <div className="form-error" role="alert">{pageError}</div> : null}
       <button className="primary-button" disabled={isSubmitting || teamsLoading || teams.length === 0}>{isSubmitting ? <LoadingIndicator compact label={pendingEmailSignup ? "Creating account…" : "Finishing setup…"} /> : <>Finish setup <ArrowRight /></>}</button>

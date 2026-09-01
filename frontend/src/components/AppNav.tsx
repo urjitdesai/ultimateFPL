@@ -1,7 +1,9 @@
 import { BookOpen, House, LogOut, Users } from "lucide-react";
 import type { MouseEvent } from "react";
 import { useAuth } from "../auth/AuthContext";
+import { APP_NAME } from "../brand";
 import { navigate } from "../navigation";
+import { BrandLogo } from "./BrandLogo";
 
 export function AppNav({ active }: { active: "home" | "leagues" }) {
   const { profile, logout } = useAuth();
@@ -12,7 +14,7 @@ export function AppNav({ active }: { active: "home" | "leagues" }) {
 
   return <>
     <nav className="home-nav">
-      <button className="home-brand" onClick={() => navigate("/dashboard")}><span>UF</span> Ultimate Fantasy League</button>
+      <button className="home-brand" onClick={() => navigate("/dashboard")}><BrandLogo /> {APP_NAME}</button>
       <div className="home-links"><a className={active === "home" ? "active" : ""} href="/dashboard">Home</a><a className={active === "leagues" ? "active" : ""} href="/leagues">Leagues</a><a href="/onboarding" onClick={(event) => open(event, "/onboarding")}>How to play</a></div>
       <div className="home-account"><span>Good evening, {profile?.managerName}</span><button onClick={logout}><LogOut /> Log out</button></div>
     </nav>

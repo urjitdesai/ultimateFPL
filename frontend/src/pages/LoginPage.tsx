@@ -6,6 +6,7 @@ import { googleSignInErrorMessage, loginErrorMessage } from "../auth/auth-errors
 import { hasPendingOnboarding } from "../auth/onboarding-state";
 import { useAuth } from "../auth/AuthContext";
 import { lookupGoogleProfile } from "../auth/google-profile";
+import { APP_NAME } from "../brand";
 import { AuthShell } from "../components/AuthShell";
 import { GoogleMark } from "../components/GoogleMark";
 import { auth, googleProvider } from "../firebase/client";
@@ -51,7 +52,7 @@ export function LoginPage() {
         const result = await lookupGoogleProfile(user);
         if (result.kind === "missing") {
           await logout().catch(() => undefined);
-          setError("No Ultimate FPL account exists for this Google account. Sign up first, then try logging in again.");
+          setError(`No ${APP_NAME} account exists for this Google account. Sign up first, then try logging in again.`);
           return;
         }
         setProfile(result.profile);

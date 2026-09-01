@@ -2,6 +2,8 @@ import { ArrowLeft, ArrowRight, Check, Clock3, Coins, Crown, Info, Save, Trophy,
 import { useEffect, useRef, useState } from "react";
 import { completeOnboarding } from "../auth/onboarding-state";
 import { useAuth } from "../auth/AuthContext";
+import { APP_NAME } from "../brand";
+import { BrandLogo } from "../components/BrandLogo";
 import { LoadingIndicator } from "../components/LoadingIndicator";
 import { CAPTAIN_MULTIPLIER, MAX_WAGER_POINTS, SCORING_POINTS } from "../game-rules";
 import { navigate } from "../navigation";
@@ -136,7 +138,7 @@ export function OnboardingPage() {
   const next = () => step === lessons.length - 1 ? leaveGuide() : setStep((current) => current + 1);
 
   return <main className="guide-page">
-    <header className="guide-topbar"><button className="guide-brand" type="button" onClick={() => navigate("/dashboard")}><span>UF</span><strong>Ultimate Fantasy League</strong></button><div><span><Clock3 /> 2 min guide</span><button type="button" onClick={leaveGuide}>Skip for now</button></div></header>
+    <header className="guide-topbar"><button className="guide-brand" type="button" onClick={() => navigate("/dashboard")}><BrandLogo /><strong>{APP_NAME}</strong></button><div><span><Clock3 /> 2 min guide</span><button type="button" onClick={leaveGuide}>Skip for now</button></div></header>
     <div className="guide-shell">
       <LessonProgress step={step} managerName={profile?.managerName ?? "manager"} onSelect={setStep} />
       <section className="guide-stage" aria-live="polite">

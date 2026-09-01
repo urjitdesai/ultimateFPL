@@ -8,6 +8,7 @@ import { googleSignUpErrorMessage } from "../auth/auth-errors";
 import { useAuth } from "../auth/AuthContext";
 import { lookupGoogleProfile } from "../auth/google-profile";
 import { emailRegistrationSchema, type EmailRegistrationForm } from "../auth/registration";
+import { APP_NAME } from "../brand";
 import { AuthShell } from "../components/AuthShell";
 import { GoogleMark } from "../components/GoogleMark";
 import { LoadingIndicator } from "../components/LoadingIndicator";
@@ -49,7 +50,7 @@ export function RegisterPage() {
         const result = await lookupGoogleProfile(user);
         if (result.kind === "existing") {
           await logout().catch(() => undefined);
-          setPageError("An Ultimate FPL account already exists for this Google account. Log in instead.");
+          setPageError(`A ${APP_NAME} account already exists for this Google account. Log in instead.`);
           return;
         }
         navigate("/complete-profile");

@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | Local | `http://localhost:5173` | `backend/env/local.env` (development Firebase data) |
 | Development | `https://ultimatefpl-cffba.web.app` | `backend/env/dev.env` |
-| Production | `https://ultimate-fpl.web.app` | `backend/env/prod.env` |
+| Production | `https://predictions-premierleague.web.app` | `backend/env/prod.env` |
 
 Run the frontend and backend locally from separate terminals:
 
@@ -21,10 +21,12 @@ Deploy the development frontend with:
 npm run deploy:frontend:development
 ```
 
-Populate `backend/env/prod.env` with the separate production Firebase Web App
-configuration and production Cloud Run API URL. Then deploy production with:
+Production uses Firebase project `predictionspremierleague-93b85`, while local
+and development builds continue to use `ultimatefpl-cffba`. Populate
+`backend/env/prod.env` with the production Cloud Run API URL, then deploy with:
 
 ```powershell
+npm run validate:frontend:production
 npm install
 npm --prefix frontend ci
 npm exec firebase -- login

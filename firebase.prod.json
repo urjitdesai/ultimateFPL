@@ -1,12 +1,13 @@
 {
   "hosting": {
-    "site": "ultimate-fpl",
+    "site": "predictions-premierleague",
     "public": "frontend/dist",
     "predeploy": [
+      "node scripts/validate-frontend-env.mjs production",
       "npm --prefix frontend run build:production"
     ],
     "ignore": [
-      "firebase.json",
+      "firebase.prod.json",
       "**/.*",
       "**/node_modules/**"
     ],

@@ -1988,7 +1988,8 @@ ultimate-fantasy-league/
 │   ├── seed-firestore.ts
 │   ├── bootstrap-season.ts
 │   └── create-admin.ts
-├── firebase.json
+├── firebase.dev.json
+├── firebase.prod.json
 ├── .firebaserc
 ├── firestore.rules
 ├── firestore.indexes.json

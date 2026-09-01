@@ -14,9 +14,10 @@ excluded from the Docker build context because they may contain credentials.
 `local.env` connects to the development Firebase project but uses
 `http://localhost:5173` and `http://localhost:4000`. `dev.env` configures the
 deployed development site at `https://ultimatefpl-cffba.web.app`.
-`prod.env` configures the separate production site at
-`https://ultimate-fpl.web.app` and must use separate production Firebase
-credentials.
+`prod.env` configures the separate production Firebase project
+`predictionspremierleague-93b85` and its Hosting site at
+`https://predictions-premierleague.web.app`. It must never reuse development
+Firebase credentials or the development Cloud Run URL.
 
 The backend checks `APP_ENV` first. `local`, `dev`/`development`, and
 `prod`/`production` select their corresponding files. With no selector, local

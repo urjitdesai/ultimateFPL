@@ -3,10 +3,11 @@
     "site": "ultimatefpl-cffba",
     "public": "frontend/dist",
     "predeploy": [
+      "node scripts/validate-frontend-env.mjs development",
       "npm --prefix frontend run build:development"
     ],
     "ignore": [
-      "firebase.json",
+      "firebase.dev.json",
       "**/.*",
       "**/node_modules/**"
     ],

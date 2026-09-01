@@ -18,14 +18,17 @@ application endpoints continue to require and verify Firebase ID tokens.
 Run the commands from the repository root. Google Cloud Shell can be used if
 the `gcloud` CLI is not installed locally.
 
-Choose a Cloud Run region close to the production Firestore database. The
-examples use `us-west1`; change it if another region is more appropriate.
+The verified production Firestore database is `(default)` in `us-east4`.
+Firestore locations cannot be changed after creation, so the examples also use
+`us-east4` for Cloud Run and Artifact Registry to minimize application latency.
 
 ```powershell
-$PROJECT_ID = "ultimate-fpl"
-$REGION = "us-west1"
-$SERVICE = "ultimatefpl-api"
-$REPOSITORY = "ultimatefpl"
+$PROJECT_ID = "predictionspremierleague-93b85"
+$FIRESTORE_DATABASE_ID = "(default)"
+$FIRESTORE_LOCATION = "us-east4"
+$REGION = "us-east4"
+$SERVICE = "predictions-api"
+$REPOSITORY = "predictions-premier-league"
 $IMAGE_TAG = git rev-parse --short HEAD
 $IMAGE = "$REGION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/backend:$IMAGE_TAG"
 
@@ -33,16 +36,52 @@ gcloud auth login
 gcloud config set project $PROJECT_ID
 ```
 
-Confirm the Firestore location:
+Confirm that `gcloud` is using the production project before creating anything:
 
 ```powershell
-gcloud firestore databases describe `
-  --database="(default)" `
-  --format="value(locationId)"
+if ((gcloud config get-value project).Trim() -ne $PROJECT_ID) {
+  throw "gcloud is not targeting $PROJECT_ID"
+}
 ```
 
-The Firebase/Google Cloud project must have billing enabled for the required
-production services.
+Confirm that the production Firestore database is in the expected location:
+
+```powershell
+$ACTUAL_FIRESTORE_LOCATION = gcloud firestore databases describe `
+  --database=$FIRESTORE_DATABASE_ID `
+  --format="value(locationId)"
+
+if ($ACTUAL_FIRESTORE_LOCATION -ne $FIRESTORE_LOCATION) {
+  throw "Expected Firestore in $FIRESTORE_LOCATION but found $ACTUAL_FIRESTORE_LOCATION"
+}
+
+$ACTUAL_FIRESTORE_LOCATION
+```
+
+Cloud Run requires the Firebase project to be linked to an active Cloud Billing
+account, which upgrades it to the Blaze plan. Choose the intended billing
+account, set a budget alert, and then link it once:
+
+```powershell
+gcloud billing accounts list
+gcloud billing projects link $PROJECT_ID `
+  --billing-account=YOUR_BILLING_ACCOUNT_ID
+
+gcloud billing projects describe $PROJECT_ID
+```
+
+Do not continue until `billingEnabled` is `true`.
+
+In the Firebase console for `predictionspremierleague-93b85`, complete these
+production-only checks before accepting users:
+
+1. Enable Email/Password and Google under Authentication > Sign-in method.
+2. Confirm `predictions-premierleague.web.app` is an authorized domain.
+3. Keep `localhost` out of the production authorized-domain list.
+4. Keep Firestore client rules deny-by-default. This app reads and writes
+   Firestore through the authenticated Cloud Run service, whose Admin SDK uses
+   IAM rather than browser security rules.
+5. Configure production email templates and a production support email.
 
 ## 2. Enable the required services
 
@@ -81,10 +120,10 @@ saved deployment command.
 ## 5. Create the API service account
 
 ```powershell
-$API_SERVICE_ACCOUNT = "ultimatefpl-api@$PROJECT_ID.iam.gserviceaccount.com"
+$API_SERVICE_ACCOUNT = "predictions-api@$PROJECT_ID.iam.gserviceaccount.com"
 
-gcloud iam service-accounts create ultimatefpl-api `
-  --display-name="Ultimate FPL API"
+gcloud iam service-accounts create predictions-api `
+  --display-name="Predictions Premier League API"
 
 gcloud projects add-iam-policy-binding $PROJECT_ID `
   --member="serviceAccount:$API_SERVICE_ACCOUNT" `
@@ -120,7 +159,7 @@ For the initial rollout, use request-driven scoring until the scheduled Cloud
 Run Job has been deployed and initialized successfully:
 
 ```powershell
-$ENVIRONMENT_VARIABLES = "NODE_ENV=production,FRONTEND_URL=https://ultimate-fpl.web.app,TRUST_PROXY_HOPS=1,FIREBASE_PROJECT_ID=ultimate-fpl,FIREBASE_DATABASE_ID=(default),BACKEND_API=https://footballdata.io/api/v1,FOOTBALLDATA_IO_LEAGUE_ID=15,FOOTBALLDATA_IO_SEASON_YEAR=20262027,SCORING_MODE=request_driven,SCORING_JOB_ENABLED=false"
+$ENVIRONMENT_VARIABLES = "NODE_ENV=production,FRONTEND_URL=https://predictions-premierleague.web.app,TRUST_PROXY_HOPS=1,FIREBASE_PROJECT_ID=$PROJECT_ID,FIREBASE_DATABASE_ID=$FIRESTORE_DATABASE_ID,BACKEND_API=https://footballdata.io/api/v1,FOOTBALLDATA_IO_LEAGUE_ID=15,FOOTBALLDATA_IO_SEASON_YEAR=20262027,SCORING_MODE=request_driven,SCORING_JOB_ENABLED=false"
 
 gcloud run deploy $SERVICE `
   --image=$IMAGE `
@@ -134,7 +173,7 @@ gcloud run deploy $SERVICE `
 ```
 
 The frontend origin is intentionally restricted to
-`https://ultimate-fpl.web.app` by the production CORS configuration.
+`https://predictions-premierleague.web.app` by the production CORS configuration.
 
 ## 8. Verify the deployed API
 
@@ -182,7 +221,7 @@ npm run deploy:frontend:production
 ```
 
 Test registration, login, password reset, teams, predictions, wagers, and
-league pages from `https://ultimate-fpl.web.app`.
+league pages from `https://predictions-premierleague.web.app`.
 
 ## 10. Deploy scheduled scoring
 
@@ -190,7 +229,7 @@ The API service does not execute scheduled scoring by itself. After the API is
 healthy:
 
 1. Reuse the same image to deploy the private
-   `ultimatefpl-score-production` Cloud Run Job.
+   `predictions-scoring` Cloud Run Job.
 2. Execute the job manually once.
 3. Verify its sync run, released lease, finalized gameweek, user aggregates,
    wallets, and league snapshots in Firestore.

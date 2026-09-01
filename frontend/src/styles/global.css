@@ -160,6 +160,7 @@ input.validation-invalid:focus { border-color: #d0443a; box-shadow: 0 0 0 4px rg
 .save-predictions svg { width: 15px; }
 .save-predictions:disabled { opacity: .45; cursor: not-allowed; }
 .save-predictions.is-saved { background: #e8f7db; color: #287213; }
+.save-predictions-bottom { display: none; }
 .fixture-list { border-top: 1px solid var(--line); }
 .fixture-head, .fixture-row { display: grid; grid-template-columns: 110px minmax(0,1fr) 230px minmax(0,1fr); align-items: center; }
 .fixture-head { min-height: 35px; color: #72829a; font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
@@ -430,6 +431,7 @@ input.validation-invalid:focus { border-color: #d0443a; box-shadow: 0 0 0 4px rg
   .fixtures-section > header { align-items: flex-start; gap: 15px; }
   .fixture-actions { align-items: flex-end; flex-direction: column; gap: 8px; }
   .save-predictions { min-width: 132px; padding: 0 10px; font-size: 11px; }
+  .save-predictions-bottom { display: flex; width: 100%; margin-top: 18px; }
   .fixture-head { display: none; }
   .fixture-list { border-top: 1px solid var(--line); }
   .fixture-row { min-height: 148px; grid-template-columns: minmax(0,1fr) 142px minmax(0,1fr); grid-template-areas: "time time time" "home prediction away"; gap: 8px 5px; padding: 12px 0; }

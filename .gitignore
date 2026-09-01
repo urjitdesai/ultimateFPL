@@ -12,7 +12,7 @@ test-results/
 playwright-report/
 **/playwright-report/
 *.tsbuildinfo
-
+deployment
 # Tool caches and logs
 .firebase/
 **/.firebase/
@@ -28,7 +28,10 @@ firebase-debug.log*
 **/.env.*
 !**/.env.example
 !**/*.env.example
-backend/env/*.env
+backend/env/*
+!backend/env/README.md
+!backend/env/*.env.example
+deploy_backend.env
 backend/firebase-service-account-key.json
 
 # Local development-only project files
@@ -40,7 +43,7 @@ backend/firestore.indexes.json
 backend/docs/schemas
 backend/scripts/
 production_ready.md
-
+deploy_backend.md
 # Operating-system files
 .DS_Store
 Thumbs.db

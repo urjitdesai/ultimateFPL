@@ -471,9 +471,11 @@ input.validation-invalid:focus { border-color: #d0443a; box-shadow: 0 0 0 4px rg
   .league-action-icon { width: 40px; height: 40px; }
   .league-action-card input, .league-action-card select { min-height: 46px; font-size: 16px; }
   .league-action-card button { min-height: 44px; font-size: 12px; }
-  .invite-success { grid-template-columns: 24px 1fr; gap: 10px; }
-  .invite-success code { padding-left: 34px; }
-  .invite-success button { grid-column: 2; width: fit-content; }
+  .invite-success { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px; }
+  .invite-success > svg { flex: 0 0 24px; }
+  .invite-success > span { flex: 1 1 calc(100% - 34px); min-width: 0; }
+  .invite-success code, .invite-success button { flex: 0 0 auto; margin-left: 34px; }
+  .invite-success code { padding-left: 0; }
   .section-kicker { margin: 8px 0 10px; }
   .league-directory-head { display: none; }
   .league-directory-row { min-height: 78px; grid-template-columns: minmax(0,1fr) 62px 18px; gap: 9px; padding-inline: 8px; }

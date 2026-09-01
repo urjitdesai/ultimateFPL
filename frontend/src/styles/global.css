@@ -220,10 +220,6 @@ input:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 4px rgb
 .league-row-button small { color: #748399; font-size: 12px; }
 .view-all-leagues { display: flex; align-items: center; gap: 8px; margin: 18px 0 0 auto; padding: 0; border: 0; background: transparent; color: #365100; font: 800 12px 'Manrope'; cursor: pointer; }
 .view-all-leagues svg { width: 15px; }
-.season-note { display: flex; gap: 13px; margin-top: 26px; padding: 18px 0; color: #506178; }
-.season-note > svg { flex: 0 0 20px; width: 20px; color: #6f7f94; }
-.season-note strong { color: var(--ink); font: 700 13px 'Manrope'; }
-.season-note p { margin: 6px 0 0; font-size: 12px; line-height: 1.5; }
 @keyframes shimmer { to { background-position: -200% 0; } }
 
 .league-page { min-height: 100vh; background: #fff; }

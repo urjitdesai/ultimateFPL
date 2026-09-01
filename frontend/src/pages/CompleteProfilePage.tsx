@@ -7,6 +7,7 @@ import { z } from "zod";
 import { api, type Team } from "../api";
 import { useAuth } from "../auth/AuthContext";
 import { googleProfileNameDefaults } from "../auth/profile-names";
+import { markOnboardingPending } from "../auth/onboarding-state";
 import { AuthShell } from "../components/AuthShell";
 import { LoadingIndicator } from "../components/LoadingIndicator";
 import { OnboardingProgress } from "../components/OnboardingProgress";
@@ -66,9 +67,10 @@ export function CompleteProfilePage() {
       }
       if (!registrationUser) return;
       const nextProfile = await api.registerProfile(registrationUser, { firstName, lastName, managerName, favoriteTeamId });
+      markOnboardingPending(registrationUser.uid);
       setProfile(nextProfile);
       setPendingEmailSignup(null);
-      navigate("/dashboard");
+      navigate("/onboarding");
     } catch (error) {
       setPageError(error instanceof Error ? error.message.replace("Firebase: ", "") : "We couldn't finish setting up your account.");
     }

@@ -3,6 +3,7 @@ import { ArrowRight } from "lucide-react";
 import { useState } from "react";
 import { api, ApiError } from "../api";
 import { googleSignInErrorMessage, loginErrorMessage } from "../auth/auth-errors";
+import { hasPendingOnboarding } from "../auth/onboarding-state";
 import { useAuth } from "../auth/AuthContext";
 import { lookupGoogleProfile } from "../auth/google-profile";
 import { AuthShell } from "../components/AuthShell";
@@ -26,7 +27,7 @@ export function LoginPage() {
       try {
         const profile = await api.profile(user);
         setProfile(profile);
-        navigate("/dashboard");
+        navigate(hasPendingOnboarding(user.uid) ? "/onboarding" : "/dashboard");
       } catch (profileError) {
         if (profileError instanceof ApiError && profileError.code === "PROFILE_NOT_FOUND") {
           navigate("/complete-profile");
@@ -54,7 +55,7 @@ export function LoginPage() {
           return;
         }
         setProfile(result.profile);
-        navigate("/dashboard");
+        navigate(hasPendingOnboarding(user.uid) ? "/onboarding" : "/dashboard");
       } catch {
         await logout().catch(() => undefined);
         setError("Your Google login succeeded, but your player profile could not be loaded. Try again in a moment.");

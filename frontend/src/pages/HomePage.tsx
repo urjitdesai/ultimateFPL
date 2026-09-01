@@ -4,6 +4,7 @@ import { api, type Gameweek, type GameweekWagerView, type League, type Predictio
 import { useAuth } from "../auth/AuthContext";
 import { PredictionFixtureRow } from "../components/PredictionFixtureRow";
 import { AppNav } from "../components/AppNav";
+import { MAX_WAGER_POINTS } from "../game-rules";
 import { navigate } from "../navigation";
 
 const emptyView: PredictionView = { fixtures: [], predictionsOpen: false, captainedFixtureId: null, eligibility: { eligible: true, startsGameweek: 1 }, summary: { totalPoints: 100, gameweekPoints: 0, wagerPoints: 0, submittedCount: 0, fixtureCount: 0, pointsUpdatedAt: null } };
@@ -128,7 +129,7 @@ export function HomePage() {
   const replacementRefund = wagerChanged && existingWager?.status === "OPEN" && wagerDraft?.fixtureId !== existingWager.fixtureId
     ? existingWager.stakePoints
     : 0;
-  const wagerDraftValid = wagerSubmission == null || (wagerSubmission.stakePoints >= 1 && wagerSubmission.stakePoints <= 20
+  const wagerDraftValid = wagerSubmission == null || (wagerSubmission.stakePoints >= 1 && wagerSubmission.stakePoints <= MAX_WAGER_POINTS
     && wagerSubmission.stakePoints <= (wagerView?.wallet.availablePoints ?? 0) + (existingWager?.stakePoints ?? 0)
     && wagerSelectionForScore(drafts[wagerSubmission.fixtureId] ?? { home: "", away: "" }) != null);
   const hasSaveableWork = savableCount > 0 || wagerHasChanges;

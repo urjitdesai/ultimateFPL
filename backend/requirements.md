@@ -690,9 +690,9 @@ Use a versioned scoring system so rules can change in future seasons without cor
 
 | Outcome | Points |
 |---|---:|
-| Exact score | 5 |
-| Correct result and exact goal difference | 3 |
-| Correct winner or correct draw | 2 |
+| Exact score | 10 |
+| Correct result and exact goal difference | 6 |
+| Correct winner or correct draw | 3 |
 | Incorrect result | 0 |
 
 Definitions:
@@ -710,15 +710,15 @@ Final score: Arsenal 3–1 Chelsea
 
 | Prediction | Points | Explanation |
 |---|---:|---|
-| 3–1 | 5 | Exact score |
-| 2–0 | 3 | Correct winner and +2 goal difference |
-| 2–1 | 2 | Correct winner |
+| 3–1 | 10 | Exact score |
+| 2–0 | 6 | Correct winner and +2 goal difference |
+| 2–1 | 3 | Correct winner |
 | 1–1 | 0 | Incorrect result |
 
 For a final score of `1–1`:
 
-- `1–1` earns 5.
-- `0–0` or `2–2` earns 3 because the result and goal difference are correct.
+- `1–1` earns 10.
+- `0–0` or `2–2` earns 6 because the result and goal difference are correct.
 - A non-draw earns 0.
 
 ### Scoring function
@@ -1906,7 +1906,7 @@ SYNC_LIVE_INTERVAL_MS=300000
 SYNC_RECENT_INTERVAL_MS=1800000
 SYNC_IDLE_INTERVAL_MS=86400000
 MAX_PREDICTED_GOALS=20
-SCORING_RULE_VERSION=2026.1
+SCORING_RULE_VERSION=2026.3
 
 ENABLE_TEAM_LOGOS=false
 ENABLE_EMAIL_VERIFICATION=false
@@ -2108,7 +2108,7 @@ The MVP is complete when:
 13. Postponed fixtures can be rescheduled without losing predictions.
 14. The app works on mobile and desktop.
 15. Automated tests cover the scoring and locking rules.
-16. A user starts with 100 total points and can place no more than one 1–20 point outcome wager per eligible gameweek from those points.
+16. A user starts with 100 total points and can place no more than one 1–50 point outcome wager per eligible gameweek from those points.
 17. Correct wagers return double, incorrect wagers lose their stake, and both teams observe the three-gameweek cooldown.
 18. No Footballdata.io API key, Firebase Admin credential, or service-account secret is exposed to the browser.
 19. The app displays an independent/non-affiliation disclaimer.
@@ -2241,7 +2241,7 @@ When no other direction is provided, use these defaults:
 - Unlimited memberships for the initial MVP.
 - One gameweek-wide deadline one hour before the first fixture.
 - Predictions hidden from other users until kickoff.
-- Scoring: exact score 5, correct result and goal difference 3, correct result 2, otherwise 0.
+- Scoring: exact score 10, correct result and goal difference 6, correct result 3, otherwise 0.
 - No Joker or double-points feature initially.
 - No global leaderboard initially.
 - No club logos until usage rights are confirmed.

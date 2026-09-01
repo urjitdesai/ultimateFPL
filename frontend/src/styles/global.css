@@ -211,10 +211,10 @@ input.validation-invalid:focus { border-color: #d0443a; box-shadow: 0 0 0 4px rg
 .points-award { min-width: 78px; padding: 7px 8px; display: grid; background: #f1f4f7; text-align: center; }
 .points-award strong { color: #526278; font-size: 12px; }
 .points-award span { margin-top: 2px; font-size: 8px; }
-.points-award.points-5 { background: #e9f8bb; }
-.points-award.points-5 strong { color: #365d00; }
-.points-award.points-3, .points-award.points-2 { background: #e7f0ff; }
-.points-award.points-3 strong, .points-award.points-2 strong { color: #174ea6; }
+.points-award.points-5, .points-award.points-10, .points-award.points-20 { background: #e9f8bb; }
+.points-award.points-5 strong, .points-award.points-10 strong, .points-award.points-20 strong { color: #365d00; }
+.points-award.points-2, .points-award.points-3, .points-award.points-6, .points-award.points-12 { background: #e7f0ff; }
+.points-award.points-2 strong, .points-award.points-3 strong, .points-award.points-6 strong, .points-award.points-12 strong { color: #174ea6; }
 .fixture-skeleton { display: grid; }
 .fixture-skeleton div { height: 80px; border-top: 1px solid #e5eaf0; background: linear-gradient(90deg,transparent,#f2f5f8,transparent); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
 .fixture-empty { padding: 80px 20px; text-align: center; color: #64748a; border-top: 1px solid var(--line); }

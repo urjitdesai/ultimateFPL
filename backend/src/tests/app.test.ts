@@ -79,19 +79,19 @@ describe("foundation API", () => {
   });
 
   it("scores predictions using exact-score precedence", () => {
-    expect(scorePrediction({ predictedHome: 3, predictedAway: 1, actualHome: 3, actualAway: 1 })).toMatchObject({ points: 5, reason: "EXACT_SCORE" });
-    expect(scorePrediction({ predictedHome: 2, predictedAway: 0, actualHome: 3, actualAway: 1 })).toMatchObject({ points: 3, reason: "CORRECT_GOAL_DIFFERENCE" });
-    expect(scorePrediction({ predictedHome: 2, predictedAway: 1, actualHome: 3, actualAway: 1 })).toMatchObject({ points: 2, reason: "CORRECT_RESULT" });
+    expect(scorePrediction({ predictedHome: 3, predictedAway: 1, actualHome: 3, actualAway: 1 })).toMatchObject({ points: 10, reason: "EXACT_SCORE" });
+    expect(scorePrediction({ predictedHome: 2, predictedAway: 0, actualHome: 3, actualAway: 1 })).toMatchObject({ points: 6, reason: "CORRECT_GOAL_DIFFERENCE" });
+    expect(scorePrediction({ predictedHome: 2, predictedAway: 1, actualHome: 3, actualAway: 1 })).toMatchObject({ points: 3, reason: "CORRECT_RESULT" });
     expect(scorePrediction({ predictedHome: 1, predictedAway: 1, actualHome: 3, actualAway: 1 })).toMatchObject({ points: 0, reason: "INCORRECT" });
   });
 
-  it("awards three points for the correct non-exact draw", () => {
-    expect(scorePrediction({ predictedHome: 0, predictedAway: 0, actualHome: 1, actualAway: 1 })).toMatchObject({ points: 3, reason: "CORRECT_GOAL_DIFFERENCE" });
+  it("awards six points for the correct non-exact draw", () => {
+    expect(scorePrediction({ predictedHome: 0, predictedAway: 0, actualHome: 1, actualAway: 1 })).toMatchObject({ points: 6, reason: "CORRECT_GOAL_DIFFERENCE" });
   });
 
   it("doubles a captain prediction's earned points", () => {
-    expect(scorePrediction({ predictedHome: 3, predictedAway: 1, actualHome: 3, actualAway: 1, isCaptain: true })).toMatchObject({ basePoints: 5, points: 10, reason: "EXACT_SCORE", ruleVersion: "2026.2" });
-    expect(scorePrediction({ predictedHome: 2, predictedAway: 1, actualHome: 3, actualAway: 1, isCaptain: true })).toMatchObject({ basePoints: 2, points: 4, reason: "CORRECT_RESULT" });
+    expect(scorePrediction({ predictedHome: 3, predictedAway: 1, actualHome: 3, actualAway: 1, isCaptain: true })).toMatchObject({ basePoints: 10, points: 20, reason: "EXACT_SCORE", ruleVersion: "2026.3" });
+    expect(scorePrediction({ predictedHome: 2, predictedAway: 1, actualHome: 3, actualAway: 1, isCaptain: true })).toMatchObject({ basePoints: 3, points: 6, reason: "CORRECT_RESULT" });
     expect(scorePrediction({ predictedHome: 1, predictedAway: 1, actualHome: 3, actualAway: 1, isCaptain: true })).toMatchObject({ basePoints: 0, points: 0, reason: "INCORRECT" });
   });
 
@@ -109,10 +109,10 @@ describe("foundation API", () => {
     const valid = gameweekSubmissionSchema.safeParse({
       predictions,
       captainedFixtureId: "fixture-1",
-      wager: { fixtureId: "fixture-1", selection: "AWAY_WIN", stakePoints: 20 },
+      wager: { fixtureId: "fixture-1", selection: "AWAY_WIN", stakePoints: 50 },
     });
     expect(valid.success).toBe(true);
-    if (valid.success) expect(valid.data.wager).toEqual({ fixtureId: "fixture-1", stakePoints: 20 });
+    if (valid.success) expect(valid.data.wager).toEqual({ fixtureId: "fixture-1", stakePoints: 50 });
     expect(gameweekSubmissionSchema.safeParse({
       predictions,
       captainedFixtureId: "fixture-2",
@@ -126,7 +126,7 @@ describe("foundation API", () => {
     expect(gameweekSubmissionSchema.safeParse({
       predictions,
       captainedFixtureId: null,
-      wager: { fixtureId: "fixture-1", stakePoints: 21 },
+      wager: { fixtureId: "fixture-1", stakePoints: 51 },
     }).success).toBe(false);
   });
 

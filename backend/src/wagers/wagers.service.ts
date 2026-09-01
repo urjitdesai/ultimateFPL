@@ -4,7 +4,7 @@ import { getFixturesForGameweek } from "../fixtures/fixtures.service.js";
 import { STARTING_TOTAL_POINTS } from "../points/points.constants.js";
 import { env } from "../config/env.js";
 
-export const MAX_WAGER_POINTS = 20;
+export const MAX_WAGER_POINTS = 50;
 export const TEAM_COOLDOWN_GAMEWEEKS = 3;
 
 export type WagerSelection = "HOME_WIN" | "DRAW" | "AWAY_WIN";

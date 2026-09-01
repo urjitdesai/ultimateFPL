@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { completeOnboarding } from "../auth/onboarding-state";
 import { useAuth } from "../auth/AuthContext";
 import { LoadingIndicator } from "../components/LoadingIndicator";
+import { CAPTAIN_MULTIPLIER, MAX_WAGER_POINTS, SCORING_POINTS } from "../game-rules";
 import { navigate } from "../navigation";
 
 const lessons = [
@@ -12,10 +13,10 @@ const lessons = [
 ] as const;
 
 const scoringExamples = [
-  { label: "Exact score", predicted: "2–1", final: "2–1", points: 5, tone: "exact" },
-  { label: "Correct goal difference", predicted: "2–0", final: "3–1", points: 3, tone: "close" },
-  { label: "Correct result", predicted: "2–1", final: "3–1", points: 2, tone: "close" },
-  { label: "Incorrect result", predicted: "1–0", final: "1–2", points: 0, tone: "miss" },
+  { label: "Exact score", predicted: "2–1", final: "2–1", points: SCORING_POINTS.exactScore, tone: "exact" },
+  { label: "Correct goal difference", predicted: "2–0", final: "3–1", points: SCORING_POINTS.correctGoalDifference, tone: "close" },
+  { label: "Correct result", predicted: "2–1", final: "3–1", points: SCORING_POINTS.correctResult, tone: "close" },
+  { label: "Incorrect result", predicted: "1–0", final: "1–2", points: SCORING_POINTS.incorrectResult, tone: "miss" },
 ] as const;
 
 function LessonProgress({ step, managerName, onSelect }: { step: number; managerName: string; onSelect: (step: number) => void }) {
@@ -78,7 +79,7 @@ function ScoringLesson() {
       </div>)}
     </div>
     <button className={`guide-captain-strip ${captainBoost ? "is-active" : ""}`} type="button" aria-pressed={captainBoost} onClick={() => setCaptainBoost((current) => !current)}>
-      <span className="guide-captain-icon"><Crown /></span><span><strong>Captain one fixture each gameweek</strong><small>Its prediction points are doubled.</small></span><span className="guide-captain-math"><i>5 PTS</i><ArrowRight /><strong>{captainBoost ? "10 PTS" : "5 PTS"}</strong></span>
+      <span className="guide-captain-icon"><Crown /></span><span><strong>Captain one fixture each gameweek</strong><small>Its prediction points are doubled.</small></span><span className="guide-captain-math"><i>{SCORING_POINTS.exactScore} PTS</i><ArrowRight /><strong>{captainBoost ? SCORING_POINTS.exactScore * CAPTAIN_MULTIPLIER : SCORING_POINTS.exactScore} PTS</strong></span>
     </button>
   </div>;
 }
@@ -94,7 +95,7 @@ function FinalTipsLesson() {
         <div className="guide-wager-controls">
           <span className="guide-section-label">Optional wager calculator</span>
           <div className="guide-outcome-switch" aria-label="Example wager outcome"><button className={won ? "is-selected" : ""} type="button" onClick={() => setWon(true)}>If you win</button><button className={!won ? "is-selected" : ""} type="button" onClick={() => setWon(false)}>If you miss</button></div>
-          <label>Stake <strong>{stake} points</strong><input type="range" min="1" max="20" value={stake} onChange={(event) => setStake(Number(event.target.value))} /></label>
+          <label>Stake <strong>{stake} points</strong><input type="range" min="1" max={MAX_WAGER_POINTS} value={stake} onChange={(event) => setStake(Number(event.target.value))} /></label>
           <div className="guide-wager-result"><Coins /><span>{won ? "Returned to your total" : "Removed from your total"}</span><strong>{won ? `+${stake * 2}` : `−${stake}`} pts</strong></div>
         </div>
       </section>
@@ -103,7 +104,7 @@ function FinalTipsLesson() {
         <ol>
           <li><span>1</span><div><strong>Predict every fixture</strong><p>Closer scores earn more points.</p></div></li>
           <li><span>2</span><div><strong>Pick one captain</strong><p>Its prediction points double.</p></div></li>
-          <li><span>3</span><div><strong>Choose an optional wager</strong><p>Stake 1–20 points on one predicted outcome. A win returns 2× your stake.</p></div></li>
+          <li><span>3</span><div><strong>Choose an optional wager</strong><p>Stake 1–{MAX_WAGER_POINTS} points on one predicted outcome. A win returns 2× your stake.</p></div></li>
           <li><span>4</span><div><strong>Save before the deadline</strong><p>Your leagues update after results settle.</p></div></li>
         </ol>
         <div className="guide-cooldown-note"><Users /><p><strong>One last wager rule</strong><span>After backing a fixture, both clubs enter a three-gameweek cooldown.</span></p></div>

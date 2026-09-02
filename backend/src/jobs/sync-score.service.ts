@@ -10,6 +10,7 @@ import { rebuildUserStats, settleFixturePredictions } from "../predictions/predi
 import { SCORING_RULE_VERSION } from "../predictions/predictions.scoring.js";
 import { settleFixtureWagers } from "../wagers/wagers.service.js";
 import { gameweekRequiresScoring, providerSyncIsDue } from "./sync-policy.js";
+import { deliverPendingEmails, queueGameweekResults, queuePredictionReminders } from "../email/notifications.service.js";
 
 const LOCK_ID = "sync-score";
 
@@ -192,6 +193,7 @@ async function settleAndFinalizeGameweeks(executionId: string) {
     }
   }
 
+  const finalizedGameweeks: Gameweek[] = [];
   if (staleComplete.length > 0) {
     const earliestChangedRound = Math.min(...staleComplete.map((gameweek) => gameweek.roundNumber));
     for (const gameweek of complete.filter((candidate) => candidate.roundNumber >= earliestChangedRound)) {
@@ -205,6 +207,7 @@ async function settleAndFinalizeGameweeks(executionId: string) {
           finalizedAt: FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp(),
         }, { merge: true });
+        finalizedGameweeks.push(gameweek);
         if (scoringRun) await scoringRun.set({
           phase: "COMPLETE",
           status: "SUCCEEDED",
@@ -228,7 +231,7 @@ async function settleAndFinalizeGameweeks(executionId: string) {
     gameweekDocumentById.get(gameweek.id)?.data()?.settlementStatus === "FINALIZED"
     || staleComplete.some((candidate) => candidate.id === gameweek.id));
   if (latestFinalized) await refreshDirtyLatestSnapshots(latestFinalized, gameweeks);
-  return { completedGameweeks: complete.length, rescoredGameweeks: toScore.length };
+  return { completedGameweeks: complete.length, rescoredGameweeks: toScore.length, finalizedGameweeks };
 }
 
 export async function runSyncAndScore() {
@@ -261,12 +264,16 @@ export async function runSyncAndScore() {
       : null;
     if (refresh) await ensureDefaultLeagues();
     const scoring = await settleAndFinalizeGameweeks(executionId);
+    const reminderCount = await queuePredictionReminders(nowMillis);
     const result = {
       status: "SUCCEEDED" as const,
       providerRequestCount: refresh?.providerRequestCount ?? 0,
       refreshed: refresh != null,
       ...scoring,
     };
+    const resultEmailCount = await queueGameweekResults(scoring.finalizedGameweeks);
+    const delivery = await deliverPendingEmails();
+    Object.assign(result, { reminderCount, resultEmailCount, emailDelivery: delivery });
     await syncRunRef.set({ ...result, completedAt: FieldValue.serverTimestamp() }, { merge: true });
     return result;
   } catch (error) {

@@ -42,6 +42,9 @@ const schema = z.object({
   SYNC_LIVE_INTERVAL_MS: z.coerce.number().int().min(60_000).default(300_000),
   SYNC_RECENT_INTERVAL_MS: z.coerce.number().int().min(60_000).default(1_800_000),
   SYNC_IDLE_INTERVAL_MS: z.coerce.number().int().min(60_000).default(86_400_000),
+  RESEND_MAILER_API_KEY: z.string().trim().optional(),
+  RESEND_FROM_EMAIL: z.string().email().default("onboarding@resend.dev"),
+  EMAIL_NOTIFICATIONS_ENABLED: booleanEnvironmentValue.default(false),
 }).superRefine((values, context) => {
   if (values.HEADERS_TIMEOUT_MS > values.REQUEST_TIMEOUT_MS) {
     context.addIssue({

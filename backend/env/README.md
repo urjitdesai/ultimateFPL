@@ -46,3 +46,20 @@ npm start
 
 Cloud Run should inject production configuration and secrets directly. The
 container does not copy either environment file into its image.
+
+## Gmail email notifications
+
+Custom prediction reminders and gameweek result emails are sent through Gmail
+SMTP. Enable 2-Step Verification on the sending Google account, create an App
+Password, and configure:
+
+```dotenv
+GMAIL_SMTP_USER=your-account@gmail.com
+GMAIL_SMTP_APP_PASSWORD=your-16-character-app-password
+EMAIL_FROM_NAME=Ultimate FPL
+EMAIL_NOTIFICATIONS_ENABLED=true
+```
+
+Use the App Password only; never store the Google account's normal password.
+Keep the password in Google Secret Manager for Cloud Run. Spaces in a copied
+App Password are accepted and removed before authentication.

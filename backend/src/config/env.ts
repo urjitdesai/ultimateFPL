@@ -5,6 +5,9 @@ import { scoringJobProjectIsValid } from "./scoring-job-safety.js";
 const booleanEnvironmentValue = z.enum(["true", "false"])
   .transform((value) => value === "true");
 
+const emptyStringIsUndefined = (value: unknown) =>
+  typeof value === "string" && value.trim() === "" ? undefined : value;
+
 const schema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().default(4000),
@@ -42,8 +45,9 @@ const schema = z.object({
   SYNC_LIVE_INTERVAL_MS: z.coerce.number().int().min(60_000).default(300_000),
   SYNC_RECENT_INTERVAL_MS: z.coerce.number().int().min(60_000).default(1_800_000),
   SYNC_IDLE_INTERVAL_MS: z.coerce.number().int().min(60_000).default(86_400_000),
-  RESEND_MAILER_API_KEY: z.string().trim().optional(),
-  RESEND_FROM_EMAIL: z.string().email().default("onboarding@resend.dev"),
+  GMAIL_SMTP_USER: z.preprocess(emptyStringIsUndefined, z.string().email().optional()),
+  GMAIL_SMTP_APP_PASSWORD: z.preprocess(emptyStringIsUndefined, z.string().trim().min(1).optional()),
+  EMAIL_FROM_NAME: z.string().trim().min(1).default("Ultimate FPL"),
   EMAIL_NOTIFICATIONS_ENABLED: booleanEnvironmentValue.default(false),
 }).superRefine((values, context) => {
   if (values.HEADERS_TIMEOUT_MS > values.REQUEST_TIMEOUT_MS) {
@@ -69,6 +73,20 @@ const schema = z.object({
       code: "custom",
       path: ["SCORING_EXPECTED_PROJECT_ID"],
       message: "SCORING_EXPECTED_PROJECT_ID must exactly match FIREBASE_PROJECT_ID when the scoring job is enabled.",
+    });
+  }
+  if (values.EMAIL_NOTIFICATIONS_ENABLED && !values.GMAIL_SMTP_USER) {
+    context.addIssue({
+      code: "custom",
+      path: ["GMAIL_SMTP_USER"],
+      message: "GMAIL_SMTP_USER is required when email notifications are enabled.",
+    });
+  }
+  if (values.EMAIL_NOTIFICATIONS_ENABLED && !values.GMAIL_SMTP_APP_PASSWORD) {
+    context.addIssue({
+      code: "custom",
+      path: ["GMAIL_SMTP_APP_PASSWORD"],
+      message: "GMAIL_SMTP_APP_PASSWORD is required when email notifications are enabled.",
     });
   }
   if (values.NODE_ENV !== "production") return;

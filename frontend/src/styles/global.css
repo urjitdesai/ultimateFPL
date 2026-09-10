@@ -483,6 +483,7 @@ input.validation-invalid:focus { border-color: #d0443a; box-shadow: 0 0 0 4px rg
 .gameweek-picker select { height: 38px; padding: 0 34px 0 12px; border: 1px solid #cbd4df; background: #fff; color: var(--ink); font: 700 12px 'Manrope'; }
 .player-prediction-list { border-top: 1px solid #cbd4df; }
 .player-prediction-head, .player-prediction-row { display: grid; grid-template-columns: minmax(320px, 1fr) 130px 130px 150px; align-items: center; gap: 24px; }
+.player-history-head, .player-history-row { grid-template-columns: minmax(0, 1fr) 230px minmax(0, 1fr); }
 .player-prediction-head { min-height: 40px; padding: 0 18px; color: #758399; font: 800 10px 'Manrope'; letter-spacing: .09em; text-transform: uppercase; }
 .player-prediction-row { min-height: 100px; padding: 14px 18px; border-top: 1px solid #dde4ec; transition: background .15s ease; }
 .player-prediction-row.has-wager { border-left: 4px solid #16834b; padding-left: 14px; background: linear-gradient(90deg, #f4fbf6 0, #fff 34%); }
@@ -742,9 +743,7 @@ input.validation-invalid:focus { border-color: #d0443a; box-shadow: 0 0 0 4px rg
 
 @media (max-width: 920px) {
   .player-history-head { display: none; }
-  .player-history-row { min-height: 148px; grid-template-columns: minmax(0,1fr) 142px minmax(0,1fr); grid-template-areas: "time time time" "home prediction away"; gap: 8px 5px; padding: 12px 0; }
-  .player-history-row time { grid-area: time; display: flex; justify-content: center; gap: 6px; font-size: 10px; }
-  .player-history-row time strong { font-size: 11px; }
+  .player-history-row { min-height: 128px; grid-template-columns: minmax(0,1fr) 142px minmax(0,1fr); grid-template-areas: "home prediction away"; gap: 8px 5px; padding: 12px 0; }
   .player-history-row .team { min-width: 0; flex-direction: column; justify-content: flex-start; gap: 6px; text-align: center; }
   .player-history-row .home-team { grid-area: home; }
   .player-history-row .away-team { grid-area: away; flex-direction: column-reverse; }

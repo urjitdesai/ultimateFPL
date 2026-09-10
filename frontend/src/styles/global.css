@@ -510,8 +510,8 @@ input.validation-invalid:focus { border-color: #d0443a; box-shadow: 0 0 0 4px rg
 .player-points strong { font: 800 18px 'Manrope'; }
 .player-points small { color: #78869a; font-size: 10px; }
 .player-points.earned strong { color: #4e7800; }
-.player-history-row.has-wager { border-left: 0; padding-left: 18px; background: #fff; box-shadow: none; }
-.player-history-row.wager-lost { border-left: 0; padding-left: 18px; background: #fff; box-shadow: none; }
+.player-history-row.has-wager { border-left: 0; padding-left: 0; background: #fff; box-shadow: none; }
+.player-history-row.wager-lost { border-left: 0; padding-left: 0; background: #fff; box-shadow: none; }
 .player-history-row .prediction-cell { min-height: 111px; }
 .player-history-row .prediction-wager-summary { font-size: 9px; }
 .player-history-row .prediction-wager-summary svg { width: 12px; height: 12px; }

@@ -565,8 +565,9 @@ input.validation-invalid:focus { border-color: #d0443a; box-shadow: 0 0 0 4px rg
   .standings-gameweek-button { flex-basis: 104px; }
   .standings-meta { align-items: flex-start; flex-direction: column; padding: 14px 0; gap: 9px; }
   .standings-hero-meta { align-items: flex-start; flex-direction: column; gap: 12px; margin-left: 13px; }
-  .standings-head, .standing-row { grid-template-columns: 38px minmax(0,1fr) 52px 54px; gap: 8px; padding-inline: 6px; }
-  .standings-head span:nth-child(4), .standing-row .gw-points { display: none; }
+  .standings-head, .standing-row { grid-template-columns: 32px minmax(0,1fr) 42px 42px 44px; gap: 4px; padding-inline: 4px; }
+  .standings-head { font-size: 8px; letter-spacing: .04em; line-height: 1.2; }
+  .standings-head span:nth-child(n+3) { text-align: right; }
   .standing-row.is-you { padding-left: 2px; }
   .standing-player { gap: 8px; }
   .standing-player img, .standing-player > i { flex-basis: 30px; width: 30px; height: 30px; }

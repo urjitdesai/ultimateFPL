@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { completeOnboarding, hasPendingOnboarding, markOnboardingPending } from "./onboarding-state";
+import { completeOnboarding, hasPendingOnboarding, markOnboardingPending, onboardingExitDestination } from "./onboarding-state";
 
 function memoryStorage(): Storage {
   const values = new Map<string, string>();
@@ -24,5 +24,11 @@ describe("profile onboarding state", () => {
 
   it("does not treat existing profiles without a marker as pending", () => {
     expect(hasPendingOnboarding("existing-player", memoryStorage())).toBe(false);
+  });
+
+  it("returns to a newly joined league after onboarding", () => {
+    expect(onboardingExitDestination("?next=%2Fleagues%2Fleague-123")).toBe("/leagues/league-123");
+    expect(onboardingExitDestination("?next=https%3A%2F%2Fevil.example")).toBe("/dashboard");
+    expect(onboardingExitDestination("")).toBe("/dashboard");
   });
 });

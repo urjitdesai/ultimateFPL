@@ -7,6 +7,7 @@ import { navigate } from "../navigation";
 import { googleSignUpErrorMessage } from "../auth/auth-errors";
 import { useAuth } from "../auth/AuthContext";
 import { lookupGoogleProfile } from "../auth/google-profile";
+import { getPendingLeagueInvite, leagueInvitePath } from "../auth/league-invite";
 import { emailRegistrationSchema, type EmailRegistrationForm } from "../auth/registration";
 import { APP_NAME } from "../brand";
 import { AuthShell } from "../components/AuthShell";
@@ -17,7 +18,7 @@ import { auth, googleProvider } from "../firebase/client";
 export function RegisterPage() {
   const [pageError, setPageError] = useState("");
   const [googleLoading, setGoogleLoading] = useState(false);
-  const { logout, setPendingEmailSignup } = useAuth();
+  const { logout, setPendingEmailSignup, setProfile } = useAuth();
   const { control, register, handleSubmit, formState: { errors, isSubmitting } } = useForm<EmailRegistrationForm>({ resolver: zodResolver(emailRegistrationSchema), mode: "onChange", defaultValues: { email: "", password: "", confirmPassword: "" } });
   const password = useWatch({ control, name: "password" });
   const confirmPassword = useWatch({ control, name: "confirmPassword" });
@@ -49,6 +50,12 @@ export function RegisterPage() {
       try {
         const result = await lookupGoogleProfile(user);
         if (result.kind === "existing") {
+          const pendingInvite = getPendingLeagueInvite();
+          if (pendingInvite) {
+            setProfile(result.profile);
+            navigate(leagueInvitePath(pendingInvite));
+            return;
+          }
           await logout().catch(() => undefined);
           setPageError(`A ${APP_NAME} account already exists for this Google account. Log in instead.`);
           return;

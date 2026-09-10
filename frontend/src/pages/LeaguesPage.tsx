@@ -2,6 +2,7 @@ import { ArrowRight, Check, Copy, KeyRound, Plus, Users } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 import { api, type League } from "../api";
 import { useAuth } from "../auth/AuthContext";
+import { leagueInviteMessage } from "../auth/league-invite";
 import { AppNav } from "../components/AppNav";
 import { navigate } from "../navigation";
 
@@ -12,7 +13,7 @@ export function LeaguesPage() {
   const [error, setError] = useState("");
   const [name, setName] = useState("");
   const [inviteCode, setInviteCode] = useState("");
-  const [createdCode, setCreatedCode] = useState("");
+  const [createdLeague, setCreatedLeague] = useState<League | null>(null);
   const [actionError, setActionError] = useState("");
   const [submitting, setSubmitting] = useState<"create" | "join" | null>(null);
   const [copied, setCopied] = useState(false);
@@ -26,11 +27,11 @@ export function LeaguesPage() {
   const createCustomLeague = async (event: FormEvent) => {
     event.preventDefault();
     if (!user || name.trim().length < 3) return;
-    setSubmitting("create"); setActionError(""); setCreatedCode("");
+    setSubmitting("create"); setActionError(""); setCreatedLeague(null);
     try {
       const league = await api.createLeague(user, name.trim());
       setLeagues((current) => [league, ...current]);
-      setCreatedCode(league.inviteCode ?? "");
+      setCreatedLeague(league.inviteCode ? league : null);
       setName("");
       setActiveAction(null);
     } catch (requestError) { setActionError(requestError instanceof Error ? requestError.message : "We couldn't create the league."); }
@@ -50,10 +51,13 @@ export function LeaguesPage() {
     finally { setSubmitting(null); }
   };
 
-  const copyCreatedCode = async () => {
-    await navigator.clipboard.writeText(createdCode);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1800);
+  const copyCreatedInvite = async () => {
+    if (!createdLeague?.inviteCode || !navigator.clipboard) return;
+    try {
+      await navigator.clipboard.writeText(leagueInviteMessage(createdLeague.name, createdLeague.inviteCode));
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch { setActionError("We couldn't copy the invitation. Try copying the league code manually."); }
   };
 
   if (authLoading) return <div className="loading-screen">Preparing your leagues…</div>;
@@ -71,7 +75,7 @@ export function LeaguesPage() {
         <form id="create-league-form" className={`league-action-card ${activeAction === "create" ? "is-mobile-active" : ""}`} onSubmit={createCustomLeague}><span className="league-action-icon"><Plus /></span><div><h2>Create a league</h2><p>Name your private competition and get a key to share.</p><label><span>League name</span><input value={name} maxLength={50} placeholder="Friday Night Rivals" onChange={(event) => setName(event.target.value)} /></label><button disabled={submitting !== null || name.trim().length < 3}>{submitting === "create" ? "Creating…" : "Create league"}</button></div></form>
         <form id="join-league-form" className={`league-action-card ${activeAction === "join" ? "is-mobile-active" : ""}`} onSubmit={joinCustomLeague}><span className="league-action-icon"><KeyRound /></span><div><h2>Join a league</h2><p>Enter the key shared by the league creator.</p><label><span>League key</span><input className="invite-code-input" value={inviteCode} maxLength={12} autoCapitalize="characters" placeholder="ABCD2345" onChange={(event) => setInviteCode(event.target.value.toUpperCase())} /></label><button disabled={submitting !== null || inviteCode.trim().length < 6}>{submitting === "join" ? "Joining…" : "Join league"}</button></div></form>
       </div>
-      {createdCode ? <div className="invite-success" role="status"><Check /><span><strong>League created</strong><small>Share this key with anyone you want to invite.</small></span><code>{createdCode}</code><button onClick={copyCreatedCode}>{copied ? <Check /> : <Copy />}{copied ? "Copied" : "Copy key"}</button></div> : null}
+      {createdLeague?.inviteCode ? <div className="invite-success" role="status"><Check /><span><strong>League created</strong><small>Copy a ready-to-share message with your automatic join link.</small></span><code>{createdLeague.inviteCode}</code><button onClick={copyCreatedInvite}>{copied ? <Check /> : <Copy />}{copied ? "Invite copied" : "Copy invite"}</button></div> : null}
       {actionError ? <div className="home-error league-action-error" role="alert">{actionError}</div> : null}
       <div className="section-kicker"><Users /> {leagues.length} joined leagues</div>
       <div className="league-directory-head"><span>League</span><span>Members</span><span /></div>

@@ -1,6 +1,6 @@
 import { ArrowLeft, ArrowRight, Check, Clock3, Coins, Crown, Info, Save, Trophy, Users } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { completeOnboarding } from "../auth/onboarding-state";
+import { completeOnboarding, onboardingExitDestination } from "../auth/onboarding-state";
 import { useAuth } from "../auth/AuthContext";
 import { APP_NAME } from "../brand";
 import { BrandLogo } from "../components/BrandLogo";
@@ -133,7 +133,7 @@ export function OnboardingPage() {
 
   const leaveGuide = () => {
     if (user) completeOnboarding(user.uid);
-    navigate(user ? "/dashboard" : "/login", true);
+    navigate(user ? onboardingExitDestination() : "/login", true);
   };
   const next = () => step === lessons.length - 1 ? leaveGuide() : setStep((current) => current + 1);
 

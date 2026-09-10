@@ -6,6 +6,7 @@ import { googleSignInErrorMessage, loginErrorMessage } from "../auth/auth-errors
 import { hasPendingOnboarding } from "../auth/onboarding-state";
 import { useAuth } from "../auth/AuthContext";
 import { googleLoginDestination, lookupGoogleProfile } from "../auth/google-profile";
+import { destinationAfterAuthentication } from "../auth/league-invite";
 import { AuthShell } from "../components/AuthShell";
 import { GoogleMark } from "../components/GoogleMark";
 import { auth, googleProvider } from "../firebase/client";
@@ -27,7 +28,7 @@ export function LoginPage() {
       try {
         const profile = await api.profile(user);
         setProfile(profile);
-        navigate(hasPendingOnboarding(user.uid) ? "/onboarding" : "/dashboard");
+        navigate(destinationAfterAuthentication(hasPendingOnboarding(user.uid) ? "/onboarding" : "/dashboard"));
       } catch (profileError) {
         if (profileError instanceof ApiError && profileError.code === "PROFILE_NOT_FOUND") {
           navigate("/complete-profile");
@@ -54,7 +55,7 @@ export function LoginPage() {
           return;
         }
         setProfile(result.profile);
-        navigate(googleLoginDestination(result, hasPendingOnboarding(user.uid)));
+        navigate(destinationAfterAuthentication(googleLoginDestination(result, hasPendingOnboarding(user.uid))));
       } catch {
         await logout().catch(() => undefined);
         setError("Your Google login succeeded, but your player profile could not be loaded. Try again in a moment.");

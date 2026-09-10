@@ -2,8 +2,13 @@ import { ArrowDown, ArrowLeft, ArrowUp, Check, ChevronLeft, ChevronRight, Copy, 
 import { useEffect, useRef, useState } from "react";
 import { api, type LeagueStandings, type StandingEntry } from "../api";
 import { useAuth } from "../auth/AuthContext";
+import { leagueInviteMessage } from "../auth/league-invite";
 import { AppNav } from "../components/AppNav";
+import { LoadingIndicator } from "../components/LoadingIndicator";
+import { latestStandingsNeedMembershipSync } from "../league-standings-sync";
 import { navigate } from "../navigation";
+
+const STANDINGS_REFRESH_INTERVAL_MS = 30_000;
 
 function Movement({ entry }: { entry: StandingEntry }) {
   if (entry.rankChange > 0) return <span className="rank-movement up"><ArrowUp />{entry.rankChange}</span>;
@@ -30,7 +35,9 @@ export function LeagueStandingsPage({ leagueId }: { leagueId: string }) {
     const load = () => api.leagueStandings(user, leagueId, requestedGameweekId).then((nextData) => {
       if (!active) return;
       setData(nextData);
-      if (nextData.status === "FINALIZING") timer = window.setTimeout(load, 30_000);
+      if (nextData.status === "FINALIZING" || latestStandingsNeedMembershipSync(nextData)) {
+        timer = window.setTimeout(load, STANDINGS_REFRESH_INTERVAL_MS);
+      }
     }).catch((requestError) => {
       if (active) setError(requestError instanceof Error ? requestError.message : "We couldn't load this table.");
     }).finally(() => {
@@ -53,10 +60,10 @@ export function LeagueStandingsPage({ leagueId }: { leagueId: string }) {
   if (authLoading) return <div className="loading-screen">Building the table…</div>;
   if (!user || !profile) { queueMicrotask(() => navigate("/login", true)); return <div className="loading-screen">Returning to login…</div>; }
 
-  const copyLeagueCode = async () => {
+  const copyLeagueInvite = async () => {
     if (!data?.league.inviteCode || !navigator.clipboard) return;
     try {
-      await navigator.clipboard.writeText(data.league.inviteCode);
+      await navigator.clipboard.writeText(leagueInviteMessage(data.league.name, data.league.inviteCode));
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1800);
     } catch { setCopied(false); }
@@ -76,9 +83,11 @@ export function LeagueStandingsPage({ leagueId }: { leagueId: string }) {
     rail.scrollBy({ left: direction * Math.max(220, rail.clientWidth * 0.7), behavior: "smooth" });
   };
 
+  const membershipSyncPending = data ? latestStandingsNeedMembershipSync(data) : false;
+
   return <main className="league-page">
     <AppNav active="leagues" />
-    <header className="standings-hero"><button onClick={() => navigate("/leagues")}><ArrowLeft /> All leagues</button><span>League standings</span><h1>{data?.league.name ?? "Loading table"}</h1><div className="standings-hero-meta"><p>{data ? `${data.league.memberCount} competitors · ${data.currentGameweek > 0 ? `Through Gameweek ${data.currentGameweek}` : "No completed gameweeks yet"}` : "Calculating every position and movement…"}</p>{data?.league.inviteCode ? <button className="hero-league-code" onClick={copyLeagueCode}><small>League code</small><code>{data.league.inviteCode}</code>{copied ? <Check /> : <Copy />}<span>{copied ? "Copied" : "Copy"}</span></button> : null}</div></header>
+    <header className="standings-hero"><button onClick={() => navigate("/leagues")}><ArrowLeft /> All leagues</button><span>League standings</span><h1>{data?.league.name ?? "Loading table"}</h1><div className="standings-hero-meta"><p>{data ? `${data.league.memberCount} competitors · ${data.currentGameweek > 0 ? `Through Gameweek ${data.currentGameweek}` : "No completed gameweeks yet"}` : "Calculating every position and movement…"}</p>{data?.league.inviteCode ? <button className="hero-league-code" title="Copy a shareable invitation and join link" onClick={copyLeagueInvite}><small>Invite</small><code>{data.league.inviteCode}</code>{copied ? <Check /> : <Copy />}<span>{copied ? "Copied" : "Copy link"}</span></button> : null}</div></header>
     <section className="standings-content">
       {error ? <div className="home-error" role="alert">{error}<button onClick={() => navigate("/leagues")}>Back to leagues</button></div> : !data ? <div className="league-loading">Loading standings…</div> : <>
         {data.gameweeks.length > 0 ? <nav className="standings-gameweek-navigation" aria-label="League standings by gameweek">
@@ -93,6 +102,10 @@ export function LeagueStandingsPage({ leagueId }: { leagueId: string }) {
           </div>
           <button className="standings-gameweek-arrow" aria-label="Scroll to later gameweeks" onClick={() => scrollGameweeks(1)}><ChevronRight /></button>
         </nav> : null}
+        {membershipSyncPending ? <div className="standings-sync-notice" aria-live="polite">
+          <LoadingIndicator compact label="Updating league standings…" />
+          <span>A league member recently joined. It may take up to 5 minutes for the correct standings to appear.</span>
+        </div> : null}
         <div className="standings-meta"><div><Shield /><span><strong>{data.status === "FINALIZING" ? "Calculating latest standings…" : "Completed standings"}</strong><small>{data.status === "FINALIZING" ? "The last finalized table is shown and will update automatically." : "Points from the gameweek currently open for predictions are not included."}</small></span></div><span className="you-key"><i /> Your position</span></div>
         <div className={`standings-table ${standingsLoading ? "is-loading" : ""}`} aria-busy={standingsLoading}>
           <div className="standings-head"><span>Rank</span><span>Player</span><span>Movement</span><span>GW points</span><span>Total</span></div>

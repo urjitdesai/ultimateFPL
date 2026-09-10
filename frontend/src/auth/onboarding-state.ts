@@ -15,3 +15,8 @@ export function completeOnboarding(uid: string, storage: Storage = window.localS
 export function hasPendingOnboarding(uid: string, storage: Storage = window.localStorage) {
   return storage.getItem(keyFor(uid)) === "pending";
 }
+
+export function onboardingExitDestination(search = window.location.search) {
+  const destination = new URLSearchParams(search).get("next");
+  return destination && /^\/leagues\/[^/?#]+$/.test(destination) ? destination : "/dashboard";
+}

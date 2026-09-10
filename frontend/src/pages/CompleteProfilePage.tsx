@@ -8,6 +8,7 @@ import { api, type Team } from "../api";
 import { useAuth } from "../auth/AuthContext";
 import { googleProfileNameDefaults } from "../auth/profile-names";
 import { markOnboardingPending } from "../auth/onboarding-state";
+import { getPendingLeagueInvite, leagueInvitePath } from "../auth/league-invite";
 import { AuthShell } from "../components/AuthShell";
 import { LoadingIndicator } from "../components/LoadingIndicator";
 import { OnboardingProgress } from "../components/OnboardingProgress";
@@ -70,7 +71,8 @@ export function CompleteProfilePage() {
       markOnboardingPending(registrationUser.uid);
       setProfile(nextProfile);
       setPendingEmailSignup(null);
-      navigate("/onboarding");
+      const pendingInvite = getPendingLeagueInvite();
+      navigate(pendingInvite ? leagueInvitePath(pendingInvite) : "/onboarding");
     } catch (error) {
       setPageError(error instanceof Error ? error.message.replace("Firebase: ", "") : "We couldn't finish setting up your account.");
     }

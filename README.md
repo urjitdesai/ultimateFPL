@@ -55,3 +55,11 @@ choose their favorite team. Existing Google users are directed to log in.
 On the login page, an existing Google user is taken to their dashboard or any
 pending onboarding. A Google user without an Ultimate FPL player profile stays
 signed in and is taken directly to profile setup to complete registration.
+
+## League invitations
+
+Private league invite buttons copy a ready-to-share message containing a direct
+`/join/{code}` link and the league code. Invitations do not expire, and the join
+link is preserved through login and registration. Existing players are added
+immediately after signing in; new players complete their profile, are added
+automatically, and then see the onboarding guide before opening the standings.

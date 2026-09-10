@@ -10,6 +10,7 @@ import { CompleteProfilePage } from "./pages/CompleteProfilePage";
 import { OnboardingPage } from "./pages/OnboardingPage";
 import { WelcomePage } from "./pages/WelcomePage";
 import { PrivacyPage, TermsPage } from "./pages/LegalPage";
+import { LeagueInvitePage } from "./pages/LeagueInvitePage";
 import { navigate } from "./navigation";
 
 export function App() {
@@ -17,7 +18,7 @@ export function App() {
   useEffect(() => {
     const update = () => setPath(window.location.pathname);
     window.addEventListener("popstate", update);
-    const knownPath = ["/register", "/login", "/forgot-password", "/complete-profile", "/onboarding", "/dashboard", "/leagues", "/terms", "/privacy"].includes(path) || /^\/leagues\/[^/]+(?:\/players\/[^/]+)?$/.test(path);
+    const knownPath = ["/register", "/login", "/forgot-password", "/complete-profile", "/onboarding", "/dashboard", "/leagues", "/terms", "/privacy"].includes(path) || /^\/join\/[^/]+$/.test(path) || /^\/leagues\/[^/]+(?:\/players\/[^/]+)?$/.test(path);
     if (!knownPath && path !== "/") navigate("/register", true);
     return () => window.removeEventListener("popstate", update);
   }, [path]);
@@ -30,6 +31,8 @@ export function App() {
   if (path === "/onboarding") return <OnboardingPage />;
   if (path === "/dashboard") return <HomePage />;
   if (path === "/leagues") return <LeaguesPage />;
+  const inviteMatch = path.match(/^\/join\/([^/]+)$/);
+  if (inviteMatch) return <LeagueInvitePage inviteCode={decodeURIComponent(inviteMatch[1]!)} />;
   const playerMatch = path.match(/^\/leagues\/([^/]+)\/players\/([^/]+)$/);
   if (playerMatch) return <LeaguePlayerPredictionsPage leagueId={decodeURIComponent(playerMatch[1]!)} memberUserId={decodeURIComponent(playerMatch[2]!)} />;
   if (path.startsWith("/leagues/")) return <LeagueStandingsPage leagueId={decodeURIComponent(path.slice("/leagues/".length))} />;

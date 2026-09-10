@@ -506,6 +506,11 @@ input.validation-invalid:focus { border-color: #d0443a; box-shadow: 0 0 0 4px rg
 .player-points strong { font: 800 18px 'Manrope'; }
 .player-points small { color: #78869a; font-size: 10px; }
 .player-points.earned strong { color: #4e7800; }
+.player-history-row.has-wager { border-left: 4px solid #16834b; padding-left: 14px; background: linear-gradient(90deg, #f4fbf6 0, #fff 34%); }
+.player-history-row.wager-lost { border-left-color: #bc5555; background: linear-gradient(90deg, #fdf5f5 0, #fff 34%); }
+.player-history-row .prediction-cell { min-height: 111px; }
+.player-history-row .prediction-wager-summary { font-size: 9px; }
+.player-history-row .prediction-wager-summary svg { width: 12px; height: 12px; }
 
 @media (max-width: 920px) {
   .auth-shell { grid-template-columns: minmax(300px, 36%) 1fr; }
@@ -734,6 +739,23 @@ input.validation-invalid:focus { border-color: #d0443a; box-shadow: 0 0 0 4px rg
   .player-score-cell > strong, .player-points strong { font-size: 17px; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; } }
+
+@media (max-width: 920px) {
+  .player-history-head { display: none; }
+  .player-history-row { min-height: 148px; grid-template-columns: minmax(0,1fr) 142px minmax(0,1fr); grid-template-areas: "time time time" "home prediction away"; gap: 8px 5px; padding: 12px 0; }
+  .player-history-row time { grid-area: time; display: flex; justify-content: center; gap: 6px; font-size: 10px; }
+  .player-history-row time strong { font-size: 11px; }
+  .player-history-row .team { min-width: 0; flex-direction: column; justify-content: flex-start; gap: 6px; text-align: center; }
+  .player-history-row .home-team { grid-area: home; }
+  .player-history-row .away-team { grid-area: away; flex-direction: column-reverse; }
+  .player-history-row .team strong { width: 100%; min-height: 28px; display: grid; place-items: center; font-size: 11px; white-space: normal; line-height: 1.25; }
+  .player-history-row .team-crest { flex-basis: 31px; width: 31px; height: 31px; }
+  .player-history-row .team-crest img { width: 29px; height: 29px; }
+  .player-history-row .prediction-cell { grid-area: prediction; min-height: 105px; border-inline: 0; }
+  .player-history-row .result-comparison { grid-template-columns: 1fr 1fr; gap: 5px; padding: 6px; }
+  .player-history-row .points-award { grid-column: 1 / -1; min-width: 0; }
+  .player-history-row .prediction-wager-summary { max-width: 138px; text-align: center; white-space: normal; }
+}
 
 /* First-profile game guide */
 .guide-page { --guide-bg: #04142d; --guide-panel: #061a38; --guide-line: #34455d; --guide-muted: #9eacc0; min-height: 100vh; background: var(--guide-bg); color: #fff; }

@@ -18,6 +18,18 @@ function signedPoints(points: number) {
   return points > 0 ? `+${points}` : String(points);
 }
 
+function formatKickoff(kickoffAt: string) {
+  const kickoff = new Date(kickoffAt);
+  return {
+    date: new Intl.DateTimeFormat(undefined, { weekday: "short", day: "numeric", month: "short" }).format(kickoff),
+    time: new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(kickoff),
+  };
+}
+
+function teamInitials(name: string) {
+  return name.split(/\s+/).map((part) => part[0]).join("").slice(0, 3).toUpperCase();
+}
+
 export function LeaguePlayerPredictionsPage({ leagueId, memberUserId }: { leagueId: string; memberUserId: string }) {
   const { user, profile, loading: authLoading } = useAuth();
   const [data, setData] = useState<LeaguePlayerPredictions | null>(null);
@@ -68,15 +80,20 @@ export function LeaguePlayerPredictionsPage({ leagueId, memberUserId }: { league
       </div>
       {data ? <div className="eligibility-notice compact" role="status"><CalendarDays /><div><strong>Scoring started in Gameweek {data.eligibility.startsGameweek}</strong><p>Earlier gameweeks are excluded because this player had not joined the league yet.</p></div></div> : null}
       {error ? <div className="home-error" role="alert">{error}</div> : loading ? <div className="league-loading">Loading predictions…</div> : !data?.selectedGameweek ? <div className="fixture-empty"><CalendarDays /><h3>No eligible completed gameweeks</h3><p>This player's history will appear after an eligible gameweek is completed.</p></div> : <div className="player-prediction-list">
-        <div className="player-prediction-head"><span>Fixture</span><span>Prediction</span><span>Actual</span><span>Points</span></div>
+        <div className="fixture-head player-history-head"><span>Date & time</span><span>Home</span><span>Prediction</span><span>Away</span></div>
         {data.fixtures.map((fixture) => {
           const fixtureWager = data.wager?.fixtureId === fixture.id ? data.wager : null;
           const predictionResult = resultLabel(fixture.prediction.scoringReason, fixture.prediction.isDefault);
-          return <article className={`player-prediction-row ${fixtureWager ? `has-wager wager-${fixtureWager.status.toLowerCase()}` : ""}`} key={fixture.id}>
-          <div className="player-fixture"><div className="player-team-pair"><span><img src={fixture.homeTeam.logoUrl} alt="" />{fixture.homeTeam.name}</span><span><img src={fixture.awayTeam.logoUrl} alt="" />{fixture.awayTeam.name}</span></div>{fixtureWager ? <div className={`player-wager-summary ${fixtureWager.status.toLowerCase()}`}><Coins /><div><strong>{fixtureWager.stakePoints} pt wager · {playerWagerSelectionLabel(fixtureWager, fixture)}</strong><small>{playerWagerResultLabel(fixtureWager)}</small></div></div> : null}</div>
-          <div className="player-score-cell"><span>Prediction</span><strong>{fixture.prediction.predictedHomeScore}–{fixture.prediction.predictedAwayScore}{fixture.prediction.isCaptain ? <Crown aria-label="Captain" /> : null}</strong></div>
-          <div className="player-score-cell"><span>Actual</span><strong>{fixture.homeScore}–{fixture.awayScore}</strong></div>
-          <span className={`player-points ${Number(fixture.prediction.awardedPoints) > 0 ? "earned" : ""}`}><span>Points</span><strong>{fixture.prediction.awardedPoints ?? 0} pts</strong>{predictionResult ? <small>{predictionResult}</small> : null}</span>
+          const kickoff = formatKickoff(fixture.kickoffAt);
+          return <article className={`fixture-row player-history-row ${fixtureWager ? `has-wager wager-${fixtureWager.status.toLowerCase()}` : ""}`} key={fixture.id}>
+          <time dateTime={fixture.kickoffAt}><strong>{kickoff.date}</strong><span>{kickoff.time}</span></time>
+          <div className="team home-team"><span className="team-crest"><img src={fixture.homeTeam.logoUrl} alt="" onError={(event) => { event.currentTarget.hidden = true; }} /><span>{teamInitials(fixture.homeTeam.name)}</span></span><strong>{fixture.homeTeam.name}</strong></div>
+          <div className="prediction-cell"><div className="completed-prediction"><div className="result-comparison">
+            <div><span>Final</span><strong>{fixture.homeScore}–{fixture.awayScore}</strong></div>
+            <div><span>You</span><strong>{fixture.prediction.predictedHomeScore}–{fixture.prediction.predictedAwayScore}{fixture.prediction.isCaptain ? <Crown aria-label="Captain" /> : null}</strong></div>
+            <div className={`points-award points-${fixture.prediction.awardedPoints ?? 0}`}><strong>{fixture.prediction.awardedPoints ?? 0} pts</strong><span>{predictionResult ?? "No points"}</span></div>
+          </div>{fixtureWager ? <span className={`prediction-wager-summary ${fixtureWager.status.toLowerCase()}`}><Coins />{playerWagerResultLabel(fixtureWager)} · {playerWagerSelectionLabel(fixtureWager, fixture)}</span> : null}</div></div>
+          <div className="team away-team"><strong>{fixture.awayTeam.name}</strong><span className="team-crest"><img src={fixture.awayTeam.logoUrl} alt="" onError={(event) => { event.currentTarget.hidden = true; }} /><span>{teamInitials(fixture.awayTeam.name)}</span></span></div>
         </article>})}
       </div>}
     </section>

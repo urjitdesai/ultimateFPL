@@ -20,7 +20,7 @@ function walletView(data: FirebaseFirestore.DocumentData) {
   };
 }
 
-function wagerView(id: string, data: FirebaseFirestore.DocumentData) {
+export function wagerView(id: string, data: FirebaseFirestore.DocumentData) {
   return {
     id,
     fixtureId: data.fixtureId as string,

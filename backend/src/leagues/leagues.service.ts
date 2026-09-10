@@ -10,6 +10,7 @@ import type { Team } from "../teams/teams.service.js";
 import { teamLogoUrl } from "../utils/team-logo.js";
 import { STARTING_TOTAL_POINTS } from "../points/points.constants.js";
 import { publicProfileNames } from "../users/profile-names.js";
+import { wagerView } from "../wagers/wagers.service.js";
 
 export const createLeagueSchema = z.object({
   name: z.string().trim().min(3).max(50),
@@ -587,9 +588,12 @@ export async function getLeagueMemberPredictions(
   const profileData = profile.data()!;
   const names = publicProfileNames(profileData);
   const favoriteTeamId = profileData.favoriteTeamId as string | undefined;
-  const [fixtures, team] = await Promise.all([
+  const [fixtures, team, wager] = await Promise.all([
     selectedGameweek ? getFixturesForGameweek(selectedGameweek.id) : Promise.resolve([]),
     favoriteTeamId ? firestore.collection("teams").doc(favoriteTeamId).get() : null,
+    selectedGameweek
+      ? firestore.collection("wagers").doc(`${memberUserId}_${selectedGameweek.id}`).get()
+      : null,
   ]);
   const predictionSnapshots = await Promise.all(fixtures.map((fixture) =>
     firestore.collection("predictions").doc(`${memberUserId}_${fixture.id}`).get()));
@@ -606,6 +610,7 @@ export async function getLeagueMemberPredictions(
     gameweeks: availableGameweeks.map(({ id, roundNumber }) => ({ id, roundNumber })),
     selectedGameweek: selectedGameweek ? { id: selectedGameweek.id, roundNumber: selectedGameweek.roundNumber } : null,
     eligibility: { startsGameweek: startRound },
+    wager: wager?.exists ? wagerView(wager.id, wager.data()!) : null,
     fixtures: fixtures.map((fixture) => {
       const prediction = predictions.get(fixture.id);
       return {

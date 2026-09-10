@@ -473,6 +473,13 @@ input.validation-invalid:focus { border-color: #d0443a; box-shadow: 0 0 0 4px rg
 .player-fixture { display: grid; gap: 10px; }
 .player-fixture span { display: flex; align-items: center; gap: 10px; font: 700 13px 'Manrope'; }
 .player-fixture img { width: 25px; height: 25px; object-fit: contain; }
+.player-wager-summary { width: fit-content; display: flex; align-items: center; gap: 8px; margin-top: 2px; padding: 7px 10px; border: 1px solid #d5dfb0; background: #f7f9e9; color: #526a15; }
+.player-wager-summary > svg { flex: 0 0 auto; width: 15px; height: 15px; }
+.player-wager-summary > div { display: grid; gap: 2px; }
+.player-wager-summary strong { font: 800 10px 'Manrope'; }
+.player-wager-summary small { color: #65758a; font-size: 9px; }
+.player-wager-summary.won { border-color: #afd8bf; background: #edf8f1; color: #08743d; }
+.player-wager-summary.lost { border-color: #e3bbbb; background: #fcf1f1; color: #a13b3b; }
 .player-points { display: grid; gap: 4px; }
 .player-points strong { font: 800 18px 'Manrope'; }
 .player-points small { color: #78869a; font-size: 10px; }
@@ -657,6 +664,8 @@ input.validation-invalid:focus { border-color: #d0443a; box-shadow: 0 0 0 4px rg
   .player-prediction-row { grid-template-columns: minmax(0,1fr) 65px 65px 75px; gap: 8px; padding-inline: 5px; }
   .player-fixture span { gap: 6px; font-size: 11px; }
   .player-fixture img { width: 21px; height: 21px; }
+  .player-wager-summary { max-width: 100%; padding: 6px 7px; }
+  .player-wager-summary strong { font-size: 9px; line-height: 1.35; }
   .player-prediction-row > strong, .player-points strong { font-size: 15px; }
   .player-points small { font-size: 9px; }
 }

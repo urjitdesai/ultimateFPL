@@ -10,7 +10,7 @@ import { isCurrentPredictionGameweek, isUserEligibleForGameweek } from "../predi
 import { Timestamp } from "firebase-admin/firestore";
 import { getGameweekStatus, selectJoinGameweek, type Gameweek } from "../gameweeks/gameweeks.service.js";
 import { createdLeagueLimitReached, defaultLeagueRecords, generateInviteCode, getMembershipStartRound, normalizeInviteCode, privateLeagueMemberLimitReached, rankLeagueStandings, selectStandingsGameweeks, selectStandingsSnapshot } from "../leagues/leagues.service.js";
-import { fixtureOutcome, settleWager, teamsOnCooldown } from "../wagers/wagers.service.js";
+import { fixtureOutcome, settleWager, teamsOnCooldown, wagerView } from "../wagers/wagers.service.js";
 import { gameweekSubmissionSchema } from "../predictions/gameweek-submission.service.js";
 import { validatePurgeTarget } from "../config/purge-safety.js";
 import { createRateLimit } from "../middleware/rate-limits.js";
@@ -330,6 +330,28 @@ describe("foundation API", () => {
       { id: "season-1_gameweek_1", name: "Gameweek 1", favoriteTeamId: null, roundNumber: 1 },
       { id: "season-1_gameweek_2", name: "Gameweek 2", favoriteTeamId: null, roundNumber: 2 },
     ]);
+  });
+
+  it("builds the public wager details shown with league player predictions", () => {
+    expect(wagerView("wager-1", {
+      fixtureId: "fixture-1",
+      gameweekId: "gameweek-1",
+      roundNumber: 1,
+      selection: "HOME_WIN",
+      stakePoints: 10,
+      status: "WON",
+      returnPoints: 20,
+      userId: "private-user-id",
+    })).toEqual({
+      id: "wager-1",
+      fixtureId: "fixture-1",
+      gameweekId: "gameweek-1",
+      roundNumber: 1,
+      selection: "HOME_WIN",
+      stakePoints: 10,
+      status: "WON",
+      returnPoints: 20,
+    });
   });
 
   it("creates deterministic result versions only for completed scores", () => {

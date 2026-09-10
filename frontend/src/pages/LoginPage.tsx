@@ -5,8 +5,7 @@ import { api, ApiError } from "../api";
 import { googleSignInErrorMessage, loginErrorMessage } from "../auth/auth-errors";
 import { hasPendingOnboarding } from "../auth/onboarding-state";
 import { useAuth } from "../auth/AuthContext";
-import { lookupGoogleProfile } from "../auth/google-profile";
-import { APP_NAME } from "../brand";
+import { googleLoginDestination, lookupGoogleProfile } from "../auth/google-profile";
 import { AuthShell } from "../components/AuthShell";
 import { GoogleMark } from "../components/GoogleMark";
 import { auth, googleProvider } from "../firebase/client";
@@ -51,12 +50,11 @@ export function LoginPage() {
       try {
         const result = await lookupGoogleProfile(user);
         if (result.kind === "missing") {
-          await logout().catch(() => undefined);
-          setError(`No ${APP_NAME} account exists for this Google account. Sign up first, then try logging in again.`);
+          navigate(googleLoginDestination(result, false));
           return;
         }
         setProfile(result.profile);
-        navigate(hasPendingOnboarding(user.uid) ? "/onboarding" : "/dashboard");
+        navigate(googleLoginDestination(result, hasPendingOnboarding(user.uid)));
       } catch {
         await logout().catch(() => undefined);
         setError("Your Google login succeeded, but your player profile could not be loaded. Try again in a moment.");

@@ -52,6 +52,6 @@ web-app credentials as their corresponding environments.
 On the registration page, new Google users are sent to `/complete-profile` to
 choose their favorite team. Existing Google users are directed to log in.
 
-On the login page, Google login is accepted only when the Google user already
-has an Ultimate FPL player profile. A user without a profile is signed out and
-shown an error directing them to register first.
+On the login page, an existing Google user is taken to their dashboard or any
+pending onboarding. A Google user without an Ultimate FPL player profile stays
+signed in and is taken directly to profile setup to complete registration.

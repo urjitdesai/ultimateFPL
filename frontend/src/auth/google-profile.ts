@@ -5,6 +5,11 @@ export type GoogleProfileLookup =
   | { kind: "existing"; profile: Profile }
   | { kind: "missing" };
 
+export function googleLoginDestination(result: GoogleProfileLookup, onboardingPending: boolean) {
+  if (result.kind === "missing") return "/complete-profile";
+  return onboardingPending ? "/onboarding" : "/dashboard";
+}
+
 export async function lookupGoogleProfile(user: User): Promise<GoogleProfileLookup> {
   try {
     return { kind: "existing", profile: await api.profile(user) };

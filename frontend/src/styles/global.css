@@ -510,14 +510,15 @@ input.validation-invalid:focus { border-color: #d0443a; box-shadow: 0 0 0 4px rg
 .player-points strong { font: 800 18px 'Manrope'; }
 .player-points small { color: #78869a; font-size: 10px; }
 .player-points.earned strong { color: #4e7800; }
-.player-history-row.has-wager { position: relative; z-index: 1; border-left: 4px solid #16834b; padding-left: 14px; background: linear-gradient(90deg, #f4fbf6 0, #fff 34%); box-shadow: 0 8px 22px rgba(22, 131, 75, .11); }
-.player-history-row.wager-lost { border-left-color: #bc5555; background: linear-gradient(90deg, #fdf5f5 0, #fff 34%); box-shadow: 0 8px 22px rgba(188, 85, 85, .1); }
+.player-history-row.has-wager { border-left: 0; padding-left: 18px; background: #fff; box-shadow: none; }
+.player-history-row.wager-lost { border-left: 0; padding-left: 18px; background: #fff; box-shadow: none; }
 .player-history-row .prediction-cell { min-height: 111px; }
 .player-history-row .prediction-wager-summary { font-size: 9px; }
 .player-history-row .prediction-wager-summary svg { width: 12px; height: 12px; }
-.player-history-row .prediction-wager-summary { box-shadow: 0 5px 13px rgba(8, 116, 61, .12); }
-.player-history-row .prediction-wager-summary.lost { box-shadow: 0 5px 13px rgba(161, 59, 59, .1); }
-.player-history-row .result-comparison strong { display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+.player-history-row .prediction-wager-summary { box-shadow: none; }
+.player-history-row .prediction-wager-summary.lost { box-shadow: none; }
+.player-history-row .result-comparison { grid-template-columns: 58px 58px 1fr; }
+.player-history-row .result-comparison strong { display: inline-flex; align-items: center; justify-content: center; gap: 5px; white-space: nowrap; }
 .player-history-row .result-comparison strong svg { flex: 0 0 auto; width: 17px; height: 17px; color: #799900; }
 
 @media (max-width: 920px) {

@@ -484,6 +484,9 @@ input.validation-invalid:focus { border-color: #d0443a; box-shadow: 0 0 0 4px rg
 .player-prediction-list { border-top: 1px solid #cbd4df; }
 .player-prediction-head, .player-prediction-row { display: grid; grid-template-columns: minmax(320px, 1fr) 130px 130px 150px; align-items: center; gap: 24px; }
 .player-history-head, .player-history-row { grid-template-columns: minmax(0, 1fr) 230px minmax(0, 1fr); }
+.player-history-head span { text-align: left; }
+.player-history-head span:nth-child(2) { text-align: center; }
+.player-history-head span:nth-child(3) { text-align: right; }
 .player-prediction-head { min-height: 40px; padding: 0 18px; color: #758399; font: 800 10px 'Manrope'; letter-spacing: .09em; text-transform: uppercase; }
 .player-prediction-row { min-height: 100px; padding: 14px 18px; border-top: 1px solid #dde4ec; transition: background .15s ease; }
 .player-prediction-row.has-wager { border-left: 4px solid #16834b; padding-left: 14px; background: linear-gradient(90deg, #f4fbf6 0, #fff 34%); }

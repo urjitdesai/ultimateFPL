@@ -10,7 +10,7 @@ a { color: #064fd9; font-weight: 700; text-underline-offset: 3px; }
 .auth-shell { min-height: 100vh; display: grid; grid-template-columns: minmax(390px, 42%) 1fr; background: white; }
 .brand-panel { position: relative; overflow: hidden; padding: 32px 42px; color: white; background: var(--navy) url('/matchday-stadium.png') center/cover no-repeat; display: flex; flex-direction: column; justify-content: space-between; }
 .brand-panel::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(3,16,39,.12), rgba(3,16,39,.02)); pointer-events: none; }
-.brand-wordmark, .brand-copy, .disclaimer { position: relative; z-index: 1; }
+.brand-wordmark, .brand-copy, .brand-legal { position: relative; z-index: 1; }
 .brand-logo { display: block; object-fit: contain; }
 .brand-wordmark { display: flex; align-items: center; gap: 11px; font: 700 18px 'Manrope'; letter-spacing: -.03em; }
 .brand-wordmark .brand-logo { width: 33px; height: 33px; }
@@ -19,6 +19,10 @@ a { color: #064fd9; font-weight: 700; text-underline-offset: 3px; }
 .brand-copy h1 span { color: var(--lime); }
 .brand-copy p { max-width: 410px; margin: 25px 0 0; font-size: 18px; line-height: 1.55; color: #d8e4f4; }
 .disclaimer { max-width: 490px; margin: 0; color: #a9b8cb; font-size: 12px; line-height: 1.5; }
+.brand-legal { display: grid; gap: 5px; }
+.legal-links { display: flex; align-items: center; gap: 8px; color: #8192a8; font-size: 11px; }
+.legal-links a { color: inherit; font-weight: 700; text-decoration-thickness: 1px; }
+.legal-links a:hover, .legal-links a:focus-visible { color: var(--lime); }
 .form-stage { display: grid; place-items: center; padding: 44px clamp(30px,6vw,100px); background: radial-gradient(circle at 80% 12%, #eef5ff 0, transparent 31%), #fff; }
 .mobile-brand { display: none; }
 .auth-card { width: min(100%, 650px); }
@@ -120,7 +124,34 @@ input.validation-invalid:focus { border-color: #d0443a; box-shadow: 0 0 0 4px rg
 .welcome-float-points { top: 15%; right: 2%; }
 .welcome-float-rank { bottom: 13%; left: 3%; animation-delay: -3s; }
 .welcome-float-rank i { color: var(--lime); font-style: normal; font-size: 10px; }
-.welcome-footer { display: flex; justify-content: space-between; color: #71859e; font: 600 11px 'Manrope'; }
+.welcome-footer { display: flex; justify-content: space-between; align-items: end; gap: 28px; color: #71859e; font: 600 11px 'Manrope'; }
+.welcome-legal { display: grid; justify-items: end; gap: 5px; text-align: right; }
+.welcome-legal .legal-links { justify-content: flex-end; font: 700 10px 'Manrope'; }
+
+.legal-page { min-height: 100vh; padding: 0 clamp(22px, 5vw, 72px); background: #f5f7fa; color: var(--ink); }
+.legal-header { min-height: 82px; display: flex; align-items: center; justify-content: space-between; gap: 24px; border-bottom: 1px solid #dce3eb; }
+.legal-brand { display: flex; align-items: center; gap: 10px; color: var(--navy); font: 800 17px 'Manrope'; letter-spacing: -.035em; text-decoration: none; }
+.legal-brand .brand-logo { width: 34px; height: 34px; }
+.legal-document { width: min(100%, 920px); margin: 0 auto; padding: 74px 0 82px; }
+.legal-title { display: grid; justify-items: start; padding-bottom: 42px; border-bottom: 1px solid #d6dee8; }
+.legal-back-link { margin-bottom: 34px; color: #395069; font: 700 12px 'Manrope'; }
+.legal-back-link:hover, .legal-back-link:focus-visible { color: #064fd9; }
+.legal-title > span { color: #5c7900; font: 800 11px 'Manrope'; letter-spacing: .12em; text-transform: uppercase; }
+.legal-title h1 { margin: 12px 0 16px; color: var(--navy); font: 800 clamp(42px, 6vw, 68px)/1 'Manrope'; letter-spacing: -.06em; }
+.legal-title p { max-width: 690px; margin: 0 0 17px; color: #5d6e82; font-size: 17px; line-height: 1.6; }
+.legal-title small { color: #748397; font-size: 12px; }
+.legal-content { padding-top: 18px; counter-reset: legal-section; }
+.legal-content section { padding: 30px 0 4px; }
+.legal-content h2 { margin: 0 0 13px; color: #142840; font: 800 20px 'Manrope'; letter-spacing: -.025em; }
+.legal-content p, .legal-content li { color: #52657a; font-size: 14px; line-height: 1.75; }
+.legal-content p { margin: 0 0 12px; }
+.legal-content ul { display: grid; gap: 8px; margin: 0; padding-left: 22px; }
+.legal-content strong { color: #263c55; }
+.legal-content a { font-weight: 700; }
+.legal-footer { width: min(100%, 920px); display: flex; align-items: end; justify-content: space-between; gap: 24px; margin: 0 auto; padding: 24px 0 30px; border-top: 1px solid #d6dee8; }
+.legal-footer p { max-width: 560px; margin: 0; color: #78879a; font-size: 11px; line-height: 1.5; }
+.legal-footer .legal-links { flex: 0 0 auto; }
+.legal-footer .legal-links a:hover, .legal-footer .legal-links a:focus-visible { color: #064fd9; }
 .welcome-glow { position: absolute; border-radius: 50%; filter: blur(2px); pointer-events: none; }
 .welcome-glow-one { width: 38vw; height: 38vw; right: -14vw; top: -18vw; background: rgba(21,94,239,.16); }
 .welcome-glow-two { width: 30vw; height: 30vw; left: -18vw; bottom: -20vw; background: rgba(189,243,0,.08); }
@@ -465,7 +496,23 @@ input.validation-invalid:focus { border-color: #d0443a; box-shadow: 0 0 0 4px rg
   .welcome-float-card { padding: 9px 11px; }
   .welcome-float-points { top: 2%; right: 0; }
   .welcome-float-rank { bottom: 1%; left: 0; }
-  .welcome-footer { font-size: 9px; }
+  .welcome-footer { align-items: start; font-size: 9px; }
+  .welcome-footer > span:first-child { display: none; }
+  .welcome-legal { width: 100%; justify-items: center; text-align: center; line-height: 1.45; }
+  .welcome-legal .legal-links { justify-content: center; }
+  .legal-page { padding-inline: 20px; }
+  .legal-header { min-height: 70px; }
+  .legal-brand { font-size: 14px; }
+  .legal-brand .brand-logo { width: 30px; height: 30px; }
+  .legal-document { padding: 48px 0 55px; }
+  .legal-title { padding-bottom: 30px; }
+  .legal-back-link { margin-bottom: 28px; font-size: 11px; }
+  .legal-title h1 { font-size: clamp(38px, 12vw, 52px); }
+  .legal-title p { font-size: 15px; }
+  .legal-content section { padding-top: 26px; }
+  .legal-content h2 { font-size: 18px; }
+  .legal-content p, .legal-content li { font-size: 13px; }
+  .legal-footer { align-items: start; flex-direction: column; }
   .welcome-glow-one { width: 80vw; height: 80vw; right: -30vw; top: -32vw; }
   .welcome-glow-two { width: 70vw; height: 70vw; left: -40vw; bottom: -38vw; }
   .auth-shell { display: block; background: white; }

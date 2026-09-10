@@ -1,6 +1,7 @@
 import { ArrowRight, BarChart3, Check, Target, Trophy } from "lucide-react";
 import { APP_NAME } from "../brand";
 import { BrandLogo } from "../components/BrandLogo";
+import { LegalLinks } from "../components/LegalLinks";
 import { navigate } from "../navigation";
 
 export function WelcomePage() {
@@ -17,6 +18,6 @@ export function WelcomePage() {
         <div className="welcome-float-card welcome-float-rank"><Trophy /><span><small>League rank</small><strong>#04 <i>↑ 3</i></strong></span></div>
       </div>
     </section>
-    <footer className="welcome-footer"><span>Make every score matter.</span><span>Independent prediction game</span></footer>
+    <footer className="welcome-footer"><span>Make every score matter.</span><div className="welcome-legal"><span>Independent prediction game. Not affiliated with the Premier League or its clubs.</span><LegalLinks /></div></footer>
   </main>;
 }

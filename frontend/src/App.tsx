@@ -9,6 +9,7 @@ import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { CompleteProfilePage } from "./pages/CompleteProfilePage";
 import { OnboardingPage } from "./pages/OnboardingPage";
 import { WelcomePage } from "./pages/WelcomePage";
+import { PrivacyPage, TermsPage } from "./pages/LegalPage";
 import { navigate } from "./navigation";
 
 export function App() {
@@ -16,12 +17,14 @@ export function App() {
   useEffect(() => {
     const update = () => setPath(window.location.pathname);
     window.addEventListener("popstate", update);
-    const knownPath = ["/register", "/login", "/forgot-password", "/complete-profile", "/onboarding", "/dashboard", "/leagues"].includes(path) || /^\/leagues\/[^/]+(?:\/players\/[^/]+)?$/.test(path);
+    const knownPath = ["/register", "/login", "/forgot-password", "/complete-profile", "/onboarding", "/dashboard", "/leagues", "/terms", "/privacy"].includes(path) || /^\/leagues\/[^/]+(?:\/players\/[^/]+)?$/.test(path);
     if (!knownPath && path !== "/") navigate("/register", true);
     return () => window.removeEventListener("popstate", update);
   }, [path]);
   if (path === "/login") return <LoginPage />;
   if (path === "/") return <WelcomePage />;
+  if (path === "/terms") return <TermsPage />;
+  if (path === "/privacy") return <PrivacyPage />;
   if (path === "/forgot-password") return <ForgotPasswordPage />;
   if (path === "/complete-profile") return <CompleteProfilePage />;
   if (path === "/onboarding") return <OnboardingPage />;

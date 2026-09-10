@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Wager } from "./api";
-import { playerWagerResultLabel, playerWagerSelectionLabel, wagerNetPoints } from "./player-wager";
+import { playerGameweekPoints, playerWagerResultLabel, playerWagerSelectionLabel, wagerNetPoints } from "./player-wager";
 
 const wonWager: Wager = {
   id: "wager-1",
@@ -24,5 +24,14 @@ describe("league player wager details", () => {
   it("shows lost and pending wager outcomes", () => {
     expect(playerWagerResultLabel({ ...wonWager, status: "LOST", returnPoints: 0 })).toBe("Wager lost · -10 pts");
     expect(playerWagerResultLabel({ ...wonWager, status: "OPEN", returnPoints: null })).toBe("Wager result pending");
+  });
+
+  it("adds the net wager win to the prediction points", () => {
+    const fiftyPointWager = { ...wonWager, stakePoints: 50, returnPoints: 100 };
+    expect(playerGameweekPoints(23, fiftyPointWager)).toEqual({
+      predictionPoints: 23,
+      wagerPoints: 50,
+      totalPoints: 73,
+    });
   });
 });

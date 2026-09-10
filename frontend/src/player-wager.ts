@@ -9,6 +9,11 @@ export function wagerNetPoints(wager: Wager) {
   return Number(wager.returnPoints ?? 0) - wager.stakePoints;
 }
 
+export function playerGameweekPoints(predictionPoints: number, wager: Wager | null) {
+  const wagerPoints = wager ? wagerNetPoints(wager) : 0;
+  return { predictionPoints, wagerPoints, totalPoints: predictionPoints + wagerPoints };
+}
+
 export function playerWagerSelectionLabel(wager: Wager, fixture: FixtureTeams) {
   if (wager.selection === "HOME_WIN") return `${fixture.homeTeam.name} win`;
   if (wager.selection === "AWAY_WIN") return `${fixture.awayTeam.name} win`;

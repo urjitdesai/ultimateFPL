@@ -460,26 +460,48 @@ input.validation-invalid:focus { border-color: #d0443a; box-shadow: 0 0 0 4px rg
 .total-points { font-size: 20px; }
 .standings-table { transition: opacity .16s ease; }
 .standings-table.is-loading { opacity: .55; pointer-events: none; }
-.player-predictions-content { width: min(100%, 1120px); margin: 0 auto; padding: 34px clamp(20px, 5vw, 64px) 80px; }
-.gameweek-picker { width: fit-content; display: flex; align-items: center; gap: 10px; margin: 0 0 28px auto; color: #65758b; font: 800 11px 'Manrope'; letter-spacing: .06em; text-transform: uppercase; }
+.player-predictions-hero { padding-top: 34px; padding-bottom: 38px; }
+.player-hero-layout { display: flex; align-items: flex-end; justify-content: space-between; gap: 44px; }
+.player-hero-copy { min-width: 0; }
+.player-hero-copy > span { color: var(--lime); font: 800 11px 'Manrope'; letter-spacing: .16em; text-transform: uppercase; }
+.player-hero-copy h1 { max-width: 800px; }
+.player-score-summary { flex: 0 0 auto; min-width: 430px; display: grid; grid-template-columns: repeat(3, minmax(125px, 1fr)); border: 1px solid #34445b; }
+.player-score-summary > div { min-height: 94px; position: relative; display: grid; align-content: center; gap: 4px; padding: 16px 18px; }
+.player-score-summary > div + div { border-left: 1px solid #34445b; }
+.player-score-summary svg { position: absolute; top: 16px; right: 16px; width: 16px; height: 16px; color: #8999ad; }
+.player-score-summary span { color: #aebdd0; font-size: 10px; font-weight: 700; }
+.player-score-summary strong { color: #fff; font: 800 31px/1 'Manrope'; }
+.player-score-summary .is-positive strong, .player-score-summary .is-positive svg, .player-score-summary .player-score-total strong, .player-score-summary .player-score-total svg { color: var(--lime); }
+.player-score-summary .is-negative strong, .player-score-summary .is-negative svg { color: #ff9f9f; }
+.player-score-summary .player-score-total { background: rgba(189, 243, 0, .06); }
+.player-predictions-content { width: min(100%, 1240px); margin: 0 auto; padding: 38px clamp(20px, 5vw, 64px) 80px; }
+.player-results-toolbar { display: flex; align-items: flex-end; justify-content: space-between; gap: 28px; margin-bottom: 28px; }
+.player-results-toolbar h2 { margin: 0; font: 800 29px 'Manrope'; letter-spacing: -.045em; }
+.player-results-toolbar p { margin: 5px 0 0; color: #6b7a90; font-size: 13px; }
+.gameweek-picker { width: fit-content; display: flex; align-items: center; gap: 10px; margin: 0; color: #65758b; font: 800 11px 'Manrope'; letter-spacing: .06em; text-transform: uppercase; }
 .gameweek-picker svg { width: 17px; color: #638000; }
 .gameweek-picker select { height: 38px; padding: 0 34px 0 12px; border: 1px solid #cbd4df; background: #fff; color: var(--ink); font: 700 12px 'Manrope'; }
 .player-prediction-list { border-top: 1px solid #cbd4df; }
-.player-prediction-head, .player-prediction-row { display: grid; grid-template-columns: minmax(280px, 1fr) 130px 130px 150px; align-items: center; gap: 24px; }
+.player-prediction-head, .player-prediction-row { display: grid; grid-template-columns: minmax(320px, 1fr) 130px 130px 150px; align-items: center; gap: 24px; }
 .player-prediction-head { min-height: 40px; padding: 0 18px; color: #758399; font: 800 10px 'Manrope'; letter-spacing: .09em; text-transform: uppercase; }
-.player-prediction-row { min-height: 94px; padding: 12px 18px; border-top: 1px solid #dde4ec; }
-.player-prediction-row > strong { display: flex; align-items: center; gap: 8px; font: 800 20px 'Manrope'; }
-.player-prediction-row > strong svg { width: 16px; color: #799900; }
-.player-fixture { display: grid; gap: 10px; }
-.player-fixture span { display: flex; align-items: center; gap: 10px; font: 700 13px 'Manrope'; }
+.player-prediction-row { min-height: 100px; padding: 14px 18px; border-top: 1px solid #dde4ec; transition: background .15s ease; }
+.player-prediction-row.has-wager { border-left: 4px solid #16834b; padding-left: 14px; background: linear-gradient(90deg, #f4fbf6 0, #fff 34%); }
+.player-prediction-row.wager-lost { border-left-color: #bc5555; background: linear-gradient(90deg, #fdf5f5 0, #fff 34%); }
+.player-fixture { display: flex; align-items: center; justify-content: space-between; gap: 18px; min-width: 0; }
+.player-team-pair { display: grid; gap: 10px; min-width: 0; }
+.player-fixture span { display: flex; align-items: center; gap: 10px; min-width: 0; font: 700 13px 'Manrope'; }
 .player-fixture img { width: 25px; height: 25px; object-fit: contain; }
-.player-wager-summary { width: fit-content; display: flex; align-items: center; gap: 8px; margin-top: 2px; padding: 7px 10px; border: 1px solid #d5dfb0; background: #f7f9e9; color: #526a15; }
+.player-wager-summary { flex: 0 1 190px; min-width: 160px; display: flex; align-items: center; gap: 9px; padding: 9px 11px; border: 1px solid #d5dfb0; background: #f7f9e9; color: #526a15; }
 .player-wager-summary > svg { flex: 0 0 auto; width: 15px; height: 15px; }
 .player-wager-summary > div { display: grid; gap: 2px; }
-.player-wager-summary strong { font: 800 10px 'Manrope'; }
-.player-wager-summary small { color: #65758a; font-size: 9px; }
+.player-wager-summary strong { font: 800 10px/1.35 'Manrope'; }
+.player-wager-summary small { color: #65758a; font-size: 9px; font-weight: 700; }
 .player-wager-summary.won { border-color: #afd8bf; background: #edf8f1; color: #08743d; }
 .player-wager-summary.lost { border-color: #e3bbbb; background: #fcf1f1; color: #a13b3b; }
+.player-score-cell { display: grid; gap: 3px; }
+.player-score-cell > span, .player-points > span { display: none; color: #7a899d; font: 800 9px 'Manrope'; letter-spacing: .06em; text-transform: uppercase; }
+.player-score-cell > strong { display: flex; align-items: center; gap: 8px; font: 800 20px 'Manrope'; }
+.player-score-cell > strong svg { width: 16px; color: #799900; }
 .player-points { display: grid; gap: 4px; }
 .player-points strong { font: 800 18px 'Manrope'; }
 .player-points small { color: #78869a; font-size: 10px; }
@@ -658,16 +680,40 @@ input.validation-invalid:focus { border-color: #d0443a; box-shadow: 0 0 0 4px rg
   .rank-number { font-size: 18px; }
   .rank-movement { font-size: 10px; }
   .total-points { font-size: 16px; }
-  .player-predictions-content { padding: 24px 14px 55px; }
-  .gameweek-picker { margin-left: 0; }
+  .player-hero-layout { align-items: stretch; flex-direction: column; gap: 24px; }
+  .player-score-summary { width: 100%; min-width: 0; }
+  .player-predictions-content { padding: 28px 20px 76px; }
+  .player-results-toolbar { align-items: flex-start; flex-direction: column; gap: 18px; }
   .player-prediction-head { display: none; }
-  .player-prediction-row { grid-template-columns: minmax(0,1fr) 65px 65px 75px; gap: 8px; padding-inline: 5px; }
-  .player-fixture span { gap: 6px; font-size: 11px; }
-  .player-fixture img { width: 21px; height: 21px; }
-  .player-wager-summary { max-width: 100%; padding: 6px 7px; }
+  .player-prediction-list { display: grid; gap: 12px; border-top: 0; }
+  .player-prediction-row { min-height: 0; grid-template-columns: minmax(0,1fr) repeat(3, minmax(64px, auto)); gap: 12px; padding: 16px; border: 1px solid #dde4ec; }
+  .player-prediction-row.has-wager { padding-left: 12px; border-left-width: 4px; background: #f7fbf8; }
+  .player-fixture { align-items: flex-start; flex-direction: column; gap: 12px; }
+  .player-fixture span { gap: 7px; font-size: 11px; }
+  .player-fixture img { width: 22px; height: 22px; }
+  .player-wager-summary { flex: none; min-width: 0; max-width: 100%; padding: 7px 8px; }
   .player-wager-summary strong { font-size: 9px; line-height: 1.35; }
-  .player-prediction-row > strong, .player-points strong { font-size: 15px; }
+  .player-score-cell > span, .player-points > span { display: block; }
+  .player-score-cell > strong, .player-points strong { font-size: 15px; }
   .player-points small { font-size: 9px; }
+}
+@media (max-width: 600px) {
+  .player-predictions-hero { padding-top: 24px; padding-bottom: 26px; }
+  .player-predictions-hero > button { margin-bottom: 22px; }
+  .player-hero-copy h1 { font-size: clamp(34px, 11vw, 46px); overflow-wrap: anywhere; }
+  .player-score-summary { grid-template-columns: repeat(2, 1fr); }
+  .player-score-summary > div { min-height: 78px; padding: 13px 14px; }
+  .player-score-summary > div:nth-child(3) { grid-column: 1 / -1; border-top: 1px solid #34445b; border-left: 0; }
+  .player-score-summary strong { font-size: 26px; }
+  .player-score-summary svg { top: 12px; right: 13px; width: 14px; height: 14px; }
+  .player-predictions-content { padding-inline: 14px; }
+  .player-results-toolbar h2 { font-size: 25px; }
+  .gameweek-picker { width: 100%; display: grid; grid-template-columns: 18px auto minmax(0, 1fr); }
+  .player-prediction-row { grid-template-columns: repeat(3, 1fr); gap: 16px 8px; }
+  .player-fixture { grid-column: 1 / -1; }
+  .player-wager-summary { width: 100%; }
+  .player-score-cell, .player-points { min-width: 0; }
+  .player-score-cell > strong, .player-points strong { font-size: 17px; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; } }
 

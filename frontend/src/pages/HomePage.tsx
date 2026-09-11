@@ -26,6 +26,12 @@ function formatPredictionDeadline(startsAt: string) {
   return formatKickoff(new Date(new Date(startsAt).getTime() - GAMEWEEK_LOCK_LEAD_MS).toISOString());
 }
 
+function getCurrentGameweek(gameweeks: Gameweek[]) {
+  return gameweeks.find((gameweek) => gameweek.status === "ACTIVE")
+    ?? gameweeks.find((gameweek) => gameweek.status === "UPCOMING")
+    ?? gameweeks.at(-1);
+}
+
 function wagerSelectionForScore(score: { home: string; away: string }): WagerSelection | null {
   if (score.home === "" || score.away === "") return null;
   if (Number(score.home) > Number(score.away)) return "HOME_WIN";
@@ -59,7 +65,7 @@ export function HomePage() {
       if (!active) return;
       setGameweeks(nextGameweeks);
       setLeagues(nextLeagues);
-      const current = nextGameweeks.find((gameweek) => gameweek.status === "ACTIVE") ?? nextGameweeks.find((gameweek) => gameweek.status === "UPCOMING") ?? nextGameweeks.at(-1);
+      const current = getCurrentGameweek(nextGameweeks);
       setSelectedId(current?.id ?? "");
     }).catch(() => active && setError("We couldn't load matchday. Try again in a moment.")).finally(() => active && setLoading(false));
     return () => { active = false; };
@@ -92,6 +98,17 @@ export function HomePage() {
   }, [favoriteTeamId, selectedId, user]);
 
   const selected = useMemo(() => gameweeks.find((gameweek) => gameweek.id === selectedId), [gameweeks, selectedId]);
+  const currentGameweekId = getCurrentGameweek(gameweeks)?.id ?? "";
+
+  useEffect(() => {
+    const rail = railRef.current;
+    const currentGameweek = rail?.querySelector<HTMLElement>("[aria-current='true']");
+    if (!rail || !currentGameweek) return;
+    rail.scrollTo({
+      left: currentGameweek.offsetLeft - (rail.clientWidth - currentGameweek.clientWidth) / 2,
+      behavior: "smooth",
+    });
+  }, [currentGameweekId]);
 
   useEffect(() => {
     if (!user || !selectedId || !selected || selected.status === "UPCOMING"
@@ -180,7 +197,7 @@ export function HomePage() {
 
     <section className="matchday-band" id="gameweeks">
       <div className="matchday-overview"><div className="matchday-title"><h1>{selected?.status === "COMPLETE" ? `Gameweek ${selected.roundNumber} results` : view.predictionsOpen ? `Make your calls for Gameweek ${selected?.roundNumber ?? "—"}` : `Gameweek ${selected?.roundNumber ?? "—"} preview`}</h1><p><Clock3 /> {selected?.status === "COMPLETE" && selected.settlementStatus !== "FINALIZED" ? "Calculating points… Results update automatically." : selected ? view.predictionsOpen && predictionDeadline ? `Predictions lock one hour before the first fixture: ${predictionDeadline.date} at ${predictionDeadline.time}` : "Predictions are locked for this gameweek" : "Loading the next round"}</p></div><div className="score-summary"><div><Trophy /><span>Total points</span><strong>{displayedTotal}</strong></div><div><span>Gameweek points</span><strong>{displayedGameweekPoints}</strong></div></div></div>
-      <div className="gameweek-navigation"><button className="rail-arrow" aria-label="Earlier gameweeks" onClick={() => railRef.current?.scrollBy({ left: -420, behavior: "smooth" })}><ChevronLeft /></button><div className="gameweek-rail" ref={railRef}>{gameweeks.map((gameweek) => <button key={gameweek.id} className={gameweek.id === selectedId ? "selected" : ""} onClick={() => setSelectedId(gameweek.id)}><strong>Gameweek {gameweek.roundNumber}</strong><span>{formatRange(gameweek)}</span></button>)}</div><button className="rail-arrow" aria-label="Later gameweeks" onClick={() => railRef.current?.scrollBy({ left: 420, behavior: "smooth" })}><ChevronRight /></button></div>
+      <div className="gameweek-navigation"><button className="rail-arrow" aria-label="Earlier gameweeks" onClick={() => railRef.current?.scrollBy({ left: -420, behavior: "smooth" })}><ChevronLeft /></button><div className="gameweek-rail" ref={railRef}>{gameweeks.map((gameweek) => <button key={gameweek.id} aria-current={gameweek.id === currentGameweekId ? "true" : undefined} className={gameweek.id === selectedId ? "selected" : ""} onClick={() => setSelectedId(gameweek.id)}><strong>Gameweek {gameweek.roundNumber}</strong><span>{formatRange(gameweek)}</span></button>)}</div><button className="rail-arrow" aria-label="Later gameweeks" onClick={() => railRef.current?.scrollBy({ left: 420, behavior: "smooth" })}><ChevronRight /></button></div>
     </section>
 
     <section className="home-content"><div className="fixtures-section">

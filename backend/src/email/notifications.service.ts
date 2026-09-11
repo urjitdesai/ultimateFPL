@@ -4,6 +4,7 @@ import { firestore } from "../firebase/admin.js";
 import { getGameweeks, type Gameweek } from "../gameweeks/gameweeks.service.js";
 import { gameweekLockDeadline } from "../gameweeks/gameweek-deadline.js";
 import { sendEmail } from "./email.service.js";
+import { emailHasNotBeenAttempted } from "./email-delivery-policy.js";
 import { gameweekResultsEmail, predictionReminderEmail } from "./email-templates.js";
 import { predictionReminderSchedulesDue } from "./prediction-reminder-schedule.js";
 import { usersWithCompleteGameweekSubmission } from "./submission-status.js";
@@ -128,13 +129,8 @@ export async function queueGameweekResults(gameweeks: Gameweek[]) {
 
 export async function deliverPendingEmails(limit = 50) {
   if (!env.EMAIL_NOTIFICATIONS_ENABLED) return { sent: 0, failed: 0, cancelled: 0 };
-  const [pending, failedSnapshot] = await Promise.all([
-    firestore.collection("emailOutbox").where("status", "==", "PENDING").limit(limit).get(),
-    firestore.collection("emailOutbox").where("status", "==", "FAILED").limit(limit).get(),
-  ]);
-  const documents = [...pending.docs, ...failedSnapshot.docs]
-    .filter((document) => Number(document.data().attempts ?? 0) < 3)
-    .slice(0, limit);
+  const pending = await firestore.collection("emailOutbox").where("status", "==", "PENDING").limit(limit).get();
+  const documents = pending.docs;
   const reminderGameweeks = new Map(documents.flatMap((document) => {
     const gameweekId = reminderGameweekId(document.id, document.data());
     return gameweekId ? [[document.id, gameweekId] as const] : [];
@@ -147,6 +143,15 @@ export async function deliverPendingEmails(limit = 50) {
   let sent = 0; let failed = 0; let cancelled = 0;
   for (const document of documents) {
     const data = document.data();
+    if (!emailHasNotBeenAttempted(data.attempts)) {
+      await document.ref.set({
+        status: "FAILED",
+        error: data.error ?? "Email delivery retry disabled",
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+      failed += 1;
+      continue;
+    }
     const gameweekId = reminderGameweeks.get(document.id);
     if (gameweekId && submittedByGameweek.get(gameweekId)?.has(data.userId as string)) {
       await document.ref.set({
@@ -157,14 +162,19 @@ export async function deliverPendingEmails(limit = 50) {
       cancelled += 1;
       continue;
     }
+    await document.ref.set({
+      status: "SENDING",
+      attempts: 1,
+      attemptedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
     try {
       const result = await sendEmail({ to: data.to as string, subject: data.subject as string, html: data.html as string, text: data.text as string });
       await document.ref.set({ status: "SENT", providerMessageId: result.skipped ? null : result.provider.id ?? null, sentAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
       sent += 1;
     } catch (error) {
       failed += 1;
-      const attempts = Number(data.attempts ?? 0) + 1;
-      await document.ref.set({ status: attempts >= 3 ? "FAILED" : "PENDING", attempts, error: error instanceof Error ? error.message : "Email delivery failed", updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      await document.ref.set({ status: "FAILED", error: error instanceof Error ? error.message : "Email delivery failed", updatedAt: FieldValue.serverTimestamp() }, { merge: true });
     }
   }
   return { sent, failed, cancelled };

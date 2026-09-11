@@ -265,16 +265,23 @@ export async function runSyncAndScore() {
     if (refresh) await ensureDefaultLeagues();
     const scoring = await settleAndFinalizeGameweeks(executionId);
     const reminderCount = await queuePredictionReminders(nowMillis);
+    const resultEmailCount = await queueGameweekResults(scoring.finalizedGameweeks);
     const result = {
       status: "SUCCEEDED" as const,
       providerRequestCount: refresh?.providerRequestCount ?? 0,
       refreshed: refresh != null,
+      reminderCount,
+      resultEmailCount,
       ...scoring,
     };
-    const resultEmailCount = await queueGameweekResults(scoring.finalizedGameweeks);
-    const delivery = await deliverPendingEmails();
-    Object.assign(result, { reminderCount, resultEmailCount, emailDelivery: delivery });
     await syncRunRef.set({ ...result, completedAt: FieldValue.serverTimestamp() }, { merge: true });
+    void deliverPendingEmails()
+      .then((emailDelivery) => syncRunRef.set({ emailDelivery }, { merge: true }))
+      .catch((error) => console.error(JSON.stringify({
+        job: "sync-score-email-delivery",
+        status: "FAILED",
+        error: error instanceof Error ? error.message : "Unknown email delivery failure",
+      })));
     return result;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown sync-and-score failure";
